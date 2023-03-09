@@ -1,0 +1,20 @@
+[flake8]
+max-line-length = 88
+extend-ignore = E203, E501, E262, E265
+per-file-ignores =
+    setup.py:E121
+    bacpypes3/__init__.py:F401, E402
+    bacpypes3/ipv4/__init__.py:F401, E402
+    bacpypes3/ipv6/__init__.py:F401, E402
+    bacpypes3/json/__init__.py:F401, E402
+    bacpypes3/lib/__init__.py:F401, E402
+    bacpypes3/local/__init__.py:F401, E402
+    bacpypes3/rdf/__init__.py:F401, E402
+    bacpypes3/sc/__init__.py:F401, E402
+    bacpypes3/service/__init__.py:F401, E402
+    bacpypes3/vlan/__init__.py:F401, E402
+    tests/test_vlan/__init__.py:F401, E402
+    tests/test_utilities/__init__.py:F401, E402
+    tests/test_pdu/__init__.py:F401, E402
+    tests/test_primitive_data/__init__.py:F401, E402
+    tests/test_constructed_data/__init__.py:F401, E402

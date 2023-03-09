@@ -1,0 +1,17 @@
+[[source]]
+verify_ssl = true
+name = "pypi"
+url = "https://pypi.python.org/simple"
+
+[packages]
+bacpypes3 = {editable = true, path = "."}
+
+[dev-packages]
+rdflib = "*"
+websockets = "*"
+pyyaml = "*"
+black = "*"
+flake8 = "*"
+mypy = "*"
+pytest = "*"
+pytest-asyncio = "*"
