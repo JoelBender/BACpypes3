@@ -1,7 +1,7 @@
 #!/bin/bash
 
 # build a distribution
-. build_dist.sh
+. bdist.sh
 
 read -p "Upload to PyPI? [y/n/x] " yesno || exit 1
 
