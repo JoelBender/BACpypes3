@@ -23,7 +23,7 @@ echo
 ls -1 dist/
 echo
 
-# copy the wheel in to the docker samples
+# copy the wheel into the docker samples
 cp -v dist/*.whl samples/docker/
 
 echo
