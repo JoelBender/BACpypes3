@@ -7,6 +7,7 @@ url = "https://pypi.python.org/simple"
 bacpypes3 = {editable = true, path = "."}
 
 [dev-packages]
+ifaddr = "*"
 rdflib = "*"
 websockets = "*"
 pyyaml = "*"
