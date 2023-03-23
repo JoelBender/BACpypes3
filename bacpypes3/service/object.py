@@ -59,11 +59,10 @@ _log = ModuleLogger(globals())
 
 @bacpypes_debugging
 class ReadWritePropertyServices:
-
     _debug: Callable[..., None]
 
     device_object: Optional[DeviceObject]
-    deviceInfoCache: "DeviceInfoCache"  # noqa: F821
+    device_info_cache: "DeviceInfoCache"  # noqa: F821
 
     async def read_property(
         self,
@@ -111,7 +110,7 @@ class ReadWritePropertyServices:
             return None
 
         # get information about the device from the cache
-        device_info = self.deviceInfoCache.get_device_info(address)
+        device_info = self.device_info_cache.get_device_info(address)
         if _debug:
             ReadWritePropertyServices._debug("    - device_info: %r", device_info)
 
@@ -185,7 +184,7 @@ class ReadWritePropertyServices:
             )
 
         # get information about the device from the cache
-        device_info = self.deviceInfoCache.get_device_info(address)
+        device_info = self.device_info_cache.get_device_info(address)
         if _debug:
             ReadWritePropertyServices._debug("    - device_info: %r", device_info)
 
@@ -458,11 +457,10 @@ async def read_property_to_result_element(
 
 @bacpypes_debugging
 class ReadWritePropertyMultipleServices:
-
     _debug: Callable[..., None]
 
     device_object: Optional[DeviceObject]
-    deviceInfoCache: "DeviceInfoCache"  # noqa: F821
+    device_info_cache: "DeviceInfoCache"  # noqa: F821
 
     async def read_property_multiple(
         self,
@@ -475,7 +473,7 @@ class ReadWritePropertyMultipleServices:
             )
 
         # get information about the device from the cache
-        device_info = self.deviceInfoCache.get_device_info(address)
+        device_info = self.device_info_cache.get_device_info(address)
         if _debug:
             ReadWritePropertyMultipleServices._debug(
                 "    - device_info: %r", device_info

@@ -58,7 +58,6 @@ ABORTED = 7
 
 @bacpypes_debugging
 class SSM(DebugContents):
-
     transactionLabels = [
         "IDLE",
         "SEGMENTED_REQUEST",
@@ -116,7 +115,7 @@ class SSM(DebugContents):
 
         # save the address and get the device information
         self.pdu_address = pdu_address
-        self.device_info = sap.deviceInfoCache.get_device_info(pdu_address)
+        self.device_info = sap.device_info_cache.get_device_info(pdu_address)
         if _debug:
             SSM._debug("    - device_info: %r", self.device_info)
 
@@ -384,7 +383,6 @@ class SSM(DebugContents):
 
 @bacpypes_debugging
 class ClientSSM(SSM):
-
     _debug: Callable[..., None]
 
     def __init__(self, sap: ApplicationServiceAccessPoint, pdu_address) -> None:
@@ -399,7 +397,7 @@ class ClientSSM(SSM):
         if self.device_info:
             if _debug:
                 ClientSSM._debug("    - acquire device information")
-            self.ssmSAP.deviceInfoCache.acquire(self.device_info)
+            self.ssmSAP.device_info_cache.acquire(self.device_info)
 
     def set_state(self, newState: int, timer: int = 0) -> None:
         """This function is called when the client wants to change state."""
@@ -424,7 +422,7 @@ class ClientSSM(SSM):
             if self.device_info:
                 if _debug:
                     ClientSSM._debug("    - release device information")
-                self.ssmSAP.deviceInfoCache.release(self.device_info)
+                self.ssmSAP.device_info_cache.release(self.device_info)
 
     async def request(self, apdu: APDU) -> None:
         """This function is called by client transaction functions when it wants
@@ -957,7 +955,6 @@ class ClientSSM(SSM):
 
 @bacpypes_debugging
 class ServerSSM(SSM):
-
     _debug: Callable[..., None]
 
     def __init__(self, sap, pdu_address):
@@ -969,7 +966,7 @@ class ServerSSM(SSM):
         if self.device_info:
             if _debug:
                 ServerSSM._debug("    - acquire device information")
-            self.ssmSAP.deviceInfoCache.acquire(self.device_info)
+            self.ssmSAP.device_info_cache.acquire(self.device_info)
 
     def set_state(self, newState, timer=0):
         """This function is called when the client wants to change state."""
@@ -994,7 +991,7 @@ class ServerSSM(SSM):
             if self.device_info:
                 if _debug:
                     ClientSSM._debug("    - release device information")
-                self.ssmSAP.deviceInfoCache.release(self.device_info)
+                self.ssmSAP.device_info_cache.release(self.device_info)
 
     async def request(self, apdu):
         """This function is called by transaction functions to send
@@ -1238,7 +1235,7 @@ class ServerSSM(SSM):
 
                 if _debug:
                     ServerSSM._debug("    - tell the cache the info has been updated")
-                self.ssmSAP.deviceInfoCache.update_device_info(self.device_info)
+                self.ssmSAP.device_info_cache.update_device_info(self.device_info)
 
             elif self.device_info.segmentationSupported == "segmentedTransmit":
                 if _debug:
@@ -1249,7 +1246,7 @@ class ServerSSM(SSM):
 
                 if _debug:
                     ServerSSM._debug("    - tell the cache the info has been updated")
-                self.ssmSAP.deviceInfoCache.update_device_info(self.device_info)
+                self.ssmSAP.device_info_cache.update_device_info(self.device_info)
 
             elif self.device_info.segmentationSupported == "segmentedReceive":
                 pass
@@ -1506,20 +1503,19 @@ class ServerSSM(SSM):
 
 @bacpypes_debugging
 class ApplicationServiceAccessPoint(Client[PDU], ServiceAccessPoint):
-
     _debug: Callable[..., None]
 
     clientTransactions: List[ClientSSM]
     serverTransactions: List[ServerSSM]
 
     def __init__(
-        self, device_object=None, deviceInfoCache=None, sap=None, cid=None
+        self, device_object=None, device_info_cache=None, sap=None, cid=None
     ) -> None:
         if _debug:
             ApplicationServiceAccessPoint._debug(
-                "__init__ device_object=%r deviceInfoCache=%r sap=%r cid=%r",
+                "__init__ device_object=%r device_info_cache=%r sap=%r cid=%r",
                 device_object,
-                deviceInfoCache,
+                device_info_cache,
                 sap,
                 cid,
             )
@@ -1531,7 +1527,7 @@ class ApplicationServiceAccessPoint(Client[PDU], ServiceAccessPoint):
         # save a reference to the device object for segmentation settings
         # and the device information cache for peer settings
         self.device_object = device_object
-        self.deviceInfoCache = deviceInfoCache
+        self.device_info_cache = device_info_cache
 
         # running state machines
         self.clientTransactions = []

@@ -299,7 +299,7 @@ class CmdShell(Cmd):
         args = list(args)
 
         # get information about the device from the cache
-        device_info = app.deviceInfoCache.get_device_info(address)
+        device_info = app.device_info_cache.get_device_info(address)
         if _debug:
             CmdShell._debug("    - device_info: %r", device_info)
 
@@ -624,7 +624,8 @@ async def main() -> None:
     try:
         parser = SimpleArgumentParser(prog="bacpypes3")
         parser.add_argument(
-            "-v", "--version",
+            "-v",
+            "--version",
             help="print the version and exit",
             action="store_true",
             default=None,
@@ -638,24 +639,28 @@ async def main() -> None:
 
             try:
                 import ifaddr
+
                 print(f"ifaddr {ifaddr.__file__}")
             except ImportError:
                 print("ifaddr not installed")
-            
+
             try:
                 import rdflib
+
                 print(f"rdflib {rdflib.__version__} {rdflib.__file__}")
             except ImportError:
                 print("yaml not installed")
 
             try:
                 import websockets
+
                 print(f"websockets {websockets.__version__} {websockets.__file__}")
             except ImportError:
                 print("websockets not installed")
 
             try:
                 import yaml
+
                 print(f"pyyaml {yaml.__version__} {yaml.__file__}")
             except ImportError:
                 print("yaml not installed")

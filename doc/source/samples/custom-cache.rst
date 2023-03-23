@@ -1,8 +1,8 @@
 .. custom-routing-cache.py sample application
 
-.. _custom-routing-cache.py:
+.. _custom-cache.py:
 
-custom-routing-cache.py
-=======================
+custom-cache.py
+===============
 
 This is a long line of text.

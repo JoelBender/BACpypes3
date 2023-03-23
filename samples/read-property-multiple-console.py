@@ -51,7 +51,7 @@ class SampleCmd(Cmd):
         args = list(args)
 
         # get information about the device from the cache
-        device_info = app.deviceInfoCache.get_device_info(address)
+        device_info = app.device_info_cache.get_device_info(address)
         if _debug:
             SampleCmd._debug("    - device_info: %r", device_info)
 

@@ -57,7 +57,7 @@ class SampleCmd(Cmd):
         assert app
 
         # get information about the device from the application
-        device_info = app.deviceInfoCache.get_device_info(address)
+        device_info = app.device_info_cache.get_device_info(address)
         if _debug:
             SampleCmd._debug("    - device_info: %r", device_info)
 
@@ -96,7 +96,7 @@ class SampleCmd(Cmd):
         await self.response(str(response))
 
     def do_debug(self) -> None:
-        print(app.deviceInfoCache.cache)
+        print(app.device_info_cache.cache)
 
 
 async def main() -> None:
@@ -142,7 +142,7 @@ async def main() -> None:
         # give the application some device information, usually from an I-Am
         other_device_info = DeviceInfo(args.peer_id, peer_address)
         other_device_info.vendorID = 888
-        app.deviceInfoCache.update_device_info(other_device_info)
+        app.device_info_cache.update_device_info(other_device_info)
 
         # run until the console is done, canceled or EOF
         await console.fini.wait()

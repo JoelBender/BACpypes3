@@ -151,4 +151,4 @@ These samples are interesting bits and pieces.
 
     apdu-hex-decode.rst
     console-ase-sap.rst
-    custom-routing-cache.rst
+    custom-cache.rst

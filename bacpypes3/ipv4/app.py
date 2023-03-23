@@ -5,6 +5,7 @@ Application Module
 from __future__ import annotations
 
 import asyncio
+from typing import Optional
 
 from ..debugging import bacpypes_debugging, ModuleLogger
 
@@ -21,7 +22,7 @@ from .service import BIPForeign, BIPBBMD, UDPMultiplexer
 from .link import NormalLinkLayer
 
 # application starting point
-from ..app import Application
+from ..app import Application, DeviceInfoCache
 
 # basic services
 from ..service.device import WhoIsIAmServices, WhoHasIHaveServices
@@ -55,16 +56,19 @@ class NormalApplication(
     """
 
     def __init__(
-        self, device_object, localAddress: Address, deviceInfoCache=None
+        self,
+        device_object,
+        localAddress: Address,
+        device_info_cache: Optional[DeviceInfoCache] = None,
     ) -> None:
         if _debug:
             NormalApplication._debug(
-                "__init__ %r %r deviceInfoCache=%r",
+                "__init__ %r %r device_info_cache=%r",
                 device_object,
                 localAddress,
-                deviceInfoCache,
+                device_info_cache,
             )
-        Application.__init__(self, deviceInfoCache=deviceInfoCache)
+        Application.__init__(self, device_info_cache=device_info_cache)
         if not isinstance(localAddress, IPv4Address):
             raise TypeError(f"localAddress: {type(localAddress)}")
         if not isinstance(localAddress, DeviceObject):
@@ -82,7 +86,7 @@ class NormalApplication(
 
         # a application service access point will be needed
         self.asap = ApplicationServiceAccessPoint(
-            self.device_object, self.deviceInfoCache
+            self.device_object, self.device_info_cache
         )
         if _debug:
             NormalApplication._debug("    - asap: %r", self.asap)
@@ -129,16 +133,19 @@ class ForeignApplication(
     ReadWritePropertyMultipleServices,
 ):
     def __init__(
-        self, device_object, localAddress: Address, deviceInfoCache=None
+        self,
+        device_object,
+        localAddress: Address,
+        device_info_cache: Optional[DeviceInfoCache] = None,
     ) -> None:
         if _debug:
             ForeignApplication._debug(
-                "__init__ %r %r deviceInfoCache=%r",
+                "__init__ %r %r device_info_cache=%r",
                 device_object,
                 localAddress,
-                deviceInfoCache,
+                device_info_cache,
             )
-        Application.__init__(self, deviceInfoCache=deviceInfoCache)
+        Application.__init__(self, device_info_cache=device_info_cache)
         if not isinstance(localAddress, IPv4Address):
             raise TypeError(f"localAddress: {type(localAddress)}")
         if not isinstance(device_object, DeviceObject):
@@ -153,7 +160,7 @@ class ForeignApplication(
 
         # a application service access point will be needed
         self.asap = ApplicationServiceAccessPoint(
-            self.device_object, self.deviceInfoCache
+            self.device_object, self.device_info_cache
         )
 
         # a network service access point will be needed
@@ -205,16 +212,19 @@ class BBMDApplication(
     ReadWritePropertyMultipleServices,
 ):
     def __init__(
-        self, device_object, localAddress: Address, deviceInfoCache=None
+        self,
+        device_object,
+        localAddress: Address,
+        device_info_cache: Optional[DeviceInfoCache] = None,
     ) -> None:
         if _debug:
             BBMDApplication._debug(
-                "__init__ %r %r deviceInfoCache=%r",
+                "__init__ %r %r device_info_cache=%r",
                 device_object,
                 localAddress,
-                deviceInfoCache,
+                device_info_cache,
             )
-        Application.__init__(self, deviceInfoCache=deviceInfoCache)
+        Application.__init__(self, device_info_cache=device_info_cache)
         if not isinstance(localAddress, IPv4Address):
             raise TypeError(f"localAddress: {type(localAddress)}")
         if not isinstance(device_object, DeviceObject):
@@ -229,7 +239,7 @@ class BBMDApplication(
 
         # a application service access point will be needed
         self.asap = ApplicationServiceAccessPoint(
-            self.device_object, self.deviceInfoCache
+            self.device_object, self.device_info_cache
         )
 
         # a network service access point will be needed

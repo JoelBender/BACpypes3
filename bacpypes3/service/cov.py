@@ -42,7 +42,6 @@ _log = ModuleLogger(globals())
 
 @bacpypes_debugging
 class SubscriptionContextManager:
-
     _debug: Callable[..., None]
 
     app: "Application"  # noqa: F821
@@ -233,7 +232,7 @@ class SubscriptionContextManager:
         property_value_element = await self.get()
 
         # get information about the device from the application cache
-        device_info = self.app.deviceInfoCache.get_device_info(self.address)
+        device_info = self.app.device_info_cache.get_device_info(self.address)
         if _debug:
             SubscriptionContextManager._debug("    - device_info: %r", device_info)
 
@@ -301,7 +300,6 @@ class SubscriptionContextManager:
 
 @bacpypes_debugging
 class Subscription(DebugContents):
-
     _debug_contents = (
         "obj_ref",
         "client_addr",
