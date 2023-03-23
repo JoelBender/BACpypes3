@@ -409,6 +409,12 @@ class SimpleArgumentParser(ArgumentParser):
             default=int(os.getenv("BACPYPES_DEVICE_INSTANCE") or 999),
         )
         self.add_argument(
+            "--network",
+            type=int,
+            help="local network number",
+            default=int(os.getenv("BACPYPES_NETWORK") or 0),
+        )
+        self.add_argument(
             "--address",
             type=str,
             help="local network address",

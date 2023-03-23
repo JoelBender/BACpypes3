@@ -57,7 +57,11 @@ from .basetypes import (
 from .object import Object, DeviceObject, get_vendor_info
 
 from .appservice import ApplicationServiceAccessPoint
-from .netservice import NetworkServiceAccessPoint, NetworkServiceElement
+from .netservice import (
+    NetworkServiceAccessPoint,
+    NetworkServiceElement,
+    RouterInfoCache,
+)
 
 # basic services
 from .service.device import WhoIsIAmServices, WhoHasIHaveServices
@@ -97,7 +101,6 @@ _log = ModuleLogger(globals())
 
 @bacpypes_debugging
 class DeviceInfo(DebugContents):
-
     _debug_contents = (
         "deviceIdentifier",
         "address",
@@ -284,7 +287,6 @@ class Application(
     ReadWritePropertyMultipleServices,
     ChangeOfValueServices,
 ):
-
     _debug: Callable[..., None]
     _exception: Callable[..., None]
     _startup_disabled = False
@@ -294,7 +296,7 @@ class Application(
     nse: NetworkServiceElement
 
     device_object: Optional[DeviceObject] = None
-    deviceInfoCache: DeviceInfoCache
+    device_info_cache: DeviceInfoCache
 
     objectName: Dict[str, _Any]
     objectIdentifier: Dict[ObjectIdentifier, _Any]
@@ -303,11 +305,13 @@ class Application(
     next_invoke_id: int
     _requests: Dict[Address, List[Tuple[APDU, APDUFuture]]]
 
-    def __init__(self, *args, deviceInfoCache=None, **kwargs):
+    def __init__(
+        self, *args, device_info_cache: Optional[DeviceInfoCache] = None, **kwargs
+    ):
         if _debug:
             Application._debug(
-                "__init__ deviceInfoCache=%r %r",
-                deviceInfoCache,
+                "__init__ device_info_cache=%r %r",
+                device_info_cache,
                 kwargs,
             )
 
@@ -319,7 +323,7 @@ class Application(
         self.link_layers = {}
 
         # use the provided cache or make a default one
-        self.deviceInfoCache = deviceInfoCache or DeviceInfoCache()
+        self.device_info_cache = device_info_cache or DeviceInfoCache()
 
         self.next_invoke_id = 0
         self._requests = {}
@@ -329,16 +333,20 @@ class Application(
 
     @classmethod
     def from_object_list(
-        cls, objects: List[Object], deviceInfoCache=None, aseID=None
+        cls,
+        objects: List[Object],
+        device_info_cache: Optional[DeviceInfoCache] = None,
+        router_info_cache: Optional[RouterInfoCache] = None,
+        aseID=None,
     ) -> Application:
         """
         Create an instance of an Application given a list of objects.
         """
         if _debug:
             Application._debug(
-                "from_object_list %s deviceInfoCache=%r aseID=%r",
+                "from_object_list %s device_info_cache=%r aseID=%r",
                 repr(objects),
-                deviceInfoCache,
+                device_info_cache,
                 aseID,
             )
 
@@ -354,13 +362,13 @@ class Application(
             raise RuntimeError("missing device object")
 
         # create a base instance
-        app = cls(deviceInfoCache=deviceInfoCache, aseID=aseID)
+        app = cls(device_info_cache=device_info_cache, aseID=aseID)
 
         # a application service access point will be needed
-        app.asap = ApplicationServiceAccessPoint(device_object, app.deviceInfoCache)
+        app.asap = ApplicationServiceAccessPoint(device_object, app.device_info_cache)
 
         # a network service access point will be needed
-        app.nsap = NetworkServiceAccessPoint()
+        app.nsap = NetworkServiceAccessPoint(router_info_cache=router_info_cache)
 
         # give the NSAP a generic network layer service element
         app.nse = NetworkServiceElement()
@@ -378,7 +386,11 @@ class Application(
 
     @classmethod
     def from_json(
-        cls, objects: List[Dict[str, _Any]], deviceInfoCache=None, aseID=None
+        cls,
+        objects: List[Dict[str, _Any]],
+        device_info_cache: Optional[DeviceInfoCache] = None,
+        router_info_cache: Optional[RouterInfoCache] = None,
+        aseID=None,
     ) -> Application:
         """
         Create an instance of an Application after converting the objects
@@ -386,9 +398,9 @@ class Application(
         """
         if _debug:
             Application._debug(
-                "from_json %s deviceInfoCache=%r aseID=%r",
+                "from_json %s device_info_cache=%r aseID=%r",
                 repr(objects),
-                deviceInfoCache,
+                device_info_cache,
                 aseID,
             )
 
@@ -459,19 +471,26 @@ class Application(
 
         # continue the build process
         return cls.from_object_list(
-            object_list, deviceInfoCache=deviceInfoCache, aseID=aseID
+            object_list,
+            device_info_cache=device_info_cache,
+            router_info_cache=router_info_cache,
+            aseID=aseID,
         )
 
     @classmethod
     def from_args(
-        cls, args: argparse.Namespace, deviceInfoCache=None, aseID=None
+        cls,
+        args: argparse.Namespace,
+        device_info_cache: Optional[DeviceInfoCache] = None,
+        router_info_cache: Optional[RouterInfoCache] = None,
+        aseID=None,
     ) -> Application:
         if _debug:
             Application._debug(
-                "from_args %r %r deviceInfoCache=%r aseID=%r",
+                "from_args %r %r device_info_cache=%r aseID=%r",
                 cls,
                 args,
-                deviceInfoCache,
+                device_info_cache,
                 aseID,
             )
 
@@ -508,13 +527,15 @@ class Application(
         # default address is 'host' or 'host:0' for a foreign device
         address = args.address
         if not address:
-            address = "host" if not args.foreign else "host:0"
+            address = "host:0" if args.foreign else "host"
 
         # make a network port object
         network_port_object = network_port_object_class(
             address,
             objectIdentifier=("network-port", 1),
             objectName="NetworkPort-1",
+            networkNumber=args.network,
+            networkNumberQuality="configured" if args.network else "unknown",
         )
         if _debug:
             Application._debug("    - network_port_object: %r", network_port_object)
@@ -543,7 +564,8 @@ class Application(
         # continue the build process
         return cls.from_object_list(
             [device_object, network_port_object],
-            deviceInfoCache=deviceInfoCache,
+            device_info_cache=device_info_cache,
+            router_info_cache=router_info_cache,
             aseID=aseID,
         )
 
