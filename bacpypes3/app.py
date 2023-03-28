@@ -114,16 +114,16 @@ class DeviceInfo(DebugContents):
     _ref_count: int
 
     def __init__(self, device_identifier, address):
-        # this information is from an IAmRequest
         self.deviceIdentifier = device_identifier
         self.address = address
 
         self.maxApduLengthAccepted = 1024  # maximum APDU device will accept
-        self.segmentationSupported = "noSegmentation"  # normally no segmentation
+        self.segmentationSupported = "no-segmentation"  # normally no segmentation
         self.maxSegmentsAccepted = None  # None iff no segmentation
         self.vendorID = None  # vendor identifier
         self.maxNpduLength = None  # maximum we can send in transit (see 19.4)
 
+        self._ref_count = 0
 
 #
 #   DeviceInfoCache
@@ -131,8 +131,12 @@ class DeviceInfo(DebugContents):
 
 
 @bacpypes_debugging
-class DeviceInfoCache:
+class DeviceInfoCache(DebugContents):
+    _debug_contents = ("cache+",)
     _debug: Callable[..., None]
+
+    address_cache: Dict[Address, DeviceInfo]
+    instance_cache: Dict[int, DeviceInfo]
 
     def __init__(self, device_info_class=DeviceInfo):
         if _debug:
@@ -142,75 +146,66 @@ class DeviceInfoCache:
         if not issubclass(device_info_class, DeviceInfo):
             raise ValueError("not a DeviceInfo subclass: %r" % (device_info_class,))
 
-        # empty cache
-        self.cache = {}
+        # empty caches
+        self.address_cache = {}
+        self.instance_cache = {}
 
         # class for new records
         self.device_info_class = device_info_class
 
-    def has_device_info(self, key):
-        """Return true iff cache has information about the device."""
+    def get_device_info(self, addr: Address) -> Optional[DeviceInfo]:
         if _debug:
-            DeviceInfoCache._debug("has_device_info %r", key)
-
-        return key in self.cache
-
-    def iam_device_info(self, apdu: IAmRequest):
-        """Create a device information record based on the contents of an
-        IAmRequest and put it in the cache."""
-        if _debug:
-            DeviceInfoCache._debug("iam_device_info %r", apdu)
-
-        # make sure the apdu is an I-Am
-        if not isinstance(apdu, IAmRequest):
-            raise ValueError("not an IAmRequest: %r" % (apdu,))
-
-        # get the device instance
-        device_instance = apdu.iAmDeviceIdentifier[1]
-
-        # get the existing cache record if it exists
-        device_info = self.cache.get(device_instance, None)
-
-        # maybe there is a record for this address
-        if not device_info:
-            device_info = self.cache.get(apdu.pduSource, None)
-
-        # make a new one using the class provided
-        if not device_info:
-            device_info = self.device_info_class(device_instance, apdu.pduSource)
-
-        # jam in the correct values
-        device_info.deviceIdentifier = device_instance
-        device_info.address = apdu.pduSource
-        device_info.maxApduLengthAccepted = apdu.maxAPDULengthAccepted
-        device_info.segmentationSupported = apdu.segmentationSupported
-        device_info.vendorID = apdu.vendorID
-
-        # tell the cache this is an updated record
-        self.update_device_info(device_info)
-
-    def get_device_info(self, key):
-        if _debug:
-            DeviceInfoCache._debug("get_device_info %r", key)
+            DeviceInfoCache._debug("get_device_info %r", addr)
 
         # get the info if it's there
-        device_info = self.cache.get(key, None)
+        device_info = self.cache.get(addr, None)
         if _debug:
             DeviceInfoCache._debug("    - device_info: %r", device_info)
 
         return device_info
 
-    def update_device_info(self, device_info):
-        """The application has updated one or more fields in the device
+    def set_device_info(self, apdu: IAmRequest):
+        """
+        Create/update a device information record based on the contents of an
+        IAmRequest and put it in the cache.
+        """
+        if _debug:
+            DeviceInfoCache._debug("set_device_info %r", apdu)
+
+        # make sure the apdu is an I-Am
+        if not isinstance(apdu, IAmRequest):
+            raise ValueError("not an IAmRequest: %r" % (apdu,))
+
+        # get the primary keys
+        device_address = apdu.pduSource
+        device_instance = apdu.iAmDeviceIdentifier[1]
+
+        # check for existence by address
+        if device_address in self.address_cache:
+            if device_instance in self.instance_cache:
+
+        elif device_instance in self.instance_cache:
+
+        else:
+            # create an entry
+            device_info = self.device_info_class(device_instance, apdu.pduSource)
+            device_info.deviceIdentifier = device_instance
+            device_info.address = device_address
+
+
+        device_info.maxApduLengthAccepted = apdu.maxAPDULengthAccepted
+        device_info.segmentationSupported = apdu.segmentationSupported
+        device_info.vendorID = apdu.vendorID
+
+    def update_device_info(self, device_info: DeviceInfo):
+        """
+        The application has updated one or more fields in the device
         information record and the cache needs to be updated to reflect the
         changes.  If this is a cached version of a persistent record then this
-        is the opportunity to update the database."""
+        is the opportunity to update the database.
+        """
         if _debug:
             DeviceInfoCache._debug("update_device_info %r", device_info)
-
-        # give this a reference count if it doesn't have one
-        if not hasattr(device_info, "_ref_count"):
-            device_info._ref_count = 0
 
         # get the current keys
         cache_id, cache_address = getattr(device_info, "_cache_keys", (None, None))
@@ -251,8 +246,10 @@ class DeviceInfoCache:
         device_info._cache_keys = (device_info.deviceIdentifier, device_info.address)
 
     def acquire(self, device_info: DeviceInfo) -> None:
-        """This function is called by the segmentation state machine when it
-        will be using the device information."""
+        """
+        This function is called by the segmentation state machine when it
+        will be using the device information.
+        """
         if _debug:
             DeviceInfoCache._debug("acquire %r", device_info)
 
@@ -260,8 +257,10 @@ class DeviceInfoCache:
         device_info._ref_count += 1
 
     def release(self, device_info: DeviceInfo) -> None:
-        """This function is called by the segmentation state machine when it
-        has finished with the device information."""
+        """
+        This function is called by the segmentation state machine when it
+        has finished with the device information.
+        """
         if _debug:
             DeviceInfoCache._debug("release %r", device_info)
 
