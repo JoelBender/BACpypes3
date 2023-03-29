@@ -125,6 +125,7 @@ class DeviceInfo(DebugContents):
 
         self._ref_count = 0
 
+
 #
 #   DeviceInfoCache
 #
@@ -180,19 +181,35 @@ class DeviceInfoCache(DebugContents):
         device_address = apdu.pduSource
         device_instance = apdu.iAmDeviceIdentifier[1]
 
-        # check for existence by address
-        if device_address in self.address_cache:
-            if device_instance in self.instance_cache:
+        # check for existing references
+        info1 = self.address_cache.get(device_address, None)
+        info2 = self.instance_cache.get(device_instance, None)
 
-        elif device_instance in self.instance_cache:
+        device_info = None
+        if info1 and info2 and (info1 is info2):
+            device_info = info1
+            if _debug:
+                DeviceInfoCache._debug("    - update: %r", device_info)
 
-        else:
+        if info1 or info2:
+            log_message = f"I-Am from {device_address}, device {device_instance}:"
+            if info1:
+                log_message += " was device {info1.deviceIdentifier}"
+            if info2:
+                log_message += " was address {info2.address}"
+            DeviceInfoCache._info(log_message)
+
+        if not device_info:
             # create an entry
             device_info = self.device_info_class(device_instance, apdu.pduSource)
             device_info.deviceIdentifier = device_instance
             device_info.address = device_address
 
+            # put it in the cache, replacing possible existing instance(s)
+            self.address_cache[device_address] = device_info
+            self.instance_cache[device_instance] = device_info
 
+        # update record contents
         device_info.maxApduLengthAccepted = apdu.maxAPDULengthAccepted
         device_info.segmentationSupported = apdu.segmentationSupported
         device_info.vendorID = apdu.vendorID

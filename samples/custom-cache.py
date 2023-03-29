@@ -3,7 +3,7 @@ Simple example.
 """
 
 import asyncio
-from typing import Callable, List, Optional
+from typing import Callable, List, Optional, Tuple
 
 from bacpypes3.debugging import ModuleLogger, bacpypes_debugging
 from bacpypes3.argparse import SimpleArgumentParser
@@ -14,7 +14,11 @@ from bacpypes3.comm import bind
 from bacpypes3.pdu import Address
 from bacpypes3.apdu import IAmRequest
 from bacpypes3.app import Application, DeviceInfo, DeviceInfoCache
-from bacpypes3.netservice import ROUTER_AVAILABLE, RouterInfo, RouterInfoCache
+from bacpypes3.netservice import ROUTER_AVAILABLE, RouterInfo, RouterInfoCache, NetworkAdapter
+from bacpypes3.npdu import IAmRouterToNetwork
+
+from redis import asyncio as aioredis
+from redis.asyncio import Redis
 
 
 # some debugging
@@ -24,54 +28,31 @@ _log = ModuleLogger(globals())
 
 # globals
 app: Application
+redis: Redis
 
 
 @bacpypes_debugging
 class CustomDeviceInfoCache(DeviceInfoCache):
     _debug: Callable[..., None]
 
-    def iam_device_info(self, apdu: IAmRequest):
+    def get_device_info(self, addr: Address) -> Optional[DeviceInfo]:
         """
-        Create a device information record based on the contents of an
+        Get the device information about the device from an address.
+        """
+        if _debug:
+            CustomDeviceInfoCache._debug("get_device_info %r", addr)
+
+        return super().get_device_info(addr)
+
+    def set_device_info(self, apdu: IAmRequest):
+        """
+        Create/update a device information record based on the contents of an
         IAmRequest and put it in the cache.
         """
         if _debug:
-            CustomDeviceInfoCache._debug("iam_device_info %r", apdu)
-        return super().iam_device_info(apdu)
+            CustomDeviceInfoCache._debug("set_device_info %r", apdu)
 
-    def get_device_info(self, key):
-        if _debug:
-            CustomDeviceInfoCache._debug("get_device_info %r", key)
-        return super().get_device_info(key)
-
-    def update_device_info(self, device_info):
-        """
-        The application has updated one or more fields in the device
-        information record and the cache needs to be updated to reflect the
-        changes.  If this is a cached version of a persistent record then this
-        is the opportunity to update the database.
-        """
-        if _debug:
-            CustomDeviceInfoCache._debug("update_device_info %r", device_info)
-        return super().update_device_info(device_info)
-
-    def acquire(self, device_info: DeviceInfo) -> None:
-        """
-        This function is called by the segmentation state machine when it
-        will be using the device information.
-        """
-        if _debug:
-            CustomDeviceInfoCache._debug("acquire %r", device_info)
-        return super().acquire(device_info)
-
-    def release(self, device_info: DeviceInfo) -> None:
-        """
-        This function is called by the segmentation state machine when it
-        has finished with the device information.
-        """
-        if _debug:
-            CustomDeviceInfoCache._debug("release %r", device_info)
-        return super().release(device_info)
+        return super().set_device_info(apdu)
 
 
 @bacpypes_debugging
@@ -212,13 +193,17 @@ class CmdShell(Cmd):
 
 
 async def main() -> None:
-    global app
+    global app, redis
 
     app = None
     try:
         args = SimpleArgumentParser().parse_args()
         if _debug:
             _log.debug("args: %r", args)
+
+        # connect to Redis
+        redis = aioredis.from_url("redis://localhost:6379/0")
+        await redis.ping()
 
         # build a very small stack
         console = Console()
