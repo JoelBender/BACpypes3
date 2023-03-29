@@ -133,7 +133,7 @@ class DeviceInfo(DebugContents):
 
 @bacpypes_debugging
 class DeviceInfoCache(DebugContents):
-    _debug_contents = ("cache+",)
+    _debug_contents = ("address_cache++", "instance_cache++")
     _debug: Callable[..., None]
 
     address_cache: Dict[Address, DeviceInfo]
@@ -159,7 +159,7 @@ class DeviceInfoCache(DebugContents):
             DeviceInfoCache._debug("get_device_info %r", addr)
 
         # get the info if it's there
-        device_info = self.cache.get(addr, None)
+        device_info = self.address_cache.get(addr, None)
         if _debug:
             DeviceInfoCache._debug("    - device_info: %r", device_info)
 
@@ -191,12 +191,14 @@ class DeviceInfoCache(DebugContents):
             if _debug:
                 DeviceInfoCache._debug("    - update: %r", device_info)
 
-        if info1 or info2:
+        elif info1 or info2:
             log_message = f"I-Am from {device_address}, device {device_instance}:"
             if info1:
-                log_message += " was device {info1.deviceIdentifier}"
+                log_message += f" was device {info1.deviceIdentifier}"
+                del self.instance_cache[info1.deviceIdentifier]
             if info2:
-                log_message += " was address {info2.address}"
+                log_message += f" was address {info2.address}"
+                del self.address_cache[info2.address]
             DeviceInfoCache._info(log_message)
 
         if not device_info:
@@ -213,54 +215,6 @@ class DeviceInfoCache(DebugContents):
         device_info.maxApduLengthAccepted = apdu.maxAPDULengthAccepted
         device_info.segmentationSupported = apdu.segmentationSupported
         device_info.vendorID = apdu.vendorID
-
-    def update_device_info(self, device_info: DeviceInfo):
-        """
-        The application has updated one or more fields in the device
-        information record and the cache needs to be updated to reflect the
-        changes.  If this is a cached version of a persistent record then this
-        is the opportunity to update the database.
-        """
-        if _debug:
-            DeviceInfoCache._debug("update_device_info %r", device_info)
-
-        # get the current keys
-        cache_id, cache_address = getattr(device_info, "_cache_keys", (None, None))
-
-        if (cache_id is not None) and (device_info.deviceIdentifier != cache_id):
-            if _debug:
-                DeviceInfoCache._debug("    - device identifier updated")
-
-            # remove the old reference, add the new one
-            del self.cache[cache_id]
-
-        if device_info.deviceIdentifier in self.cache:
-            previous_device_info = self.cache[device_info.deviceIdentifier]
-            if _debug:
-                DeviceInfoCache._debug(
-                    "    - old device address: %r", previous_device_info.address
-                )
-
-        self.cache[device_info.deviceIdentifier] = device_info
-
-        if (cache_address is not None) and (device_info.address != cache_address):
-            if _debug:
-                DeviceInfoCache._debug("    - device address updated")
-
-            # remove the old reference, add the new one
-            del self.cache[cache_address]
-
-        if device_info.address in self.cache:
-            previous_device_info = self.cache[device_info.address]
-            if _debug:
-                DeviceInfoCache._debug(
-                    "    - old device id: %r", previous_device_info.deviceIdentifier
-                )
-
-        self.cache[device_info.address] = device_info
-
-        # update the keys
-        device_info._cache_keys = (device_info.deviceIdentifier, device_info.address)
 
     def acquire(self, device_info: DeviceInfo) -> None:
         """

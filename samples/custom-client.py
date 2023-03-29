@@ -20,7 +20,7 @@ from bacpypes3.primitivedata import ObjectIdentifier
 from bacpypes3.constructeddata import AnyAtomic
 from bacpypes3.object import get_vendor_info
 from bacpypes3.app import Application, DeviceInfo
-from bacpypes3.apdu import ErrorRejectAbortNack
+from bacpypes3.apdu import IAmRequest, ErrorRejectAbortNack
 
 # talking to a custom server, importing this module registers the
 # custom object types and properties
@@ -139,10 +139,15 @@ async def main() -> None:
         if _debug:
             _log.debug("app: %r", app)
 
-        # give the application some device information, usually from an I-Am
-        other_device_info = DeviceInfo(args.peer_id, peer_address)
-        other_device_info.vendorID = 888
-        app.device_info_cache.update_device_info(other_device_info)
+        # give the application some device information, fake an I-Am
+        i_am = IAmRequest(
+            source=peer_address,
+            iAmDeviceIdentifier=peer_id,
+            maxAPDULengthAccepted=1024,
+            segmentationSupported="segmented-both",
+            vendorID=888,
+        )
+        app.device_info_cache.set_device_info(i_am)
 
         # run until the console is done, canceled or EOF
         await console.fini.wait()
