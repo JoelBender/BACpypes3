@@ -18,6 +18,7 @@ from .comm import Client, ServiceAccessPoint
 from .errors import CommuncationError
 
 from .pdu import Address, PDU
+from .basetypes import Segmentation
 from .apdu import (
     encode_max_segments_accepted,
     decode_max_segments_accepted,
@@ -275,8 +276,8 @@ class SSM(DebugContents):
 
             # segmented response accepted?
             segAPDU.apduSA = self.segmentationSupported in (
-                "segmentedReceive",
-                "segmentedBoth",
+                Segmentation.segmentedReceive,
+                Segmentation.segmentedBoth,
             )
             if _debug:
                 SSM._debug("    - segmented response accepted: %r", segAPDU.apduSA)
@@ -488,7 +489,10 @@ class ClientSSM(SSM):
 
         # make sure we support segmented transmit if we need to
         if self.segmentCount > 1:
-            if self.segmentationSupported not in ("segmentedTransmit", "segmentedBoth"):
+            if self.segmentationSupported not in (
+                Segmentation.segmentedTransmit,
+                Segmentation.segmentedBoth,
+            ):
                 if _debug:
                     ClientSSM._debug("    - local device can't send segmented requests")
                 abort = self.abort(AbortReason.segmentationNotSupported)
@@ -500,8 +504,8 @@ class ClientSSM(SSM):
                     ClientSSM._debug("    - no server info for segmentation support")
 
             elif self.device_info.segmentationSupported not in (
-                "segmentedReceive",
-                "segmentedBoth",
+                Segmentation.segmentedReceive,
+                Segmentation.segmentedBoth,
             ):
                 if _debug:
                     ClientSSM._debug("    - server can't receive segmented requests")
@@ -786,8 +790,8 @@ class ClientSSM(SSM):
                 await self.response(apdu)
 
             elif self.segmentationSupported not in (
-                "segmentedReceive",
-                "segmentedBoth",
+                Segmentation.segmentedReceive,
+                Segmentation.segmentedBoth,
             ):
                 if _debug:
                     ClientSSM._debug(
@@ -1120,8 +1124,8 @@ class ServerSSM(SSM):
 
                 # make sure we support segmented transmit
                 if self.segmentationSupported not in (
-                    "segmentedTransmit",
-                    "segmentedBoth",
+                    Segmentation.segmentedTransmit,
+                    Segmentation.segmentedBoth,
                 ):
                     if _debug:
                         ServerSSM._debug("    - server can't send segmented responses")
@@ -1228,10 +1232,10 @@ class ServerSSM(SSM):
 
         # if there is a cache record, check to see if it needs to be updated
         if apdu.apduSA and self.device_info:
-            if self.device_info.segmentationSupported == "noSegmentation":
+            if self.device_info.segmentationSupported == Segmentation.noSegmentation:
                 if _debug:
                     ServerSSM._debug("    - client actually supports segmented receive")
-                self.device_info.segmentationSupported = "segmentedReceive"
+                self.device_info.segmentationSupported = Segmentation.segmentedReceive
 
                 if _debug:
                     ServerSSM._debug("    - tell the cache the info has been updated")
@@ -1242,16 +1246,18 @@ class ServerSSM(SSM):
                     ServerSSM._debug(
                         "    - client actually supports both segmented transmit and receive"
                     )
-                self.device_info.segmentationSupported = "segmentedBoth"
+                self.device_info.segmentationSupported = Segmentation.segmentedBoth
 
                 if _debug:
                     ServerSSM._debug("    - tell the cache the info has been updated")
                 self.ssmSAP.device_info_cache.update_device_info(self.device_info)
 
-            elif self.device_info.segmentationSupported == "segmentedReceive":
+            elif (
+                self.device_info.segmentationSupported == Segmentation.segmentedReceive
+            ):
                 pass
 
-            elif self.device_info.segmentationSupported == "segmentedBoth":
+            elif self.device_info.segmentationSupported == Segmentation.segmentedBoth:
                 pass
 
             else:
@@ -1284,7 +1290,10 @@ class ServerSSM(SSM):
             return
 
         # make sure we support segmented requests
-        if self.segmentationSupported not in ("segmentedReceive", "segmentedBoth"):
+        if self.segmentationSupported not in (
+            Segmentation.segmentedReceive,
+            Segmentation.segmentedBoth,
+        ):
             abort = self.abort(AbortReason.segmentationNotSupported)
             await self.response(abort)
             return
@@ -1539,7 +1548,7 @@ class ApplicationServiceAccessPoint(Client[PDU], ServiceAccessPoint):
         self.maxApduLengthAccepted = 1024
 
         # segmentation defaults
-        self.segmentationSupported = "noSegmentation"
+        self.segmentationSupported = Segmentation.noSegmentation
         self.segmentTimeout = 1500
         self.maxSegmentsAccepted = 2
         self.proposedWindowSize = 2

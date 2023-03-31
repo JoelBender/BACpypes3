@@ -35,7 +35,7 @@ async def main() -> None:
         custom_object = custom.ProprietaryObject(
             objectIdentifier=("custom", 12),
             objectName="Wowzers!",
-            custom=12,
+            custom=13,
         )
         if _debug:
             _log.debug("custom_object: %r", custom_object)

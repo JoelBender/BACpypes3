@@ -47,6 +47,7 @@ from .apdu import (
 )
 from .primitivedata import ObjectType, ObjectIdentifier
 from .basetypes import (
+    Segmentation,
     ServicesSupported,
     ProtocolLevel,
     NetworkType,
@@ -118,7 +119,9 @@ class DeviceInfo(DebugContents):
         self.address = address
 
         self.maxApduLengthAccepted = 1024  # maximum APDU device will accept
-        self.segmentationSupported = "no-segmentation"  # normally no segmentation
+        self.segmentationSupported = (
+            Segmentation.noSegmentation
+        )  # normally no segmentation
         self.maxSegmentsAccepted = None  # None iff no segmentation
         self.vendorID = None  # vendor identifier
         self.maxNpduLength = None  # maximum we can send in transit (see 19.4)
@@ -215,6 +218,29 @@ class DeviceInfoCache(DebugContents):
         device_info.maxApduLengthAccepted = apdu.maxAPDULengthAccepted
         device_info.segmentationSupported = apdu.segmentationSupported
         device_info.vendorID = apdu.vendorID
+
+    def update_device_info(self, device_info: DeviceInfo):
+        """
+        Update a device information record based on what was changed
+        from the APCI information from the segmentation state
+        machine.
+        """
+        if _debug:
+            DeviceInfoCache._debug("update_device_info %r", device_info)
+
+        # get the primary keys
+        device_address = device_info.address
+        device_instance = device_info.deviceIdentifier
+
+        # check for existing references
+        info1 = self.address_cache.get(device_address, None)
+        info2 = self.instance_cache.get(device_instance, None)
+
+        # if any of these references are different the cache has been
+        # updated while a segmentation state machine was running, just
+        # log it
+        if (device_info is not info1) or (device_info is not info2):
+            DeviceInfoCache._info(f"Cache update for device {device_instance}")
 
     def acquire(self, device_info: DeviceInfo) -> None:
         """
