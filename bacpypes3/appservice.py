@@ -1003,10 +1003,14 @@ class ServerSSM(SSM):
         if _debug:
             ServerSSM._debug("request %r", apdu)
 
-        # decode this now, the APDU is complete
-        apdu = APCISequence.decode(apdu)
-        if _debug:
-            ServerSSM._debug("    - apdu: %r", apdu)
+        # if this is an abort, no more decoding
+        if isinstance(apdu, AbortPDU):
+            pass
+        else:
+            # decode this now, the APDU is complete
+            apdu = APCISequence.decode(apdu)
+            if _debug:
+                ServerSSM._debug("    - apdu: %r", apdu)
 
         # make sure it has a good source and destination
         apdu.pduSource = self.pdu_address
