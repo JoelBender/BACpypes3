@@ -47,6 +47,7 @@ from .apdu import (
 )
 from .primitivedata import ObjectType, ObjectIdentifier
 from .basetypes import (
+    Segmentation,
     ServicesSupported,
     ProtocolLevel,
     NetworkType,
@@ -114,15 +115,18 @@ class DeviceInfo(DebugContents):
     _ref_count: int
 
     def __init__(self, device_identifier, address):
-        # this information is from an IAmRequest
         self.deviceIdentifier = device_identifier
         self.address = address
 
         self.maxApduLengthAccepted = 1024  # maximum APDU device will accept
-        self.segmentationSupported = "noSegmentation"  # normally no segmentation
+        self.segmentationSupported = (
+            Segmentation.noSegmentation
+        )  # normally no segmentation
         self.maxSegmentsAccepted = None  # None iff no segmentation
         self.vendorID = None  # vendor identifier
         self.maxNpduLength = None  # maximum we can send in transit (see 19.4)
+
+        self._ref_count = 0
 
 
 #
@@ -131,8 +135,12 @@ class DeviceInfo(DebugContents):
 
 
 @bacpypes_debugging
-class DeviceInfoCache:
+class DeviceInfoCache(DebugContents):
+    _debug_contents = ("address_cache++", "instance_cache++")
     _debug: Callable[..., None]
+
+    address_cache: Dict[Address, DeviceInfo]
+    instance_cache: Dict[int, DeviceInfo]
 
     def __init__(self, device_info_class=DeviceInfo):
         if _debug:
@@ -142,117 +150,103 @@ class DeviceInfoCache:
         if not issubclass(device_info_class, DeviceInfo):
             raise ValueError("not a DeviceInfo subclass: %r" % (device_info_class,))
 
-        # empty cache
-        self.cache = {}
+        # empty caches
+        self.address_cache = {}
+        self.instance_cache = {}
 
         # class for new records
         self.device_info_class = device_info_class
 
-    def has_device_info(self, key):
-        """Return true iff cache has information about the device."""
+    async def get_device_info(self, addr: Address) -> Optional[DeviceInfo]:
         if _debug:
-            DeviceInfoCache._debug("has_device_info %r", key)
-
-        return key in self.cache
-
-    def iam_device_info(self, apdu: IAmRequest):
-        """Create a device information record based on the contents of an
-        IAmRequest and put it in the cache."""
-        if _debug:
-            DeviceInfoCache._debug("iam_device_info %r", apdu)
-
-        # make sure the apdu is an I-Am
-        if not isinstance(apdu, IAmRequest):
-            raise ValueError("not an IAmRequest: %r" % (apdu,))
-
-        # get the device instance
-        device_instance = apdu.iAmDeviceIdentifier[1]
-
-        # get the existing cache record if it exists
-        device_info = self.cache.get(device_instance, None)
-
-        # maybe there is a record for this address
-        if not device_info:
-            device_info = self.cache.get(apdu.pduSource, None)
-
-        # make a new one using the class provided
-        if not device_info:
-            device_info = self.device_info_class(device_instance, apdu.pduSource)
-
-        # jam in the correct values
-        device_info.deviceIdentifier = device_instance
-        device_info.address = apdu.pduSource
-        device_info.maxApduLengthAccepted = apdu.maxAPDULengthAccepted
-        device_info.segmentationSupported = apdu.segmentationSupported
-        device_info.vendorID = apdu.vendorID
-
-        # tell the cache this is an updated record
-        self.update_device_info(device_info)
-
-    def get_device_info(self, key):
-        if _debug:
-            DeviceInfoCache._debug("get_device_info %r", key)
+            DeviceInfoCache._debug("get_device_info %r", addr)
 
         # get the info if it's there
-        device_info = self.cache.get(key, None)
+        device_info = self.address_cache.get(addr, None)
         if _debug:
             DeviceInfoCache._debug("    - device_info: %r", device_info)
 
         return device_info
 
-    def update_device_info(self, device_info):
-        """The application has updated one or more fields in the device
-        information record and the cache needs to be updated to reflect the
-        changes.  If this is a cached version of a persistent record then this
-        is the opportunity to update the database."""
+    async def set_device_info(self, apdu: IAmRequest):
+        """
+        Create/update a device information record based on the contents of an
+        IAmRequest and put it in the cache.
+        """
+        if _debug:
+            DeviceInfoCache._debug("set_device_info %r", apdu)
+
+        # make sure the apdu is an I-Am
+        if not isinstance(apdu, IAmRequest):
+            raise ValueError("not an IAmRequest: %r" % (apdu,))
+
+        # get the primary keys
+        device_address = apdu.pduSource
+        device_instance = apdu.iAmDeviceIdentifier[1]
+
+        # check for existing references
+        info1 = self.address_cache.get(device_address, None)
+        info2 = self.instance_cache.get(device_instance, None)
+
+        device_info = None
+        if info1 and info2 and (info1 is info2):
+            device_info = info1
+            if _debug:
+                DeviceInfoCache._debug("    - update: %r", device_info)
+
+        elif info1 or info2:
+            log_message = f"I-Am from {device_address}, device {device_instance}:"
+            if info1:
+                log_message += f" was device {info1.deviceIdentifier}"
+                del self.instance_cache[info1.deviceIdentifier]
+            if info2:
+                log_message += f" was address {info2.address}"
+                del self.address_cache[info2.address]
+            DeviceInfoCache._info(log_message)
+
+        if not device_info:
+            # create an entry
+            device_info = self.device_info_class(device_instance, apdu.pduSource)
+            device_info.deviceIdentifier = device_instance
+            device_info.address = device_address
+
+            # put it in the cache, replacing possible existing instance(s)
+            self.address_cache[device_address] = device_info
+            self.instance_cache[device_instance] = device_info
+
+        # update record contents
+        device_info.maxApduLengthAccepted = apdu.maxAPDULengthAccepted
+        device_info.segmentationSupported = apdu.segmentationSupported
+        device_info.vendorID = apdu.vendorID
+
+    def update_device_info(self, device_info: DeviceInfo):
+        """
+        Update a device information record based on what was changed
+        from the APCI information from the segmentation state
+        machine.
+        """
         if _debug:
             DeviceInfoCache._debug("update_device_info %r", device_info)
 
-        # give this a reference count if it doesn't have one
-        if not hasattr(device_info, "_ref_count"):
-            device_info._ref_count = 0
+        # get the primary keys
+        device_address = device_info.address
+        device_instance = device_info.deviceIdentifier
 
-        # get the current keys
-        cache_id, cache_address = getattr(device_info, "_cache_keys", (None, None))
+        # check for existing references
+        info1 = self.address_cache.get(device_address, None)
+        info2 = self.instance_cache.get(device_instance, None)
 
-        if (cache_id is not None) and (device_info.deviceIdentifier != cache_id):
-            if _debug:
-                DeviceInfoCache._debug("    - device identifier updated")
-
-            # remove the old reference, add the new one
-            del self.cache[cache_id]
-
-        if device_info.deviceIdentifier in self.cache:
-            previous_device_info = self.cache[device_info.deviceIdentifier]
-            if _debug:
-                DeviceInfoCache._debug(
-                    "    - old device address: %r", previous_device_info.address
-                )
-
-        self.cache[device_info.deviceIdentifier] = device_info
-
-        if (cache_address is not None) and (device_info.address != cache_address):
-            if _debug:
-                DeviceInfoCache._debug("    - device address updated")
-
-            # remove the old reference, add the new one
-            del self.cache[cache_address]
-
-        if device_info.address in self.cache:
-            previous_device_info = self.cache[device_info.address]
-            if _debug:
-                DeviceInfoCache._debug(
-                    "    - old device id: %r", previous_device_info.deviceIdentifier
-                )
-
-        self.cache[device_info.address] = device_info
-
-        # update the keys
-        device_info._cache_keys = (device_info.deviceIdentifier, device_info.address)
+        # if any of these references are different the cache has been
+        # updated while a segmentation state machine was running, just
+        # log it
+        if (device_info is not info1) or (device_info is not info2):
+            DeviceInfoCache._info(f"Cache update for device {device_instance}")
 
     def acquire(self, device_info: DeviceInfo) -> None:
-        """This function is called by the segmentation state machine when it
-        will be using the device information."""
+        """
+        This function is called by the segmentation state machine when it
+        will be using the device information.
+        """
         if _debug:
             DeviceInfoCache._debug("acquire %r", device_info)
 
@@ -260,8 +254,10 @@ class DeviceInfoCache:
         device_info._ref_count += 1
 
     def release(self, device_info: DeviceInfo) -> None:
-        """This function is called by the segmentation state machine when it
-        has finished with the device information."""
+        """
+        This function is called by the segmentation state machine when it
+        has finished with the device information.
+        """
         if _debug:
             DeviceInfoCache._debug("release %r", device_info)
 

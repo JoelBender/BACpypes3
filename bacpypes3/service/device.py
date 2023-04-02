@@ -48,7 +48,6 @@ WHO_HAS_TIMEOUT = 3.0  # how long to wait for I-Have's
 
 @bacpypes_debugging
 class WhoIsFuture:
-
     _debug: Callable[..., None]
 
     low_limit: Optional[int]
@@ -59,17 +58,26 @@ class WhoIsFuture:
     only_one: bool
 
     def __init__(
-        self, app: WhoIsIAmServices, low_limit: Optional[int], high_limit: Optional[int]
+        self,
+        app: WhoIsIAmServices,
+        address: Optional[Address],
+        low_limit: Optional[int],
+        high_limit: Optional[int],
     ) -> None:
         if _debug:
-            WhoIsFuture._debug("__init__ %r %r %r", app, low_limit, high_limit)
+            WhoIsFuture._debug(
+                "__init__ %r %r %r %r", app, address, low_limit, high_limit
+            )
 
         self.app = app
+        self.address = address
         self.low_limit = low_limit
         self.high_limit = high_limit
 
         self.i_ams = {}
-        self.only_one = (low_limit == high_limit) and (low_limit is not None)
+        self.only_one = (address is not None) or (
+            (low_limit == high_limit) and (low_limit is not None)
+        )
 
         # create a future and add a callback when it is resolved
         self.future = asyncio.Future()
@@ -105,6 +113,9 @@ class WhoIsFuture:
             WhoIsFuture._debug("    - device_instance: %r", device_instance)
 
         # filter out those that don't match
+        if self.address is not None:
+            if apdu.pduSource != self.address:
+                return
         if (self.low_limit is not None) and (device_instance < self.low_limit):
             return
         if (self.high_limit is not None) and (device_instance > self.high_limit):
@@ -120,6 +131,9 @@ class WhoIsFuture:
                 WhoIsFuture._debug("    - found one")
             # add this to the dictionary that was found
             self.i_ams[device_instance] = apdu
+
+        # provide this to the application device information cache
+        asyncio.ensure_future(self.app.device_info_cache.set_device_info(apdu))
 
     def who_is_done(self, future: asyncio.Future) -> None:
         """The future has been completed or canceled."""
@@ -148,7 +162,6 @@ class WhoIsFuture:
 
 @bacpypes_debugging
 class WhoIsIAmServices:
-
     _who_is_futures: List[WhoIsFuture]
 
     def who_is(
@@ -190,7 +203,12 @@ class WhoIsIAmServices:
             WhoIsIAmServices._debug("    - who_is: %r", who_is)
 
         # create a future, store a reference to it to be resolved
-        who_is_future = WhoIsFuture(self, low_limit, high_limit)
+        who_is_future = WhoIsFuture(
+            self,
+            address if address.is_localstation or address.is_remotestation else None,
+            low_limit,
+            high_limit,
+        )
         self._who_is_futures.append(who_is_future)
 
         # function returns a finished future that can be ignored
@@ -286,7 +304,6 @@ class WhoIsIAmServices:
 
 @bacpypes_debugging
 class WhoHasFuture:
-
     _debug: Callable[..., None]
 
     app: WhoHasIHaveServices
@@ -409,7 +426,6 @@ class WhoHasFuture:
 
 @bacpypes_debugging
 class WhoHasIHaveServices:
-
     _debug: Callable[..., None]
 
     _who_has_futures: List[WhoHasFuture]
@@ -608,7 +624,6 @@ class WhoHasIHaveServices:
 
 @bacpypes_debugging
 class DeviceCommunicationControlServices:
-
     _dcc_enable_handle: Optional[asyncio.TimerHandle] = None
 
     async def do_DeviceCommunicationControlRequest(

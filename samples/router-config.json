@@ -7,7 +7,7 @@
         "debug": [],
         "debug_file": "",
         "max_bytes": 1048576,
-        "route_aware": false,
+        "route_aware": false
     },
     "application": [
         {
@@ -52,7 +52,7 @@
                 "number-of-apdu-retries",
                 "device-address-binding",
                 "database-revision",
-                "active-cov-subscriptions",
+                "active-cov-subscriptions"
             ],
             "protocol-object-types-supported": [],
             "protocol-revision": 22,
@@ -66,13 +66,13 @@
                 "read-property",
                 "read-property-multiple",
                 "write-property",
-                "write-property-multiple",
+                "write-property-multiple"
             ],
             "protocol-version": 1,
             "segmentation-supported": "segmented-both",
             "system-status": "operational",
             "vendor-identifier": 999,
-            "vendor-name": "BACpypes",
+            "vendor-name": "BACpypes"
         },
         {
             "bacnet-ip-mode": "normal",
@@ -107,11 +107,11 @@
                 "bacnet-ip-mode",
                 "ip-address",
                 "bacnet-ip-udp-port",
-                "ip-subnet-mask",
+                "ip-subnet-mask"
             ],
             "protocol-level": "bacnet-application",
             "reliability": "no-fault-detected",
-            "status-flags": [],
+            "status-flags": []
         },
         {
             "bacnet-ip-mode": "normal",
@@ -146,11 +146,11 @@
                 "bacnet-ip-mode",
                 "ip-address",
                 "bacnet-ip-udp-port",
-                "ip-subnet-mask",
+                "ip-subnet-mask"
             ],
             "protocol-level": "bacnet-application",
             "reliability": "no-fault-detected",
-            "status-flags": [],
-        },
-    ],
+            "status-flags": []
+        }
+    ]
 }

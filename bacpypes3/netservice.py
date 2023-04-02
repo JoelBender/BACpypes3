@@ -102,12 +102,12 @@ class RouterInfo(DebugContents):
 
 
 @bacpypes_debugging
-class RouterInfoCache:
+class RouterInfoCache(DebugContents):
     """
     This class provides an in-memory implementation of a database of RouterInfo
     objects.
     """
-
+    _debug_contents = ('routers+', 'path_info+',)
     _debug: Callable[..., None]
 
     routers: Dict[Optional[int], Dict[Address, RouterInfo]]
