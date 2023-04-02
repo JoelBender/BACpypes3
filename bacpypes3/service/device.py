@@ -133,7 +133,7 @@ class WhoIsFuture:
             self.i_ams[device_instance] = apdu
 
         # provide this to the application device information cache
-        self.app.device_info_cache.set_device_info(apdu)
+        asyncio.ensure_future(self.app.device_info_cache.set_device_info(apdu))
 
     def who_is_done(self, future: asyncio.Future) -> None:
         """The future has been completed or canceled."""

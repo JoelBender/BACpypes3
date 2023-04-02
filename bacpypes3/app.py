@@ -157,7 +157,7 @@ class DeviceInfoCache(DebugContents):
         # class for new records
         self.device_info_class = device_info_class
 
-    def get_device_info(self, addr: Address) -> Optional[DeviceInfo]:
+    async def get_device_info(self, addr: Address) -> Optional[DeviceInfo]:
         if _debug:
             DeviceInfoCache._debug("get_device_info %r", addr)
 
@@ -168,7 +168,7 @@ class DeviceInfoCache(DebugContents):
 
         return device_info
 
-    def set_device_info(self, apdu: IAmRequest):
+    async def set_device_info(self, apdu: IAmRequest):
         """
         Create/update a device information record based on the contents of an
         IAmRequest and put it in the cache.

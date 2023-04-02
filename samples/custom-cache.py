@@ -3,6 +3,8 @@ Simple example.
 """
 
 import asyncio
+import json
+
 from typing import Callable, List, Optional, Tuple
 
 from bacpypes3.debugging import ModuleLogger, bacpypes_debugging
@@ -12,10 +14,16 @@ from bacpypes3.cmd import Cmd
 from bacpypes3.comm import bind
 
 from bacpypes3.pdu import Address
-from bacpypes3.apdu import IAmRequest
+from bacpypes3.apdu import UnconfirmedRequestPDU, IAmRequest
 from bacpypes3.app import Application, DeviceInfo, DeviceInfoCache
-from bacpypes3.netservice import ROUTER_AVAILABLE, RouterInfo, RouterInfoCache, NetworkAdapter
+from bacpypes3.netservice import (
+    ROUTER_AVAILABLE,
+    RouterInfo,
+    RouterInfoCache,
+    NetworkAdapter,
+)
 from bacpypes3.npdu import IAmRouterToNetwork
+from bacpypes3.json import sequence_to_json, json_to_sequence
 
 from redis import asyncio as aioredis
 from redis.asyncio import Redis
@@ -35,16 +43,30 @@ redis: Redis
 class CustomDeviceInfoCache(DeviceInfoCache):
     _debug: Callable[..., None]
 
-    def get_device_info(self, addr: Address) -> Optional[DeviceInfo]:
+    async def get_device_info(self, addr: Address) -> Optional[DeviceInfo]:
         """
         Get the device information about the device from an address.
         """
         if _debug:
             CustomDeviceInfoCache._debug("get_device_info %r", addr)
 
-        return super().get_device_info(addr)
+        # build a key
+        device_info_key = f"bacnet:dev:{addr}"
+        if _debug:
+            CustomDeviceInfoCache._debug("    - device_info_key: %r", device_info_key)
+        device_info_blob = await redis.get(device_info_key)
+        if _debug:
+            CustomDeviceInfoCache._debug("    - device_info_blob: %r", device_info_blob)
 
-    def set_device_info(self, apdu: IAmRequest):
+        if device_info_blob:
+            pdu = UnconfirmedRequestPDU(IAmRequest.service_choice, device_info_blob)
+            i_am = IAmRequest.decode(pdu)
+            if _debug:
+                CustomDeviceInfoCache._debug("    - i_am: %r", i_am)
+
+        return await super().get_device_info(addr)
+
+    async def set_device_info(self, apdu: IAmRequest):
         """
         Create/update a device information record based on the contents of an
         IAmRequest and put it in the cache.
@@ -52,7 +74,23 @@ class CustomDeviceInfoCache(DeviceInfoCache):
         if _debug:
             CustomDeviceInfoCache._debug("set_device_info %r", apdu)
 
-        return super().set_device_info(apdu)
+        # build a key
+        device_info_key = f"bacnet:dev:{apdu.pduSource}"
+        if _debug:
+            CustomDeviceInfoCache._debug("    - device_info_key: %r", device_info_key)
+
+        if 1:
+            device_info_blob = bytes(apdu.encode().pduData)
+
+        if 0:
+            device_info_json = sequence_to_json(apdu)
+            device_info_blob = json.dumps(device_info_json).encode()
+            if _debug:
+                CustomDeviceInfoCache._debug("    - device_info_blob: %r", device_info_blob)
+
+        await redis.set(device_info_key, device_info_blob)
+
+        return await super().set_device_info(apdu)
 
 
 @bacpypes_debugging

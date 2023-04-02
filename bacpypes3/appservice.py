@@ -116,10 +116,6 @@ class SSM(DebugContents):
 
         # save the address and get the device information
         self.pdu_address = pdu_address
-        self.device_info = sap.device_info_cache.get_device_info(pdu_address)
-        if _debug:
-            SSM._debug("    - device_info: %r", self.device_info)
-
         self.invokeID = None  # invoke ID
         self._timer_handle = None  # no timer scheduled
 
@@ -394,12 +390,6 @@ class ClientSSM(SSM):
         # initialize the retry count
         self.retryCount = 0
 
-        # acquire the device info
-        if self.device_info:
-            if _debug:
-                ClientSSM._debug("    - acquire device information")
-            self.ssmSAP.device_info_cache.acquire(self.device_info)
-
     def set_state(self, newState: int, timer: int = 0) -> None:
         """This function is called when the client wants to change state."""
         if _debug:
@@ -418,12 +408,6 @@ class ClientSSM(SSM):
             if _debug:
                 ClientSSM._debug("    - remove from active transactions")
             self.ssmSAP.clientTransactions.remove(self)
-
-            # release the device info
-            if self.device_info:
-                if _debug:
-                    ClientSSM._debug("    - release device information")
-                self.ssmSAP.device_info_cache.release(self.device_info)
 
     async def request(self, apdu: APDU) -> None:
         """This function is called by client transaction functions when it wants
@@ -450,6 +434,13 @@ class ClientSSM(SSM):
 
         # save the request and set the segmentation context
         self.set_segmentation_context(apdu)
+
+        # get information about the server we are going to talk to
+        self.device_info = await self.ssmSAP.device_info_cache.get_device_info(
+            self.pdu_address
+        )
+        if _debug:
+            ClientSSM._debug("    - device_info: %r", self.device_info)
 
         # if the max apdu length of the server isn't known, assume that it
         # is the same size as our own and will be the segment size
@@ -966,12 +957,6 @@ class ServerSSM(SSM):
             ServerSSM._debug("__init__ %s %r", sap, pdu_address)
         SSM.__init__(self, sap, pdu_address)
 
-        # acquire the device info
-        if self.device_info:
-            if _debug:
-                ServerSSM._debug("    - acquire device information")
-            self.ssmSAP.device_info_cache.acquire(self.device_info)
-
     def set_state(self, newState, timer=0):
         """This function is called when the client wants to change state."""
         if _debug:
@@ -990,12 +975,6 @@ class ServerSSM(SSM):
             if _debug:
                 ServerSSM._debug("    - remove from active transactions")
             self.ssmSAP.serverTransactions.remove(self)
-
-            # release the device info
-            if self.device_info:
-                if _debug:
-                    ClientSSM._debug("    - release device information")
-                self.ssmSAP.device_info_cache.release(self.device_info)
 
     async def request(self, apdu):
         """This function is called by transaction functions to send
@@ -1231,6 +1210,13 @@ class ServerSSM(SSM):
         if _debug:
             ServerSSM._debug("    - invoke ID: %r", self.invokeID)
 
+        # get the info about the client
+        self.device_info = await self.ssmSAP.device_info_cache.get_device_info(
+            self.pdu_address
+        )
+        if _debug:
+            ServerSSM._debug("    - device_info: %r", self.device_info)
+
         # remember if the client accepts segmented responses
         self.segmented_response_accepted = apdu.apduSA
 
@@ -1245,7 +1231,7 @@ class ServerSSM(SSM):
                     ServerSSM._debug("    - tell the cache the info has been updated")
                 self.ssmSAP.device_info_cache.update_device_info(self.device_info)
 
-            elif self.device_info.segmentationSupported == "segmentedTransmit":
+            elif self.device_info.segmentationSupported == Segmentation.segmentedTransmit:
                 if _debug:
                     ServerSSM._debug(
                         "    - client actually supports both segmented transmit and receive"

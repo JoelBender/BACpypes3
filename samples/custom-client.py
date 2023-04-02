@@ -57,7 +57,9 @@ class SampleCmd(Cmd):
         assert app
 
         # get information about the device from the application
-        device_info = app.device_info_cache.get_device_info(address)
+        device_info: Optional[DeviceInfo] = await app.device_info_cache.get_device_info(
+            address
+        )
         if _debug:
             SampleCmd._debug("    - device_info: %r", device_info)
 
