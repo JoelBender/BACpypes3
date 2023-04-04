@@ -444,19 +444,22 @@ class ClientSSM(SSM):
 
         # if the max apdu length of the server isn't known, assume that it
         # is the same size as our own and will be the segment size
-        if (not self.device_info) or (self.device_info.maxApduLengthAccepted is None):
+        if (not self.device_info) or (
+            self.device_info.max_apdu_length_accepted is None
+        ):
             self.segmentSize = self.maxApduLengthAccepted
 
         # if the max npdu length of the server isn't known, assume that it
         # is the same as the max apdu length accepted
         elif self.device_info.maxNpduLength is None:
-            self.segmentSize = self.device_info.maxApduLengthAccepted
+            self.segmentSize = self.device_info.max_apdu_length_accepted
 
         # the segment size is the minimum of the size of the largest packet
         # that can be delivered to the server and the largest it can accept
         else:
             self.segmentSize = min(
-                self.device_info.maxNpduLength, self.device_info.maxApduLengthAccepted
+                self.device_info.maxNpduLength,
+                self.device_info.max_apdu_length_accepted,
             )
         if _debug:
             ClientSSM._debug("    - segment size: %r", self.segmentSize)
@@ -1231,7 +1234,9 @@ class ServerSSM(SSM):
                     ServerSSM._debug("    - tell the cache the info has been updated")
                 self.ssmSAP.device_info_cache.update_device_info(self.device_info)
 
-            elif self.device_info.segmentationSupported == Segmentation.segmentedTransmit:
+            elif (
+                self.device_info.segmentationSupported == Segmentation.segmentedTransmit
+            ):
                 if _debug:
                     ServerSSM._debug(
                         "    - client actually supports both segmented transmit and receive"
@@ -1258,12 +1263,12 @@ class ServerSSM(SSM):
         # it came from reading device object property value or from an I-Am
         # message that was received
         self.maxApduLengthAccepted = decode_max_apdu_length_accepted(apdu.apduMaxResp)
-        if self.device_info and self.device_info.maxApduLengthAccepted is not None:
-            if self.device_info.maxApduLengthAccepted < self.maxApduLengthAccepted:
+        if self.device_info and self.device_info.max_apdu_length_accepted is not None:
+            if self.device_info.max_apdu_length_accepted < self.maxApduLengthAccepted:
                 if _debug:
                     ServerSSM._debug("    - apduMaxResp encoding error")
             else:
-                self.maxApduLengthAccepted = self.device_info.maxApduLengthAccepted
+                self.maxApduLengthAccepted = self.device_info.max_apdu_length_accepted
         if _debug:
             ServerSSM._debug(
                 "    - maxApduLengthAccepted: %r", self.maxApduLengthAccepted

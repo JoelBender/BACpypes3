@@ -6,6 +6,8 @@ from __future__ import annotations
 
 import asyncio
 import argparse
+import dataclasses
+
 from functools import partial
 
 from typing import (
@@ -101,32 +103,25 @@ _log = ModuleLogger(globals())
 
 
 @bacpypes_debugging
+@dataclasses.dataclass
 class DeviceInfo(DebugContents):
     _debug_contents = (
-        "deviceIdentifier",
-        "address",
-        "maxApduLengthAccepted",
-        "segmentationSupported",
-        "vendorID",
-        "maxNpduLength",
-        "maxSegmentsAccepted",
+        "device_instance",
+        "device_address",
+        "max_apdu_length_accepted",
+        "segmentation_supported",
+        "vendor_identifier",
+        "max_npdu_length",
+        "max_segments_accepted",
     )
 
-    _ref_count: int
-
-    def __init__(self, device_identifier, address):
-        self.deviceIdentifier = device_identifier
-        self.address = address
-
-        self.maxApduLengthAccepted = 1024  # maximum APDU device will accept
-        self.segmentationSupported = (
-            Segmentation.noSegmentation
-        )  # normally no segmentation
-        self.maxSegmentsAccepted = None  # None iff no segmentation
-        self.vendorID = None  # vendor identifier
-        self.maxNpduLength = None  # maximum we can send in transit (see 19.4)
-
-        self._ref_count = 0
+    device_instance: int
+    device_address: Address
+    max_apdu_length_accepted: int = 1024
+    segmentation_supported: Segmentation = Segmentation.noSegmentation
+    vendor_identifier: Optional[int] = None
+    max_segments_accepted: Optional[int] = None
+    max_npdu_length: Optional[int] = None  # See Clause 19.4
 
 
 #
@@ -197,16 +192,16 @@ class DeviceInfoCache(DebugContents):
         elif info1 or info2:
             log_message = f"I-Am from {device_address}, device {device_instance}:"
             if info1:
-                log_message += f" was device {info1.deviceIdentifier}"
-                del self.instance_cache[info1.deviceIdentifier]
+                log_message += f" was device {info1.device_instance}"
+                del self.instance_cache[info1.device_instance]
             if info2:
-                log_message += f" was address {info2.address}"
-                del self.address_cache[info2.address]
+                log_message += f" was address {info2.device_address}"
+                del self.address_cache[info2.device_address]
             DeviceInfoCache._info(log_message)
 
         if not device_info:
             # create an entry
-            device_info = self.device_info_class(device_instance, apdu.pduSource)
+            device_info = self.device_info_class(device_instance, device_address)
             device_info.deviceIdentifier = device_instance
             device_info.address = device_address
 
@@ -215,9 +210,9 @@ class DeviceInfoCache(DebugContents):
             self.instance_cache[device_instance] = device_info
 
         # update record contents
-        device_info.maxApduLengthAccepted = apdu.maxAPDULengthAccepted
-        device_info.segmentationSupported = apdu.segmentationSupported
-        device_info.vendorID = apdu.vendorID
+        device_info.max_apdu_length_accepted = apdu.maxAPDULengthAccepted
+        device_info.segmentation_supported = apdu.segmentationSupported
+        device_info.vendor_identifier = apdu.vendorID
 
     def update_device_info(self, device_info: DeviceInfo):
         """

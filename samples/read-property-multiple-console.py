@@ -51,13 +51,13 @@ class SampleCmd(Cmd):
         args = list(args)
 
         # get information about the device from the cache
-        device_info = app.device_info_cache.get_device_info(address)
+        device_info = await app.device_info_cache.get_device_info(address)
         if _debug:
             SampleCmd._debug("    - device_info: %r", device_info)
 
         # using the device info, look up the vendor information
         if device_info:
-            vendor_info = get_vendor_info(device_info.vendorID)
+            vendor_info = get_vendor_info(device_info.vendor_identifier)
         else:
             vendor_info = get_vendor_info(0)
         if _debug:

@@ -65,7 +65,7 @@ class SampleCmd(Cmd):
 
         # using the device info, look up the vendor information
         if device_info:
-            vendor_info = get_vendor_info(device_info.vendorID)
+            vendor_info = get_vendor_info(device_info.vendor_identifier)
         else:
             vendor_info = get_vendor_info(0)
         if _debug:
