@@ -110,13 +110,13 @@ class ReadWritePropertyServices:
             return None
 
         # get information about the device from the cache
-        device_info = self.device_info_cache.get_device_info(address)
+        device_info = await self.device_info_cache.get_device_info(address)
         if _debug:
             ReadWritePropertyServices._debug("    - device_info: %r", device_info)
 
         # using the device info, look up the vendor information
         if device_info:
-            vendor_info = get_vendor_info(device_info.vendorID)
+            vendor_info = get_vendor_info(device_info.vendor_identifier)
         else:
             vendor_info = get_vendor_info(0)
         if _debug:
@@ -184,13 +184,13 @@ class ReadWritePropertyServices:
             )
 
         # get information about the device from the cache
-        device_info = self.device_info_cache.get_device_info(address)
+        device_info = await self.device_info_cache.get_device_info(address)
         if _debug:
             ReadWritePropertyServices._debug("    - device_info: %r", device_info)
 
         # using the device info, look up the vendor information
         if device_info:
-            vendor_info = get_vendor_info(device_info.vendorID)
+            vendor_info = get_vendor_info(device_info.vendor_identifier)
         else:
             vendor_info = get_vendor_info(0)
         if _debug:
@@ -473,7 +473,7 @@ class ReadWritePropertyMultipleServices:
             )
 
         # get information about the device from the cache
-        device_info = self.device_info_cache.get_device_info(address)
+        device_info = await self.device_info_cache.get_device_info(address)
         if _debug:
             ReadWritePropertyMultipleServices._debug(
                 "    - device_info: %r", device_info
@@ -481,7 +481,7 @@ class ReadWritePropertyMultipleServices:
 
         # using the device info, look up the vendor information
         if device_info:
-            vendor_info = get_vendor_info(device_info.vendorID)
+            vendor_info = get_vendor_info(device_info.vendor_identifier)
         else:
             vendor_info = get_vendor_info(0)
         if _debug:
@@ -610,7 +610,18 @@ class ReadWritePropertyMultipleServices:
                         "    - datatype: %r", datatype
                     )
                 if datatype is None:
-                    raise PropertyError(errorCode="datatypeNotSupported")
+                    ReadWritePropertyMultipleServices._warning(
+                        "%r not supported", property_identifier
+                    )
+                    result_list.append(
+                        (
+                            object_identifier,
+                            property_identifier,
+                            property_array_index,
+                            None,
+                        )
+                    )
+                    continue
 
                 if issubclass(datatype, Array):
                     if property_array_index is None:

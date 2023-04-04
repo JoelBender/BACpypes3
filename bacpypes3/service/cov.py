@@ -232,13 +232,13 @@ class SubscriptionContextManager:
         property_value_element = await self.get()
 
         # get information about the device from the application cache
-        device_info = self.app.device_info_cache.get_device_info(self.address)
+        device_info = await self.app.device_info_cache.get_device_info(self.address)
         if _debug:
             SubscriptionContextManager._debug("    - device_info: %r", device_info)
 
         # using the device info, look up the vendor information
         if device_info:
-            vendor_info = get_vendor_info(device_info.vendorID)
+            vendor_info = get_vendor_info(device_info.vendor_identifier)
         else:
             vendor_info = get_vendor_info(0)
         if _debug:
