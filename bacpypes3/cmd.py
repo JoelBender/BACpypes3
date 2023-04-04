@@ -7,6 +7,7 @@ Support for line-oriented command interpreters
 import sys
 import shlex
 import inspect
+import traceback
 import logging
 import typing
 from typing import Awaitable, Callable, Dict, List, Tuple, Any, Optional, Union
@@ -354,6 +355,15 @@ class Cmd(Server[ConsolePDU]):
             if inspect.isawaitable(response):
                 response = await response
         except Exception as err:
+            if _debug:
+                Cmd._debug("    - err: %r", err)
+                Cmd._debug(
+                    "    - stack: %r",
+                    [
+                        "%s:%s" % (filename.split("/")[-1], lineno)
+                        for filename, lineno, _, _ in traceback.extract_stack()[-6:-1]
+                    ],
+                )
             await self.response(
                 "{} error: {} | Error type : {}".format(cmd, err, type(err))
             )
