@@ -451,14 +451,14 @@ class ClientSSM(SSM):
 
         # if the max npdu length of the server isn't known, assume that it
         # is the same as the max apdu length accepted
-        elif self.device_info.maxNpduLength is None:
+        elif self.device_info.max_npdu_length is None:
             self.segmentSize = self.device_info.max_apdu_length_accepted
 
         # the segment size is the minimum of the size of the largest packet
         # that can be delivered to the server and the largest it can accept
         else:
             self.segmentSize = min(
-                self.device_info.maxNpduLength,
+                self.device_info.max_npdu_length,
                 self.device_info.max_apdu_length_accepted,
             )
         if _debug:
@@ -497,7 +497,7 @@ class ClientSSM(SSM):
                 if _debug:
                     ClientSSM._debug("    - no server info for segmentation support")
 
-            elif self.device_info.segmentationSupported not in (
+            elif self.device_info.segmentation_supported not in (
                 Segmentation.segmentedReceive,
                 Segmentation.segmentedBoth,
             ):
@@ -515,13 +515,13 @@ class ClientSSM(SSM):
                         "    - no server info for maximum number of segments"
                     )
 
-            elif not self.device_info.maxSegmentsAccepted:
+            elif not self.device_info.max_segments_accepted:
                 if _debug:
                     ClientSSM._debug(
                         "    - server doesn't say maximum number of segments"
                     )
 
-            elif self.segmentCount > self.device_info.maxSegmentsAccepted:
+            elif self.segmentCount > self.device_info.max_segments_accepted:
                 if _debug:
                     ClientSSM._debug("    - server can't receive enough segments")
                 abort = self.abort(AbortReason.apduTooLong)
@@ -1080,11 +1080,11 @@ class ServerSSM(SSM):
 
             # the segment size is the minimum of the size of the largest packet
             # that can be delivered to the client and the largest it can accept
-            if (not self.device_info) or (self.device_info.maxNpduLength is None):
+            if (not self.device_info) or (self.device_info.max_npdu_length is None):
                 self.segmentSize = self.maxApduLengthAccepted
             else:
                 self.segmentSize = min(
-                    self.device_info.maxNpduLength, self.maxApduLengthAccepted
+                    self.device_info.max_npdu_length, self.maxApduLengthAccepted
                 )
             if _debug:
                 ServerSSM._debug("    - segment size: %r", self.segmentSize)
@@ -1225,34 +1225,34 @@ class ServerSSM(SSM):
 
         # if there is a cache record, check to see if it needs to be updated
         if apdu.apduSA and self.device_info:
-            if self.device_info.segmentationSupported == Segmentation.noSegmentation:
+            if self.device_info.segmentation_supported == Segmentation.noSegmentation:
                 if _debug:
                     ServerSSM._debug("    - client actually supports segmented receive")
-                self.device_info.segmentationSupported = Segmentation.segmentedReceive
+                self.device_info.segmentation_supported = Segmentation.segmentedReceive
 
                 if _debug:
                     ServerSSM._debug("    - tell the cache the info has been updated")
                 self.ssmSAP.device_info_cache.update_device_info(self.device_info)
 
             elif (
-                self.device_info.segmentationSupported == Segmentation.segmentedTransmit
+                self.device_info.segmentation_supported == Segmentation.segmentedTransmit
             ):
                 if _debug:
                     ServerSSM._debug(
                         "    - client actually supports both segmented transmit and receive"
                     )
-                self.device_info.segmentationSupported = Segmentation.segmentedBoth
+                self.device_info.segmentation_supported = Segmentation.segmentedBoth
 
                 if _debug:
                     ServerSSM._debug("    - tell the cache the info has been updated")
                 self.ssmSAP.device_info_cache.update_device_info(self.device_info)
 
             elif (
-                self.device_info.segmentationSupported == Segmentation.segmentedReceive
+                self.device_info.segmentation_supported == Segmentation.segmentedReceive
             ):
                 pass
 
-            elif self.device_info.segmentationSupported == Segmentation.segmentedBoth:
+            elif self.device_info.segmentation_supported == Segmentation.segmentedBoth:
                 pass
 
             else:

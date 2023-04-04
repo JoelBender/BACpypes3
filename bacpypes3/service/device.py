@@ -205,7 +205,9 @@ class WhoIsIAmServices:
         # create a future, store a reference to it to be resolved
         who_is_future = WhoIsFuture(
             self,
-            address if address.is_localstation or address.is_remotestation else None,
+            address
+            if address and (address.is_localstation or address.is_remotestation)
+            else None,
             low_limit,
             high_limit,
         )
