@@ -169,6 +169,7 @@ from .basetypes import (
     SecurityLevel,
     Segmentation,
     ServicesSupported,
+    SessionKey,
     SetpointReference,
     ShedLevel,
     ShedState,
@@ -209,7 +210,6 @@ def get_vendor_info(vendor_identifier: int) -> VendorInfo:
 
 @bacpypes_debugging
 class VendorInfo:
-
     _debug: Callable[..., None]
 
     vendor_identifier: int
@@ -1620,6 +1620,7 @@ class DeviceObject(Object):
     structuredObjectList: ArrayOf(ObjectIdentifier)
     maxApduLengthAccepted: Unsigned
     segmentationSupported: Segmentation
+    maxSegmentsAccepted: Unsigned
     vtClassesSupported: ListOf(VTClass)
     activeVtSessions: ListOf(VTSession)
     localTime: Time
@@ -1629,6 +1630,7 @@ class DeviceObject(Object):
     apduSegmentTimeout: Unsigned
     apduTimeout: Unsigned
     numberOfApduRetries: Unsigned
+    listOfSessionKeys: ListOf(SessionKey)
     timeSynchronizationRecipients: ListOf(Recipient)
     maxMaster: Unsigned
     maxInfoFrames: Unsigned

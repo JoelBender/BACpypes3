@@ -3743,6 +3743,12 @@ class SecurityKeySet(Sequence):
     keyIds = SequenceOf(KeyIdentifier, _context=3)
 
 
+class SessionKey(Sequence):
+    _order = ("sessionKey", "peerAddress")
+    sessionKey = OctetString()
+    peerAddress = Address()
+
+
 class SetpointReference(Sequence):
     _order = ("setpointReference",)
     setpointReference = ObjectPropertyReference(_context=0, _optional=True)
