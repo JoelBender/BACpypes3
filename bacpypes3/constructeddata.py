@@ -411,7 +411,7 @@ class Sequence(Element, DebugContents, metaclass=SequenceMetaclass):
         tag_list = TagList()
 
         # maybe context tagged
-        if self._context:
+        if self._context is not None:
             tag_list.append(OpeningTag(self._context))
 
         for attr in self._order:
@@ -435,7 +435,7 @@ class Sequence(Element, DebugContents, metaclass=SequenceMetaclass):
             tag_list.extend(value.encode())
 
         # maybe context tagged
-        if self._context:
+        if self._context is not None:
             tag_list.append(ClosingTag(self._context))
 
         return tag_list
@@ -460,11 +460,8 @@ class Sequence(Element, DebugContents, metaclass=SequenceMetaclass):
             Sequence._debug("    - first tag: %r", tag)
 
         # if this is context encoded, check and consume the opening tag
-        if not tag:
-            if cls._context:
-                raise InvalidTag(f"opening tag {cls._context} expected")
-        elif cls._context:
-            if tag.tag_class != TagClass.opening:
+        if cls._context is not None:
+            if (not tag) or (tag.tag_class != TagClass.opening):
                 raise InvalidTag(f"opening tag {cls._context} expected")
             if tag.tag_number != cls._context:
                 raise InvalidTag("mismatched context")
@@ -565,11 +562,8 @@ class Sequence(Element, DebugContents, metaclass=SequenceMetaclass):
             )
 
         # if this is context encoded, check and consume the closing tag
-        if not tag:
-            if cls._context:
-                raise InvalidTag(f"closing tag {cls._context} expected")
-        elif cls._context:
-            if tag.tag_class != TagClass.closing:
+        if cls._context is not None:
+            if (not tag) or (tag.tag_class != TagClass.closing):
                 raise InvalidTag(f"closing tag {cls._context} expected")
             if tag.tag_number != cls._context:
                 raise InvalidTag("mismatched context")
@@ -714,7 +708,7 @@ class Choice(Sequence):
             raise AttributeError("no choice")
 
         # maybe context tagged
-        if self._context:
+        if self._context is not None:
             tag_list.append(OpeningTag(self._context))
 
         attr = self._choice
@@ -730,7 +724,7 @@ class Choice(Sequence):
         tag_list.extend(value.encode())
 
         # maybe context tagged
-        if self._context:
+        if self._context is not None:
             tag_list.append(ClosingTag(self._context))
 
         return tag_list
@@ -747,11 +741,8 @@ class Choice(Sequence):
             Choice._debug("    - first tag: %r", tag)
 
         # if this is context encoded, check and consume the opening tag
-        if not tag:
-            if cls._context:
-                raise InvalidTag(f"opening tag {cls._context} expected")
-        elif cls._context:
-            if tag.tag_class != TagClass.opening:
+        if cls._context is not None:
+            if (not tag) or (tag.tag_class != TagClass.opening):
                 raise InvalidTag(f"opening tag {cls._context} expected")
             if tag.tag_number != cls._context:
                 raise InvalidTag("mismatched context")
@@ -827,11 +818,8 @@ class Choice(Sequence):
             raise AttributeError("choice not found")
 
         # if this is context encoded, check and consume the closing tag
-        if not tag:
-            if cls._context:
-                raise InvalidTag(f"closing tag {cls._context} expected")
-        elif cls._context:
-            if tag.tag_class != TagClass.closing:
+        if cls._context is not None:
+            if (not tag) or (tag.tag_class != TagClass.closing):
                 raise InvalidTag(f"closing tag {cls._context} expected")
             if tag.tag_number != cls._context:
                 raise InvalidTag("mismatched context")
@@ -1030,7 +1018,7 @@ class ExtendedList(list, ElementInterface, metaclass=ExtendedListMetaclass):  # 
         tag_list = TagList()
 
         # maybe context tagged
-        if self._context:
+        if self._context is not None:
             tag_list.append(OpeningTag(self._context))
 
         # loop through the items
@@ -1039,7 +1027,7 @@ class ExtendedList(list, ElementInterface, metaclass=ExtendedListMetaclass):  # 
             tag_list.extend(item.encode())
 
         # maybe context tagged
-        if self._context:
+        if self._context is not None:
             tag_list.append(ClosingTag(self._context))
 
         return tag_list
@@ -1056,11 +1044,8 @@ class ExtendedList(list, ElementInterface, metaclass=ExtendedListMetaclass):  # 
             ExtendedList._debug("    - first tag: %r", tag)
 
         # if this is context encoded, check and consume the opening tag
-        if not tag:
-            if cls._context:
-                raise InvalidTag(f"opening tag {cls._context} expected")
-        elif cls._context:
-            if tag.tag_class != TagClass.opening:
+        if cls._context is not None:
+            if (not tag) or (tag.tag_class != TagClass.opening):
                 raise InvalidTag(f"opening tag {cls._context} expected")
             if tag.tag_number != cls._context:
                 raise InvalidTag("mismatched context")
@@ -1100,11 +1085,8 @@ class ExtendedList(list, ElementInterface, metaclass=ExtendedListMetaclass):  # 
             tag = tag_list.peek()
 
         # if this is context encoded, check and consume the closing tag
-        if not tag:
-            if cls._context:
-                raise InvalidTag(f"closing tag {cls._context} expected")
-        elif cls._context:
-            if tag.tag_class != TagClass.closing:
+        if cls._context is not None:
+            if (not tag) or (tag.tag_class != TagClass.closing):
                 raise InvalidTag(f"closing tag {cls._context} expected")
             if tag.tag_number != cls._context:
                 raise InvalidTag("mismatched context")
@@ -1620,14 +1602,14 @@ class Any(Element):
         tag_list = TagList()
 
         # maybe context tagged
-        if cls._context:
+        if cls._context is not None:
             tag_list.append(OpeningTag(cls._context))
 
         # append the encoded element
         tag_list.extend(arg.encode())
 
         # maybe context tagged
-        if cls._context:
+        if cls._context is not None:
             tag_list.append(ClosingTag(cls._context))
 
         # tag list is in the element
@@ -1712,14 +1694,14 @@ class Any(Element):
         tag_list = TagList()
 
         # maybe context tagged
-        if self._context:
+        if self._context is not None:
             tag_list.append(OpeningTag(self._context))
 
         # append the encoded element
         tag_list.extend(element.encode())
 
         # maybe context tagged
-        if self._context:
+        if self._context is not None:
             tag_list.append(ClosingTag(self._context))
 
         # save the result
@@ -1743,11 +1725,8 @@ class Any(Element):
             Any._debug("    - first tag: %r", tag)
 
         # if this is context encoded, check and consume the opening tag
-        if not tag:
-            if self._context:
-                raise InvalidTag(f"opening tag {self._context} expected")
-        elif self._context:
-            if tag.tag_class != TagClass.opening:
+        if self._context is not None:
+            if (not tag) or (tag.tag_class != TagClass.opening):
                 raise InvalidTag(f"opening tag {self._context} expected")
             if tag.tag_number != self._context:
                 raise InvalidTag("mismatched context")
@@ -1771,11 +1750,10 @@ class Any(Element):
             result = cls.decode(tag_list)
 
         # look ahead for the closing tag
-        tag = tag_list.peek()
-        if not tag:
-            if self._context:
+        if self._context is not None:
+            tag = tag_list.peek()
+            if (not tag) or (tag.tag_class != TagClass.closing):
                 raise InvalidTag(f"closing tag {self._context} expected")
-        elif self._context:
             if tag.tag_class != TagClass.closing:
                 raise InvalidTag(f"closing tag {self._context} expected")
             if tag.tag_number != self._context:
