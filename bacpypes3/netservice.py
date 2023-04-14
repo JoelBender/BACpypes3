@@ -107,7 +107,11 @@ class RouterInfoCache(DebugContents):
     This class provides an in-memory implementation of a database of RouterInfo
     objects.
     """
-    _debug_contents = ('routers+', 'path_info+',)
+
+    _debug_contents = (
+        "routers+",
+        "path_info+",
+    )
     _debug: Callable[..., None]
 
     routers: Dict[Optional[int], Dict[Address, RouterInfo]]
@@ -298,7 +302,6 @@ class RouterInfoCache(DebugContents):
 
 @bacpypes_debugging
 class NetworkAdapter(Client[PDU], DebugContents):
-
     _debug: Callable[..., None]
     _debug_contents = (
         "adapterSAP-",
@@ -390,7 +393,6 @@ class NetworkAdapter(Client[PDU], DebugContents):
 
 @bacpypes_debugging
 class NetworkServiceAccessPoint(ServiceAccessPoint, Server[PDU], DebugContents):
-
     _debug: Callable[..., None]
     _warning: Callable[..., None]
     _debug_contents = (
@@ -676,8 +678,14 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server[PDU], DebugContents):
 
             result_list = await nse.who_is_router_to_network(network=dnet)
             if not result_list:
+                if _debug:
+                    NetworkServiceAccessPoint._debug("    - no router responded")
                 raise UnknownRoute()
             if len(result_list) > 1:
+                if _debug:
+                    NetworkServiceAccessPoint._debug(
+                        "    - more than one router responded"
+                    )
                 raise UnknownRoute()
 
             router_adapter, i_am_router_to_network = result_list[0]
@@ -1035,7 +1043,9 @@ class WhoIsRouterToNetworkFuture:
         network: Optional[int] = None,
     ) -> None:
         if _debug:
-            WhoIsRouterToNetworkFuture._debug("__init__ %r %r", nse, network)
+            WhoIsRouterToNetworkFuture._debug(
+                "__init__ %r %r %r %r", nse, adapter, router_address, network
+            )
 
         self.nse = nse
         self.adapter = adapter
@@ -1083,7 +1093,14 @@ class WhoIsRouterToNetworkFuture:
         if _debug:
             WhoIsRouterToNetworkFuture._debug("    - npdu_source: %r", npdu_source)
 
-        if not self.router_address:
+        if self.network is not None:
+            if self.network in npdu.iartnNetworkList:
+                if _debug:
+                    WhoIsRouterToNetworkFuture._debug("    - network match")
+                self.result_list.append((adapter, npdu))
+                self.future.set_result(self.result_list)
+
+        elif not self.router_address:
             if _debug:
                 WhoIsRouterToNetworkFuture._debug("    - wildcard match")
             self.result_list.append((adapter, npdu))
@@ -1249,7 +1266,6 @@ class InitializeRoutingTableFuture:
 
 @bacpypes_debugging
 class NetworkServiceElement(ApplicationServiceElement, DebugContents):
-
     _debug: Callable[..., None]
     _debug_contents: Tuple[str, ...] = (
         "who_is_router_to_network_futures",
