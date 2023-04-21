@@ -207,7 +207,6 @@ class LPDU(LPCI, PDUData):
 
 @bacpypes_debugging
 class BVLLCodec(Client[PDU], Server[LPDU]):
-
     _debug: Callable[..., None]
 
     def __init__(self, cid=None, sid=None) -> None:
@@ -294,7 +293,6 @@ def key_value_contents(use_dict=None, as_class=dict, key_values=()):
 
 
 class FDTEntry(DebugContents):
-
     _debug_contents = ("fdAddress", "fdTTL", "fdRemain")
 
     fdAddress: IPv4Address
@@ -335,8 +333,7 @@ class FDTEntry(DebugContents):
 
 
 @register_bvlpdu_type
-class Result(LPDU):
-
+class Result(LPDU, BaseException):
     _debug: Callable[..., None]
     _debug_contents: Tuple[str, ...] = ("bvlciResultCode",)
 
@@ -392,7 +389,6 @@ def _count_set_bits(n: int) -> int:
 
 @register_bvlpdu_type
 class WriteBroadcastDistributionTable(LPDU):
-
     _debug: Callable[..., None]
     _debug_contents = ("bvlciBDT",)
 
@@ -489,7 +485,6 @@ class ReadBroadcastDistributionTable(LPDU):
 
 @register_bvlpdu_type
 class ReadBroadcastDistributionTableAck(LPDU):
-
     _debug: Callable[..., None]
     _debug_contents = ("bvlciBDT",)
 
@@ -555,7 +550,6 @@ class ReadBroadcastDistributionTableAck(LPDU):
 
 @register_bvlpdu_type
 class ForwardedNPDU(LPDU):
-
     _debug: Callable[..., None]
     _debug_contents = ("bvlciAddress",)
 
@@ -622,7 +616,6 @@ class ForwardedNPDU(LPDU):
 
 @register_bvlpdu_type
 class RegisterForeignDevice(LPDU):
-
     _debug: Callable[..., None]
     _debug_contents = ("bvlciTimeToLive",)
 
@@ -672,7 +665,6 @@ class RegisterForeignDevice(LPDU):
 
 @register_bvlpdu_type
 class ReadForeignDeviceTable(LPDU):
-
     pduType = LPCI.readForeignDeviceTable
 
     def __init__(self, *args, **kwargs):
@@ -704,7 +696,6 @@ class ReadForeignDeviceTable(LPDU):
 
 @register_bvlpdu_type
 class ReadForeignDeviceTableAck(LPDU):
-
     _debug: Callable[..., None]
     _debug_contents = ("bvlciFDT",)
 
@@ -771,7 +762,6 @@ class ReadForeignDeviceTableAck(LPDU):
 
 @register_bvlpdu_type
 class DeleteForeignDeviceTableEntry(LPDU):
-
     _debug: Callable[..., None]
     _debug_contents = ("bvlciAddress",)
 
@@ -821,7 +811,6 @@ class DeleteForeignDeviceTableEntry(LPDU):
 
 @register_bvlpdu_type
 class DistributeBroadcastToNetwork(LPDU):
-
     _debug: Callable[..., None]
 
     pduType = LPCI.distributeBroadcastToNetwork
@@ -880,7 +869,6 @@ class DistributeBroadcastToNetwork(LPDU):
 
 @register_bvlpdu_type
 class OriginalUnicastNPDU(LPDU):
-
     _debug: Callable[..., None]
 
     pduType = LPCI.originalUnicastNPDU
@@ -939,7 +927,6 @@ class OriginalUnicastNPDU(LPDU):
 
 @register_bvlpdu_type
 class OriginalBroadcastNPDU(LPDU):
-
     _debug: Callable[..., None]
 
     pduType = LPCI.originalBroadcastNPDU

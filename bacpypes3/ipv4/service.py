@@ -37,6 +37,7 @@ _log = ModuleLogger(globals())
 REGISTRATION_TIMEOUT = 2.0
 READ_BDT_TIMEOUT = 3.0
 READ_FDT_TIMEOUT = 3.0
+WRITE_BDT_TIMEOUT = 3.0
 
 
 #
@@ -264,7 +265,6 @@ class BVLLServiceAccessPoint(Client[LPDU], Server[PDU], ServiceAccessPoint):
 
 @bacpypes_debugging
 class BIPNormal(BVLLServiceAccessPoint):
-
     _debug: Callable[..., None]
     _warning: Callable[..., None]
 
@@ -419,7 +419,6 @@ class BIPNormal(BVLLServiceAccessPoint):
 
 @bacpypes_debugging
 class BIPForeign(BVLLServiceAccessPoint, DebugContents):
-
     _debug: Callable[..., None]
     _warning: Callable[..., None]
     _debug_contents = ("bbmdAddress", "bbmdTimeToLive", "bbmdRegistrationStatus")
@@ -846,7 +845,6 @@ class BIPForeign(BVLLServiceAccessPoint, DebugContents):
 
 @bacpypes_debugging
 class BIPBBMD(BVLLServiceAccessPoint, DebugContents):
-
     _debug: Callable[..., None]
     _warning: Callable[..., None]
     _debug_contents = ("bbmdAddress", "bbmdBDT+", "bbmdFDT+")
@@ -1245,7 +1243,6 @@ class BIPBBMD(BVLLServiceAccessPoint, DebugContents):
 
 @bacpypes_debugging
 class BIPNAT(BVLLServiceAccessPoint, DebugContents):
-
     _debug: Callable[..., None]
     _warning: Callable[..., None]
     _debug_contents = ("bbmdAddress", "bbmdBDT+", "bbmdFDT+")
@@ -1622,7 +1619,6 @@ class BIPNAT(BVLLServiceAccessPoint, DebugContents):
 
 @bacpypes_debugging
 class BVLLServiceElement(ApplicationServiceElement):
-
     _debug: Callable[..., None]
     _warning: Callable[..., None]
 
@@ -1635,6 +1631,7 @@ class BVLLServiceElement(ApplicationServiceElement):
         self.read_bdt_timeout_handle = None
         self.read_fdt_future = None
         self.read_fdt_timeout_handle = None
+        self.write_bdt_future = None
 
     async def indication(self, lpdu: LPDU) -> None:
         if _debug:
@@ -1657,6 +1654,37 @@ class BVLLServiceElement(ApplicationServiceElement):
             await getattr(self, fn)(lpdu)
         else:
             BVLLServiceElement._warning("no handler for %s", fn)
+
+    async def Result(self, pdu: Result) -> None:
+        if _debug:
+            BVLLServiceElement._debug("Result %r", pdu)
+
+        if self.read_bdt_future:
+            if _debug:
+                BVLLServiceElement._debug("  - read BDT Error")
+
+            self.read_bdt_future.set_exception(pdu)
+            self.read_bdt_future = None
+            self.read_bdt_timeout_handle.cancel()
+            self.read_bdt_timeout_handle = None
+
+        elif self.read_fdt_future:
+            if _debug:
+                BVLLServiceElement._debug("  - read FDT Error")
+
+            self.read_fdt_future.set_exception(pdu)
+            self.read_fdt_future = None
+            self.read_fdt_timeout_handle.cancel()
+            self.read_fdt_timeout_handle = None
+
+        elif self.write_bdt_future:
+            if _debug:
+                BVLLServiceElement._debug("  - write BDT Error")
+
+            self.write_bdt_future.set_exception(pdu)
+            self.write_bdt_future = None
+            self.write_bdt_timeout_handle.cancel()
+            self.write_bdt_timeout_handle = None
 
     def read_broadcast_distribution_table(
         self, address: IPv4Address, timeout: float = READ_BDT_TIMEOUT
@@ -1702,6 +1730,69 @@ class BVLLServiceElement(ApplicationServiceElement):
         self.read_bdt_future.set_result(None)
         self.read_bdt_future = None
 
+    async def ReadBroadcastDistributionTableAck(
+        self, pdu: ReadBroadcastDistributionTableAck
+    ) -> None:
+        if _debug:
+            BVLLServiceElement._debug("confirmation %r", pdu)
+
+        # set the result and clear the timer
+        self.read_bdt_future.set_result(pdu.bvlciBDT)
+        self.read_bdt_future = None
+        self.read_bdt_timeout_handle.cancel()
+        self.read_bdt_timeout_handle = None
+
+    def write_broadcast_distribution_table(
+        self,
+        address: IPv4Address,
+        bdt: List[IPv4Address],
+        timeout: float = WRITE_BDT_TIMEOUT,
+    ) -> asyncio.Future:
+        """
+        Read the broadcast distribution table from a BBMD, returns a list of
+        IPv4Address's (check the mask!) or None if there is no response.
+        """
+        if _debug:
+            BVLLServiceElement._debug(
+                "write_broadcast_distribution_table %r %r", address, timeout
+            )
+
+        # one at a time please
+        if self.write_bdt_future:
+            raise RuntimeError("request pending")
+
+        self.write_bdt_future = asyncio.Future()
+        if _debug:
+            BVLLServiceElement._debug(
+                "    - write_bdt_future: %r", self.write_bdt_future
+            )
+
+        # get the loop to schedule a time to stop looking
+        loop = asyncio.get_event_loop()
+        if _debug:
+            BVLLServiceElement._debug("    - loop time: %r", loop.time())
+
+        # schedule a timeout
+        self.write_bdt_timeout_handle = loop.call_later(
+            timeout, self._write_bdt_timeout
+        )
+        if _debug:
+            BVLLServiceElement._debug(
+                "    - write_bdt_timeout_handle: %r", self.write_bdt_timeout_handle
+            )
+
+        asyncio.ensure_future(
+            self.request(WriteBroadcastDistributionTable(bdt, destination=address))
+        )
+
+        return self.write_bdt_future
+
+    def _write_bdt_timeout(self):
+        if _debug:
+            BVLLServiceElement._debug("_write_bdt_timeout")
+        self.write_bdt_future.set_result(None)
+        self.write_bdt_future = None
+
     def read_foreign_device_table(
         self, address: IPv4Address, timeout: float = READ_FDT_TIMEOUT
     ) -> asyncio.Future:
@@ -1745,18 +1836,6 @@ class BVLLServiceElement(ApplicationServiceElement):
             BVLLServiceElement._debug("_read_fdt_timeout")
         self.read_fdt_future.set_result(None)
         self.read_fdt_future = None
-
-    async def ReadBroadcastDistributionTableAck(
-        self, pdu: ReadBroadcastDistributionTableAck
-    ) -> None:
-        if _debug:
-            BVLLServiceElement._debug("confirmation %r", pdu)
-
-        # set the result and clear the timer
-        self.read_bdt_future.set_result(pdu.bvlciBDT)
-        self.read_bdt_future = None
-        self.read_bdt_timeout_handle.cancel()
-        self.read_bdt_timeout_handle = None
 
     async def ReadForeignDeviceTableAck(self, pdu: ReadForeignDeviceTableAck) -> None:
         if _debug:

@@ -29,6 +29,7 @@ from bacpypes3.app import Application
 from bacpypes3.netservice import NetworkAdapter
 
 # for BVLL services
+from bacpypes3.ipv4.bvll import Result as IPv4BVLLResult
 from bacpypes3.ipv4.service import BVLLServiceAccessPoint, BVLLServiceElement
 
 # for serializing the configuration
@@ -489,22 +490,45 @@ class CmdShell(Cmd):
         if not bvll_ase:
             raise NotImplementedError("IPv4 only")
 
-        result_list: Optional[
-            List[IPv4Address]
-        ] = await bvll_ase.read_broadcast_distribution_table(address)
-        if result_list is None:
-            await self.response("No response")
-        else:
-            report = []
-            for bdt_entry in result_list:
-                if _debug:
-                    CmdShell._debug(
-                        "    - bdt_entry: %r",
-                        bdt_entry,
-                    )
-                report.append(f"    {bdt_entry}/{bdt_entry.netmask}")
+        try:
+            result_list: Optional[
+                List[IPv4Address]
+            ] = await bvll_ase.read_broadcast_distribution_table(address)
+            if result_list is None:
+                await self.response("No response")
+            else:
+                report = []
+                for bdt_entry in result_list:
+                    if _debug:
+                        CmdShell._debug(
+                            "    - bdt_entry: %r",
+                            bdt_entry,
+                        )
+                    report.append(f"    {bdt_entry}/{bdt_entry.netmask}")
 
-            await self.response("\n".join(report))
+                await self.response("\n".join(report))
+        except IPv4BVLLResult as err:
+            await self.response(f"bvll error: {err.bvlciResultCode}")
+
+    async def do_wbdt(
+        self,
+        address: IPv4Address,
+        *args: IPv4Address,
+    ) -> None:
+        """
+        Write Broadcast Distribution Table
+
+        usage: wbdt address [ address ... ]
+        """
+        if _debug:
+            CmdShell._debug("do_wbdt %r %r", address, args)
+        if not bvll_ase:
+            raise NotImplementedError("IPv4 only")
+
+        try:
+            await bvll_ase.write_broadcast_distribution_table(address, args)
+        except IPv4BVLLResult as err:
+            await self.response(f"bvll error: {err.bvlciResultCode}")
 
     async def do_rfdt(
         self,
@@ -520,22 +544,25 @@ class CmdShell(Cmd):
         if not bvll_ase:
             raise NotImplementedError("IPv4 only")
 
-        result_list = await bvll_ase.read_foreign_device_table(address)
-        if result_list is None:
-            await self.response("No response")
-        else:
-            report = []
-            for fdt_entry in result_list:
-                if _debug:
-                    CmdShell._debug(
-                        "    - fdt_entry: %r",
-                        fdt_entry,
+        try:
+            result_list = await bvll_ase.read_foreign_device_table(address)
+            if result_list is None:
+                await self.response("No response")
+            else:
+                report = []
+                for fdt_entry in result_list:
+                    if _debug:
+                        CmdShell._debug(
+                            "    - fdt_entry: %r",
+                            fdt_entry,
+                        )
+                    report.append(
+                        f"    {fdt_entry.fdAddress} {fdt_entry.fdTTL}s, {fdt_entry.fdRemain}s remain"
                     )
-                report.append(
-                    f"    {fdt_entry.fdAddress} {fdt_entry.fdTTL}s, {fdt_entry.fdRemain}s remain"
-                )
 
-            await self.response("\n".join(report))
+                await self.response("\n".join(report))
+        except IPv4BVLLResult as err:
+            await self.response(f"bvll error: {err.bvlciResultCode}")
 
     async def do_config(
         self,
