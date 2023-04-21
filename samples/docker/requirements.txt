@@ -1,3 +1,4 @@
+ifaddr
 pyyaml
 rdflib
 websockets
