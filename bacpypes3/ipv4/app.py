@@ -58,31 +58,21 @@ class NormalApplication(
     def __init__(
         self,
         device_object,
-        localAddress: Address,
+        local_address: Address,
         device_info_cache: Optional[DeviceInfoCache] = None,
     ) -> None:
         if _debug:
             NormalApplication._debug(
                 "__init__ %r %r device_info_cache=%r",
                 device_object,
-                localAddress,
+                local_address,
                 device_info_cache,
             )
         Application.__init__(self, device_info_cache=device_info_cache)
-        if not isinstance(localAddress, IPv4Address):
-            raise TypeError(f"localAddress: {type(localAddress)}")
-        if not isinstance(localAddress, DeviceObject):
+        if not isinstance(device_object, DeviceObject):
             raise TypeError(f"device_object: {type(device_object)}")
-
-        # add/bind the device object and a network port object
-        self.add_object(device_object)
-        self.add_object(
-            NetworkPortObject(
-                localAddress,
-                objectName="NetworkPort1",
-                objectIdentifier=("network-port", 1),
-            )
-        )
+        if not isinstance(local_address, IPv4Address):
+            raise TypeError(f"local_address: {type(local_address)}")
 
         # a application service access point will be needed
         self.asap = ApplicationServiceAccessPoint(
@@ -106,12 +96,15 @@ class NormalApplication(
         bind(self, self.asap, self.nsap)
 
         # create a "normal" virtual link layer
-        self.normal = NormalLinkLayer(localAddress)
+        self.normal = NormalLinkLayer(local_address)
         if _debug:
             NormalApplication._debug("    - asap: %r", self.asap)
 
         # bind the BIP stack to the network, no network number
-        self.nsap.bind(self.normal, address=localAddress)
+        self.nsap.bind(self.normal, address=local_address)
+
+        # add the device object
+        self.add_object(device_object)
 
     def close(self):
         if _debug:
@@ -135,28 +128,21 @@ class ForeignApplication(
     def __init__(
         self,
         device_object,
-        localAddress: Address,
+        local_address: Address,
         device_info_cache: Optional[DeviceInfoCache] = None,
     ) -> None:
         if _debug:
             ForeignApplication._debug(
                 "__init__ %r %r device_info_cache=%r",
                 device_object,
-                localAddress,
+                local_address,
                 device_info_cache,
             )
         Application.__init__(self, device_info_cache=device_info_cache)
-        if not isinstance(localAddress, IPv4Address):
-            raise TypeError(f"localAddress: {type(localAddress)}")
         if not isinstance(device_object, DeviceObject):
             raise TypeError(f"device_object: {type(device_object)}")
-
-        # add/bind the device object and a network port object
-        self.add_object(device_object)
-        self.add_object(NetworkPortObject(localAddress))
-
-        # get the event loop
-        self.loop = asyncio.get_event_loop()
+        if not isinstance(local_address, IPv4Address):
+            raise TypeError(f"local_address: {type(local_address)}")
 
         # a application service access point will be needed
         self.asap = ApplicationServiceAccessPoint(
@@ -178,13 +164,16 @@ class ForeignApplication(
         self.foreign = BIPForeign()
         self.codec = BVLLCodec()
         self.multiplexer = UDPMultiplexer()
-        self.server = IPv4DatagramServer(self.loop, localAddress, no_broadcast=True)
+        self.server = IPv4DatagramServer(local_address, no_broadcast=True)
 
         bind(self.foreign, self.codec, self.multiplexer.annexJ)  # type: ignore[arg-type]
         bind(self.multiplexer, self.server)  # type: ignore[arg-type]
 
         # bind the BIP stack to the network, no network number
-        self.nsap.bind(self.foreign, address=localAddress)
+        self.nsap.bind(self.foreign, address=local_address)
+
+        # add the device object
+        self.add_object(device_object)
 
     def register(self, addr: IPv4Address, ttl: int) -> None:
         """Facade for foreign device API."""
@@ -214,28 +203,21 @@ class BBMDApplication(
     def __init__(
         self,
         device_object,
-        localAddress: Address,
+        local_address: Address,
         device_info_cache: Optional[DeviceInfoCache] = None,
     ) -> None:
         if _debug:
             BBMDApplication._debug(
                 "__init__ %r %r device_info_cache=%r",
                 device_object,
-                localAddress,
+                local_address,
                 device_info_cache,
             )
         Application.__init__(self, device_info_cache=device_info_cache)
-        if not isinstance(localAddress, IPv4Address):
-            raise TypeError(f"localAddress: {type(localAddress)}")
         if not isinstance(device_object, DeviceObject):
             raise TypeError(f"device_object: {type(device_object)}")
-
-        # add/bind the device object and a network port object
-        self.add_object(device_object)
-        self.add_object(NetworkPortObject(localAddress))
-
-        # get the event loop
-        self.loop = asyncio.get_event_loop()
+        if not isinstance(local_address, IPv4Address):
+            raise TypeError(f"local_address: {type(local_address)}")
 
         # a application service access point will be needed
         self.asap = ApplicationServiceAccessPoint(
@@ -253,16 +235,19 @@ class BBMDApplication(
         bind(self, self.asap, self.nsap)
 
         # create a B/IP stack as a BBMD, bound to the Annex J server
-        self.bbmd = BIPBBMD()
+        self.bbmd = BIPBBMD(local_address)
         self.codec = BVLLCodec()
         self.multiplexer = UDPMultiplexer()
-        self.server = IPv4DatagramServer(self.loop, localAddress)
+        self.server = IPv4DatagramServer(local_address)
 
-        bind(self.foreign, self.codec, self.multiplexer.annexJ)  # type: ignore[arg-type]
+        bind(self.bbmd, self.codec, self.multiplexer.annexJ)  # type: ignore[arg-type]
         bind(self.multiplexer, self.server)  # type: ignore[arg-type]
 
         # bind the BIP stack to the network, no network number
-        self.nsap.bind(self.foreign, address=localAddress)
+        self.nsap.bind(self.bbmd, address=local_address)
+
+        # add the device object
+        self.add_object(device_object)
 
     def register_foreign_device(self, addr: IPv4Address, ttl: int) -> int:
         """Facade for BBMD API."""
