@@ -174,7 +174,7 @@ class BACnetGraph:
         create and return a DeviceGraph for the device.
         """
         device_iri = _device_node(device_identifier)
-        self.graph.add((device_iri, RDF.type, BACnetNS.BACnetDevice))
+        self.graph.add((device_iri, RDF.type, BACnetNS.Device))
 
         if device_address is not None:
             device_address_iri = _blank_node()
