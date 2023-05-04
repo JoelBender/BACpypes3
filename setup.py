@@ -17,6 +17,7 @@ setup(
     version=metadata["version"],
     description="BACnet Communications Library",
     long_description="BACpypes3 provides a BACnet application layer and network layer written in Python3 for daemons, scripting, and graphical interfaces.",
+    long_description_content_type="text/x-rst",
     author=metadata["author"],
     author_email=metadata["email"],
     url="https://github.com/JoelBender/bacpypes3",
