@@ -3809,7 +3809,7 @@ class ReadAccessSpecification(Sequence):
 
 
 class RouterEntry(Sequence):
-    _order = ("networkNumber", "macAddress", "status")
+    _order = ("networkNumber", "macAddress", "status", "performanceIndex")
     networkNumber = Unsigned16(_context=0)
     macAddress = OctetString(_context=1)
     status = RouterEntryStatus(_context=2)
