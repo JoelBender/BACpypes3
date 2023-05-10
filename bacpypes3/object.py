@@ -2445,7 +2445,7 @@ class NetworkPortObject(Object):
     ipv6DefaultGateway: IPv6OctetString
     bacnetIPv6MulticastAddress: IPv6OctetString
     ipv6DNSServer: ArrayOf(IPv6OctetString)
-    ipv6AutoAddressingEnabled: Boolean
+    ipv6AutoAddressingEnable: Boolean
     ipv6DHCPLeaseTime: Unsigned
     ipv6DHCPLeaseTimeRemaining: Unsigned
     ipv6DHCPServer: IPv6OctetString

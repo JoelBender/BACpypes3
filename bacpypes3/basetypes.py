@@ -650,20 +650,27 @@ class ErrorCode(Enumerated):
     badDestinationDeviceId = 87
     badSignature = 88
     badSourceAddress = 89
-    badTimestamp = 90
+    badTimestamp = 90  # removed revision 22
     busy = 82
-    cannotUseKey = 91
-    cannotVerifyMessageId = 92
+    bvlcFunctionUnknown = 143
+    bvlcProprietaryFunctionUnknown = 144
+    cannotUseKey = 91  # removed revision 22
+    cannotVerifyMessageId = 92  # removed revision 22
     characterSetNotSupported = 41
     communicationDisabled = 83
     configurationInProgress = 2
-    correctKeyRevision = 93
+    correctKeyRevision = 93  # removed revision 22
     covSubscriptionFailed = 43
     datatypeNotSupported = 47
     deleteFdtEntryFailed = 120
+    destinationDeviceIdRequired = 94  # removed revision 22
     deviceBusy = 3
-    destinationDeviceIdRequired = 94
     distributeBroadcastFailed = 121
+    dnsError = 192
+    dnsNameResolutionFailed = 190
+    dnsResolverFailure = 191
+    dnsUnavailable = 189
+    duplicateEntry = 137
     duplicateMessage = 95
     duplicateName = 48
     duplicateObjectId = 49
@@ -672,50 +679,76 @@ class ErrorCode(Enumerated):
     encryptionRequired = 97
     fileAccessDenied = 5
     fileFull = 128
+    headerEncodingError = 145
+    headerNotUnderstood = 146
+    httpError = 165
+    httpNotAServer = 164
+    httpNoUpgrade = 153
+    httpProxyAuthenticationFailed = 155
+    httpResourceNotLocal = 154
+    httpResponseMissingHeader = 159
+    httpResponseSyntaxError = 157
+    httpResponseTimeout = 156
+    httpResponseValueError = 158
+    httpTemporaryUnavailable = 163
+    httpUnexpectedResponseCode = 152
+    httpUpgradeError = 162
+    httpUpgradeRequired = 161
+    httpWebsocketHeaderError = 160
     inconsistentConfiguration = 129
     inconsistentObjectType = 130
     inconsistentParameters = 7
     inconsistentSelectionCriterion = 8
-    incorrectKey = 98
+    incorrectKey = 98  # removed revision 22
     internalError = 131
     invalidArrayIndex = 42
     invalidConfigurationData = 46
+    invalidDataEncoding = 142
     invalidDataType = 9
     invalidEventState = 73
     invalidFileAccessMethod = 10
     invalidFileStartPosition = 11
-    invalidKeyData = 99
+    invalidKeyData = 99  # removed revision 22
     invalidParameterDataType = 13
     invalidTag = 57
     invalidTimeStamp = 14
-    keyUpdateInProgress = 100
+    invalidValueInThisState = 138
+    ipAddressNotReachable = 198
+    ipError = 199
+    keyUpdateInProgress = 100  # removed revision 22
     listElementNotFound = 81
+    listItemNotNumbered = 140
+    listItemNotTimestamped = 141
     logBufferFull = 75
     loggedValuePurged = 76
     malformedMessage = 101
+    messageIncomplete = 147
     messageTooLong = 113
     missingRequiredParameter = 16
     networkDown = 58
     noAlarmConfigured = 74
+    nodeDuplicateVmac = 151
     noObjectsOfSpecifiedType = 17
     noPropertySpecified = 77
     noSpaceForObject = 18
     noSpaceToAddListElement = 19
     noSpaceToWriteProperty = 20
-    noVtSessionsAvailable = 21
+    notABacnetScHub = 148
     notConfigured = 132
     notConfiguredForTriggeredLogging = 78
     notCovProperty = 44
-    notKeyServer = 102
+    notKeyServer = 102  # removed revision 22
     notRouterToDnet = 110
+    noVtSessionsAvailable = 21
     objectDeletionNotPermitted = 23
     objectIdentifierAlreadyExists = 24
-    other = 0
     operationalProblem = 25
     optionalFunctionalityNotSupported = 45
+    other = 0
     outOfMemory = 133
     parameterOutOfRange = 80
     passwordFailure = 26
+    payloadExpected = 149
     propertyIsNotAList = 22
     propertyIsNotAnArray = 50
     readAccessDenied = 27
@@ -727,31 +760,46 @@ class ErrorCode(Enumerated):
     rejectInvalidParameterDataType = 61
     rejectInvalidTag = 62
     rejectMissingRequiredParameter = 63
+    rejectOther = 69
     rejectParameterOutOfRange = 64
+    rejectProprietary = 68
     rejectTooManyArguments = 65
     rejectUndefinedEnumeration = 66
     rejectUnrecognizedService = 67
-    rejectProprietary = 68
-    rejectOther = 69
     routerBusy = 111
     securityError = 114
     securityNotConfigured = 103
     serviceRequestDenied = 29
     sourceSecurityRequired = 104
     success = 84
+    tcpClosedByLocal = 195
+    tcpClosedOther = 196
+    tcpConnectionRefused = 194
+    tcpConnectTimeout = 193
+    tcpError = 197
     timeout = 30
-    tooManyKeys = 105
+    tleError = 188
+    tlsClientAuthenticationFailed = 182
+    tlsClientCertificateError = 180
+    tlsClientCertificateExpired = 184
+    tlsClientCertificateRevoked = 186
+    tlsServerAuthenticationFailed = 183
+    tlsServerCertificateError = 181
+    tlsServerCertificateExpired = 185
+    tlsServerCertificateRevoked = 187
+    tooManyKeys = 105  # removed revision 22
+    unexpectedData = 150
     unknownAuthenticationType = 106
     unknownDevice = 70
     unknownFileSize = 122
-    unknownKey = 107
-    unknownKeyRevision = 108
+    unknownKey = 107  # removed revision 22
+    unknownKeyRevision = 108  # removed revision 22
     unknownNetworkMessage = 112
     unknownObject = 31
     unknownProperty = 32
-    unknownSubscription = 79
     unknownRoute = 71
-    unknownSourceMessage = 109
+    unknownSourceMessage = 109  # removed revision 22
+    unknownSubscription = 79
     unknownVtClass = 34
     unknownVtSession = 35
     unsupportedObjectType = 36
@@ -760,6 +808,20 @@ class ErrorCode(Enumerated):
     valueTooLong = 134
     vtSessionAlreadyClosed = 38
     vtSessionTerminationFailure = 39
+    websocketClosedAbnormally = 173
+    websocketClosedByPeer = 169
+    websocketCloseError = 168
+    websocketDataAgainstPolicy = 175
+    websocketDataInconsistent = 174
+    websocketDataNotAccepted = 172
+    websocketEndpointLeaves = 170
+    websocketError = 179
+    websocketExtensionMissing = 177
+    websocketFrameTooLong = 176
+    websocketProtocolError = 171
+    websocketRequestUnavailable = 178
+    websocketSchemeNotSupported = 166
+    websocketUnknownControlMessage = 167
     writeAccessDenied = 40
     writeBdtFailed = 116
 
@@ -1172,7 +1234,7 @@ class PropertyIdentifier(Enumerated):
     all = 8
     allowGroupDelayInhibit = 365
     allWritesSuccessful = 9
-    apduLength = 388
+    apduLength = 399
     apduSegmentTimeout = 10
     apduTimeout = 11
     applicationSoftwareVersion = 12
@@ -1355,7 +1417,7 @@ class PropertyIdentifier(Enumerated):
     ipDNSServer = 406
     ipSubnetMask = 411
     ipv6Address = 436
-    ipv6AutoAddressingEnabled = 442
+    ipv6AutoAddressingEnable = 442
     ipv6DefaultGateway = 439
     ipv6DHCPLeaseTime = 443
     ipv6DHCPLeaseTimeRemaining = 444
@@ -1496,7 +1558,7 @@ class PropertyIdentifier(Enumerated):
     priorityForWriting = 88
     processIdentifier = 89
     processIdentifierFilter = 361
-    profileLocation = 91
+    profileLocation = 485
     profileName = 168
     programChange = 90
     programLocation = 91
@@ -1699,7 +1761,7 @@ class Reliability(Enumerated):
     proprietaryCommandFailure = 22
     faultsListed = 23
     referencedObjectFault = 24
-
+    multiStateOutOfRange = 25
 
 class RestartReason(Enumerated):
     _vendor_range = (64, 255)
@@ -1711,6 +1773,7 @@ class RestartReason(Enumerated):
     hardwareWatchdog = 5
     softwareWatchdog = 6
     suspended = 7
+    activateChanges = 8
 
 
 class RouterEntryStatus(Enumerated):
@@ -1888,7 +1951,7 @@ class ObjectTypesSupported(BitString):
     accessZone = 36
     credentialDataInput = 37
     networkPort = 56
-    networkSecurity = 38
+    networkSecurity = 38  # removed revision 22
     bitstringValue = 39
     characterstringValue = 40
     datePatternValue = 41
@@ -1905,6 +1968,14 @@ class ObjectTypesSupported(BitString):
     alertEnrollment = 52
     channel = 53
     lightingOutput = 54
+    binaryLightingOutput = 55
+    networkPort = 56
+    elevatorGroup = 57
+    escalator = 58
+    lift = 59
+    staging = 60
+    auditLog = 61
+    auditReporter = 62
 
 
 class PriorityFilter(BitString):
@@ -1974,6 +2045,14 @@ class ServicesSupported(BitString):
     subscribeCOVProperty = 38
     getEventInformation = 39
     writeGroup = 40
+    subscribeCOVPropertyMultiple = 41
+    confirmedCOVNotificationMultiple = 42
+    unconfirmedCOVNotificationMultiple = 43
+    confirmedAuditNotification = 44
+    auditLogQuery = 45
+    unconfirmedAuditNotification = 46
+    whoAmI = 47
+    youAre = 48
 
 
 class StatusFlags(BitString):
@@ -2211,9 +2290,9 @@ class ErrorType(Sequence):
 
 @bacpypes_debugging
 class HostAddress(Choice):
-    none = Null()
-    ipAddress = OctetString()
-    name = CharacterString()
+    none = Null(_context=0)
+    ipAddress = OctetString(_context=1)
+    name = CharacterString(_context=2)
 
     def __init__(
         self,
@@ -3298,9 +3377,9 @@ class EventParameterUnsignedRange(Sequence):
 
 class FDTEntry(Sequence):
     _order = ("bacnetIPAddress", "timeToLive", "remainingTimeToLive")
-    bacnetIPAddress = IPOctetString()
-    timeToLive = Unsigned16()
-    remainingTimeToLive = Unsigned16()
+    bacnetIPAddress = IPOctetString(_context=0)
+    timeToLive = Unsigned16(_context=1)
+    remainingTimeToLive = Unsigned16(_context=2)
 
 
 class ListOfFDTEntry(ListOf(FDTEntry)):
@@ -3730,9 +3809,10 @@ class ReadAccessSpecification(Sequence):
 
 class RouterEntry(Sequence):
     _order = ("networkNumber", "macAddress", "status")
-    networkNumber = Unsigned16()
-    macAddress = OctetString()
-    status = RouterEntryStatus()
+    networkNumber = Unsigned16(_context=0)
+    macAddress = OctetString(_context=1)
+    status = RouterEntryStatus(_context=2)
+    performanceIndex = Unsigned8(_context=3, _optional=True)
 
 
 class SecurityKeySet(Sequence):
@@ -3789,8 +3869,8 @@ class StageLimitValue(Sequence):
 
 class VMACEntry(Sequence):
     _order = ("virtualMACAddress", "nativeMACAddress")
-    virtualMACAddress = OctetString()
-    nativeMACAddress = OctetString()
+    virtualMACAddress = OctetString(_context=0)
+    nativeMACAddress = OctetString(_context=1)
 
 
 class VTSession(Sequence):
