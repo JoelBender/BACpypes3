@@ -1763,6 +1763,7 @@ class Reliability(Enumerated):
     referencedObjectFault = 24
     multiStateOutOfRange = 25
 
+
 class RestartReason(Enumerated):
     _vendor_range = (64, 255)
     unknown = 0
