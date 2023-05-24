@@ -1463,6 +1463,7 @@ class CredentialDataInputObject(Object):
     eventDetectionEnable: Boolean
     notificationClass: Unsigned
     eventEnable: EventTransitionBits
+    eventState: EventState
     ackedTransitions: EventTransitionBits
     notifyType: NotifyType
     eventTimeStamps: ArrayOf(TimeStamp, _length=3)
@@ -2537,6 +2538,7 @@ class OctetStringValueObject(Object):
     outOfService: Boolean
     priorityArray: ArrayOf(PriorityValue, _length=16)
     relinquishDefault: OctetString
+    reliabilityEvaluationInhibit: Boolean
     currentCommandPriority: OptionalUnsigned
     valueSource: ValueSource
     valueSourceArray: ArrayOf(ValueSource, _length=16)
@@ -2602,6 +2604,7 @@ class ProgramObject(Object):
     eventDetectionEnable: Boolean
     notificationClass: Unsigned
     eventEnable: EventTransitionBits
+    eventState: EventState
     ackedTransitions: EventTransitionBits
     notifyType: NotifyType
     eventTimeStamps: ArrayOf(TimeStamp, _length=3)
@@ -2787,6 +2790,7 @@ class TimeValueObject(Object):
     outOfService: Boolean
     priorityArray: ArrayOf(PriorityValue, _length=16)
     relinquishDefault: Time
+    reliabilityEvaluationInhibit: Boolean
     eventDetectionEnable: Boolean
     notificationClass: Unsigned
     eventEnable: EventTransitionBits
