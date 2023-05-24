@@ -181,7 +181,7 @@ def main() -> None:
             _log.debug("keyboard interrupt")
     finally:
         if app:
-            app.server.close()
+            app.close()
         if loop:
             loop.close()
 
