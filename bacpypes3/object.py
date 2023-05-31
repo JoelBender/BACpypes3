@@ -7,6 +7,7 @@ from __future__ import annotations
 
 import sys
 import inspect
+import warnings
 from functools import partial
 
 from typing import (
@@ -270,11 +271,12 @@ class VendorInfo:
                 object_class,
             )
         if object_type in self.registered_object_classes:
-            raise RuntimeError(
+            warnings.warn(
                 f"object type {object_type!r}"
                 f" for vendor identifier {self.vendor_identifier}"
                 f" already registered: {self.registered_object_classes[object_type]}"
             )
+            return
 
         self.registered_object_classes[object_type] = object_class
 

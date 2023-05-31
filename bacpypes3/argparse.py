@@ -5,6 +5,7 @@ argparse
 """
 
 import os
+import os.path
 import sys
 import asyncio
 import shlex
@@ -463,7 +464,7 @@ class INIArgumentParser(ArgumentParser):
 
     """
     INIArgumentParser extends the ArgumentParser with the functionality to
-    read in an INI configuration file.  The contents of the [BACpypes] section
+    read in an INI configuration file.  The contents of the file
     will be in the settings.ini attribute.
 
         --ini INI       provide a separate INI file
@@ -500,29 +501,24 @@ class INIArgumentParser(ArgumentParser):
         if _debug:
             INIArgumentParser._debug("expand_args %r", result_args)
 
-        settings["ini"] = result_args.ini
+        if not os.path.exists(result_args.ini):
+            raise RuntimeError("settings file not found: %r\n" % (settings.ini,))
 
-        # read in the configuration file
         config = _ConfigParser()
         config.read(result_args.ini)
         if _debug:
             _log.debug("    - config: %r", config)
 
-        # check for BACpypes section
-        if not config.has_section("BACpypes"):
-            raise RuntimeError("INI file with BACpypes section required")
+        # simplify the content
+        config_dict = {}
+        for section in config.sections():
+            config_dict[section] = dict(config.items(section))
 
-        # convert the contents to an object
-        ini_obj = dict(config.items("BACpypes"))
-        dict_settings(**ini_obj)
-        if _debug:
-            _log.debug("    - ini_obj: %r", ini_obj)
+        # save it in settings
+        settings["ini"] = config_dict
 
         # continue with normal expansion
         ArgumentParser.expand_args(self, result_args)
-
-        # stuff the ini contents into settings
-        settings.config = ini_obj
 
 
 @bacpypes_debugging
@@ -530,8 +526,8 @@ class JSONArgumentParser(ArgumentParser):
 
     """
     JSONArgumentParser extends the ArgumentParser with the functionality to
-    read in a JSON configuration file.  The contents of the "BACpypes" element
-    will be in the settings.json attribute.
+    read in a JSON configuration file.  The contents of the file will be in the
+    settings.json attribute.
 
         --json JSON    provide a separate JSON file
     """
@@ -569,25 +565,18 @@ class JSONArgumentParser(ArgumentParser):
 
         # read in the settings file
         try:
-            settings["json"] = result_args.json
             with open(result_args.json) as json_file:
-                json_obj = json.load(json_file, object_hook=Settings)
+                json_obj = json.load(json_file)
                 if _debug:
                     JSONArgumentParser._debug("    - json_obj: %r", json_obj)
         except FileNotFoundError:
             raise RuntimeError("settings file not found: %r\n" % (settings.json,))
 
-        # look for settings
-        if "BACpypes" in json_obj:
-            dict_settings(**json_obj["BACpypes"])
-            if _debug:
-                JSONArgumentParser._debug("    - settings: %r", settings)
+        # save the content
+        settings["json"] = json_obj
 
         # continue with normal expansion
         ArgumentParser.expand_args(self, result_args)
-
-        # stuff the ini contents into settings
-        settings.config = json_obj
 
 
 @bacpypes_debugging
@@ -643,14 +632,8 @@ class YAMLArgumentParser(ArgumentParser):
         except FileNotFoundError:
             raise RuntimeError("settings file not found: %r\n" % (settings.yaml,))
 
-        # look for settings
-        if "BACpypes" in yaml_obj:
-            dict_settings(**yaml_obj["BACpypes"])
-            if _debug:
-                YAMLArgumentParser._debug("    - settings: %r", settings)
+        # save the content
+        settings["yaml"] = yaml_obj
 
         # continue with normal expansion
         ArgumentParser.expand_args(self, result_args)
-
-        # stuff the ini contents into settings
-        settings.config = yaml_obj

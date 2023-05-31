@@ -888,6 +888,9 @@ class EventType(Enumerated):
     changeOfCharacterstring = 17
     changeOfStatusFlags = 18
     changeOfReliability = 19
+    none = 20
+    changeOfDiscreteValue = 21
+    changeOfTimer = 22
 
 
 class FaultType(Enumerated):
@@ -897,6 +900,8 @@ class FaultType(Enumerated):
     faultLifeSafety = 3
     faultState = 4
     faultStatusFlags = 5
+    faultOutOfRange = 6
+    faultListed = 7
 
 
 class FileAccessMethod(Enumerated):
@@ -3252,7 +3257,12 @@ class EventParameterChangeOfBitstring(Sequence):
 class EventParameterChangeOfCharacterString(Sequence):
     _order = ("timeDelay", "listOfAlarmValues")
     timeDelay = Unsigned(_context=0)
-    listOfAlarmValues = SequenceOf(CharacterString, _context=1)
+    listOfAlarmValues = SequenceOf(CharacterString, _context=1)  # maybe ArrayOf(OptionalCharacterString)
+
+
+class EventParameterChangeOfDiscreteValue(Sequence):
+    _order = ("timeDelay",)
+    timeDelay = Unsigned(_context=0)
 
 
 class EventParameterChangeOfLifeSafety(Sequence):
@@ -3278,6 +3288,13 @@ class EventParameterChangeOfStatusFlags(Sequence):
     _order = ("timeDelay", "selectedFlags")
     timeDelay = Unsigned(_context=0)
     selectedFlags = StatusFlags(_context=1)
+
+
+class EventParameterChangeOfTimer(Sequence):
+    _order = ("timeDelay", "alarmValues", "updateTimeReference")
+    timeDelay = Unsigned(_context=0)
+    alarmValues = SequenceOf(TimerState, _context=1)
+    updateTimeReference = DeviceObjectPropertyReference(_context=2)
 
 
 class EventParameterChangeOfValueCOVCriteria(Choice):
@@ -3436,6 +3453,24 @@ class FaultParameterState(Sequence):
 class FaultParameterStatusFlags(Sequence):
     _order = ("statusFlagsReference",)
     statusFlagsReference = DeviceObjectPropertyReference(_context=0)
+
+
+class FaultParameterOutOfRangeValue(Choice):
+    real = Real()
+    unsigned = Unsigned()
+    double = Double()
+    integer = Integer()
+
+
+class FaultParameterOutOfRange(Sequence):
+    _order = ("minNormalValue","maxNormalValue")
+    minNormalValue = FaultParameterOutOfRangeValue(_context=0)
+    maxNormalValue = FaultParameterOutOfRangeValue(_context=1)
+
+
+class FaultParametersFaultListed(Sequence):
+    _order = ("faultListReference",)
+    faultListReference = SequenceOf(DeviceObjectPropertyReference, _context=0)
 
 
 class GetAlarmSummaryAlarmSummary(Sequence):
@@ -3945,6 +3980,10 @@ class EventParameter(Choice):
     unsignedOutOfRange = EventParameterUnsignedOutOfRange(_context=16)
     changeOfCharacterstring = EventParameterChangeOfCharacterString(_context=17)
     changeOfStatusflags = EventParameterChangeOfStatusFlags(_context=18)
+    # choice 19 intentionally omitted
+    none = Null(_context=20)
+    changeOfDiscreteValue = EventParameterChangeOfDiscreteValue(_context=21)
+    changeOfTimer = EventParameterChangeOfTimer(_context=22)
 
 
 class FaultParameter(Choice):
@@ -3954,6 +3993,8 @@ class FaultParameter(Choice):
     faultLifeSafety = FaultParameterLifeSafety(_context=3)
     faultState = FaultParameterState(_context=4)
     faultStatusFlags = FaultParameterStatusFlags(_context=5)
+    faultOutOfRange = FaultParameterOutOfRange(_context=6)
+    faultListed = FaultParametersFaultListed(_context=7)
 
 
 class ObjectSelector(Choice):

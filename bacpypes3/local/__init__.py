@@ -16,5 +16,7 @@ from . import object
 from . import cmd
 from . import cov
 from . import device
+from . import event
+from . import fault
 from . import networkport
 from . import schedule

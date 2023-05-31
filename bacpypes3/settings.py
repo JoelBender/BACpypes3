@@ -32,7 +32,6 @@ settings = Settings(
     backup_count=5,
     route_aware=False,
     cov_lifetime=60,
-    config={},
 )
 
 
