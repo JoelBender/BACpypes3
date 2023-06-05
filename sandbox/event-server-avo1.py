@@ -326,7 +326,7 @@ class SampleCmd(Cmd):
 
 
 async def main() -> None:
-    global app, avo1, avo2, eeo1, avo3, eeo2, nc1
+    global app, avo1, nc1
 
     try:
         app = None
@@ -383,136 +383,7 @@ async def main() -> None:
 
         app.add_object(avo1)
 
-        # make an analog value object with only the required parameters
-        avo2 = AnalogValueObject(
-            objectIdentifier="analog-value,2",
-            objectName="avo2",
-            description="test analog value",
-            presentValue=50.0,
-            statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
-            eventState=EventState.normal,
-            outOfService=False,
-            units=EngineeringUnits.degreesFahrenheit,
-        )
-        if _debug:
-            _log.debug("avo2: %r", avo2)
-
-        app.add_object(avo2)
-
-        # make an event enrollment object with only the required parameters
-        eeo1 = EventEnrollmentObject(
-            objectIdentifier="event-enrollment,1",
-            objectName="eeo1",
-            description="test event enrollment",
-            eventType=EventType.outOfRange,
-            notifyType=NotifyType.alarm,  # event, ackNotification
-            eventParameters=EventParameter(
-                outOfRange=EventParameterOutOfRange(
-                    timeDelay=10,
-                    lowLimit=0.0,
-                    highLimit=100.0,
-                    deadband=5.0,
-                ),
-            ),
-            objectPropertyReference=DeviceObjectPropertyReference(
-                objectIdentifier="analog-value,2",
-                propertyIdentifier=PropertyIdentifier.presentValue,
-            ),
-            eventState=EventState.normal,
-            eventEnable=[1, 1, 1],  # toOffNormal, toFault, toNormal
-            ackedTransitions=[0, 0, 0],  # toOffNormal, toFault, toNormal
-            notificationClass=1,
-            eventTimeStamps=[
-                TimeStamp(time=(255, 255, 255, 255)),
-                TimeStamp(time=(255, 255, 255, 255)),
-                TimeStamp(time=(255, 255, 255, 255)),
-            ],
-            # eventMessageTexts=["to off normal", "to fault", "to normal"],
-            # eventMessageTextsConfig=[
-            #     "to off normal config",
-            #     "to fault config",
-            #     "to normal config",
-            # ],
-            eventDetectionEnable=True,
-            # eventAlgorithmInhibitReference=ObjectPropertyReference
-            # eventAlgorithmInhibit=False,
-            statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
-            reliability=Reliability.noFaultDetected,
-            # faultType=
-            # faultParameters=
-        )
-        if _debug:
-            _log.debug("eeo1: %r", eeo1)
-
-        app.add_object(eeo1)
-
-        # make an analog value object with fault detection
-        avo3 = AnalogValueObjectFD(
-            objectIdentifier="analog-value,3",
-            objectName="avo3",
-            description="test analog value",
-            presentValue=50.0,
-            statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
-            eventState=EventState.normal,
-            outOfService=False,
-            units=EngineeringUnits.degreesFahrenheit,
-            # reliability=Reliability.noFaultDetected,
-            # reliabilityEvaluationInhibit=False,
-            faultHighLimit=110.0,
-            faultLowLimit=-10.0,
-        )
-        if _debug:
-            _log.debug("avo3: %r", avo3)
-
-        app.add_object(avo3)
-
-        # make an event enrollment object with only the required parameters
-        eeo2 = EventEnrollmentObject(
-            objectIdentifier="event-enrollment,2",
-            objectName="eeo2",
-            description="test event enrollment",
-            eventType=EventType.outOfRange,
-            notifyType=NotifyType.alarm,  # event, ackNotification
-            eventParameters=EventParameter(
-                outOfRange=EventParameterOutOfRange(
-                    timeDelay=10,
-                    lowLimit=0.0,
-                    highLimit=100.0,
-                    deadband=5.0,
-                ),
-            ),
-            objectPropertyReference=DeviceObjectPropertyReference(
-                objectIdentifier="analog-value,3",
-                propertyIdentifier=PropertyIdentifier.presentValue,
-            ),
-            eventState=EventState.normal,
-            eventEnable=[1, 1, 1],  # toOffNormal, toFault, toNormal
-            ackedTransitions=[0, 0, 0],  # toOffNormal, toFault, toNormal
-            notificationClass=1,
-            eventTimeStamps=[
-                TimeStamp(time=(255, 255, 255, 255)),
-                TimeStamp(time=(255, 255, 255, 255)),
-                TimeStamp(time=(255, 255, 255, 255)),
-            ],
-            # eventMessageTexts=["to off normal", "to fault", "to normal"],
-            # eventMessageTextsConfig=[
-            #     "to off normal config",
-            #     "to fault config",
-            #     "to normal config",
-            # ],
-            eventDetectionEnable=True,
-            # eventAlgorithmInhibitReference=ObjectPropertyReference
-            # eventAlgorithmInhibit=False,
-            statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
-            reliability=Reliability.noFaultDetected,
-            # faultType=
-            # faultParameters=
-        )
-        if _debug:
-            _log.debug("eeo2: %r", eeo2)
-
-        app.add_object(eeo2)
-
+        # notification class
         nc1 = NotificationClassObject(
             objectIdentifier="notification-class,1",
             objectName="nc1",

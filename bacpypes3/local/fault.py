@@ -6,111 +6,31 @@ from __future__ import annotations
 import asyncio
 from functools import partial
 
-from typing import Callable, List, Tuple
+from typing import Callable, List, Optional, Tuple, Union
 
 from ..debugging import bacpypes_debugging, ModuleLogger, DebugContents
-from ..primitivedata import ObjectType
-from ..basetypes import FaultParameterOutOfRangeValue, PropertyIdentifier, PropertyValue, Reliability
-from ..constructeddata import Any
-from ..apdu import (
-    ConfirmedCOVNotificationRequest,
-    UnconfirmedCOVNotificationRequest,
+from ..primitivedata import (
+    Boolean,
+    CharacterString,
+    Double,
+    Integer,
+    Real,
+    Unsigned,
 )
-from ..object import DeviceObject
+from ..constructeddata import ListOf
+from ..basetypes import (
+    FaultParameterOutOfRangeValue,
+    OptionalCharacterString,
+    PropertyIdentifier,
+    Reliability,
+    SequenceOfFaultParameterExtendedParameters,
+)
+from ..object import Object, EventEnrollmentObject
+from .object import Algorithm, PropertyMonitor
 
 # some debugging
 _debug = 0
 _log = ModuleLogger(globals())
-
-#
-#   DetectionMonitor
-#
-
-
-@bacpypes_debugging
-class DetectionMonitor:
-    """
-    An instance of this class is used to associate a property of an
-    object to a parameter of an event algorithm.  The property_change()
-    function is called when the property changes value and that
-    value is passed along as an attribute of the algorithm.
-    """
-
-    _debug: Callable[..., None]
-
-    algorithm: FaultAlgorithm
-    parameter: str
-    obj: Object
-    prop: str
-    indx: Optional[int]
-
-    def __init__(
-        self,
-        algorithm: FaultAlgorithm,
-        parameter: str,
-        obj: Object,
-        prop: Union[int, str, PropertyIdentifier],
-        indx: Optional[int] = None,
-    ):
-        if _debug:
-            DetectionMonitor._debug("__init__ ... %r ...", parameter)
-
-        # the property is the attribute name
-        if isinstance(prop, int):
-            prop = PropertyIdentifier(prop)
-        if isinstance(prop, PropertyIdentifier):
-            prop = prop.attr
-        assert isinstance(prop, str)
-        if _debug:
-            DetectionMonitor._debug("    - prop: %r", prop)
-
-        # keep track of the parameter values
-        self.algorithm = algorithm
-        self.parameter = parameter
-        self.obj = obj
-        self.prop = prop
-        self.indx = indx
-
-        # add the property value monitor function
-        self.obj._property_monitors[self.prop].append(self.property_change)
-
-    def property_change(self, old_value, new_value):
-        if _debug:
-            DetectionMonitor._debug(
-                "property_change (%s) %r %r", self.parameter, old_value, new_value
-            )
-
-        # set the parameter value
-        setattr(self.algorithm, self.parameter, new_value)
-
-        # handy for debugging
-        self.algorithm._what_changed[self.parameter] = (old_value, new_value)
-
-        if not self.algorithm._execute_enabled:
-            if _debug:
-                DetectionMonitor._debug("    - execute disabled")
-            return
-
-        # if the algorithm is scheduled to run, don't bother checking for more
-        if self.algorithm._execute_handle:
-            if _debug:
-                DetectionMonitor._debug("    - already scheduled")
-            return
-
-        # see if something changed
-        change_found = old_value != new_value
-        if _debug:
-            DetectionMonitor._debug("    - change_found: %r", change_found)
-
-        # schedule it
-        if change_found and not self.algorithm._execute_handle:
-            self.algorithm._execute_handle = asyncio.get_event_loop().call_soon(
-                self.algorithm._execute
-            )
-            if _debug:
-                DetectionMonitor._debug(
-                    "    - scheduled: %r", self.algorithm._execute_handle
-                )
 
 
 #
@@ -119,23 +39,16 @@ class DetectionMonitor:
 
 
 @bacpypes_debugging
-class FaultAlgorithm(DebugContents):
+class FaultAlgorithm(Algorithm, DebugContents):
     _debug: Callable[..., None]
     _debug_contents: Tuple[str, ...] = (
         "pCurrentReliability",
         "pReliabilityEvaluationInhibit",
     )
 
-    _monitors: List[DetectionMonitor]
-    _what_changed: Dict[str, Tuple[Any, Any]]
-
-    _execute_enabled: bool
-    _execute_handle: Optional[asyncio.Handle]
-    _execute_fn: Callable[FaultAlgorithm, None]
-
     monitored_object: Object
     monitoring_object: Optional[EventEnrollmentObject]
-    evaluated_reliability: Reliability
+    evaluated_reliability: Optional[Reliability]  # None indicates no transition
 
     pCurrentReliability: Reliability
     pReliabilityEvaluationInhibit: Boolean
@@ -147,22 +60,15 @@ class FaultAlgorithm(DebugContents):
     ):
         if _debug:
             FaultAlgorithm._debug("__init__ %r", monitored_object)
+        super().__init__()
 
-        # detection monitor objects
-        self._monitors = []
-        self._what_changed = {}
-
-        # handle for being scheduled to run
-        self._execute_enabled = True
-        self._execute_handle = None
-        self._execute_fn = self.execute
-
-        # used for reading/writing the Event_State property
-        self.monitored_object = monitored_object
         self.monitoring_object = monitoring_object
+        self.monitored_object = monitored_object
 
-        # result of running the fault algorithm
-        self.evaluated_reliability = Reliability.noFaultDetected
+        # reliability-evaluation process in indicates a reliability transition
+        # which may be the same value as the current reliability, None indicates
+        # no transition
+        self.evaluated_reliability = None
 
     def bind(self, **kwargs):
         if _debug:
@@ -174,7 +80,7 @@ class FaultAlgorithm(DebugContents):
         # trigger on reliability -- optional for the monitored object,
         # required for the monitoring object
         if self.monitoring_object:
-            monitor = DetectionMonitor(
+            monitor = PropertyMonitor(
                 self, "pCurrentReliability", self.monitoring_object, "reliability"
             )
             if _debug:
@@ -189,7 +95,7 @@ class FaultAlgorithm(DebugContents):
                 self.monitoring_object.read_property(PropertyIdentifier.reliability)
             )
         else:
-            monitor = DetectionMonitor(
+            monitor = PropertyMonitor(
                 self, "pCurrentReliability", self.monitored_object, "reliability"
             )
             if _debug:
@@ -205,7 +111,7 @@ class FaultAlgorithm(DebugContents):
             )
 
         # trigger on reliability-evaluation-inhibit
-        monitor = DetectionMonitor(
+        monitor = PropertyMonitor(
             self,
             "pReliabilityEvaluationInhibit",
             self.monitored_object,
@@ -234,7 +140,7 @@ class FaultAlgorithm(DebugContents):
             parameter_object, parameter_property = parameter_value
 
             # make a detection monitor
-            monitor = DetectionMonitor(
+            monitor = PropertyMonitor(
                 self, parameter, parameter_object, parameter_property
             )
             if _debug:
@@ -260,41 +166,20 @@ class FaultAlgorithm(DebugContents):
             # proceed with initialization
             self.init()
 
-    def _parameter_init(self, parm_names, parm_await_task) -> None:
-        """
-        This callback function is associated with the asyncio.gather() task
-        that reads all of the current property values collected together during
-        the bind() call.
-        """
-        if _debug:
-            FaultAlgorithm._debug("_parameter_init: %r %r", parm_names, parm_await_task)
-
-        parm_values = parm_await_task.result()
-        if _debug:
-            FaultAlgorithm._debug("    - parm_values: %r", parm_values)
-
-        for parm_name, parm_value in zip(parm_names, parm_values):
-            setattr(self, parm_name, parm_value)
-
-        # proceed with initialization
-        self.init()
-
     def init(self):
+        """
+        This is called after the `bind()` call and after all of the parameter
+        initialization tasks have completed.
+        """
         if _debug:
             FaultAlgorithm._debug("init")
 
-    def unbind(self):
-        if _debug:
-            FaultAlgorithm._debug("unbind")
-
-        # remove the property value monitor functions
-        for monitor in self._monitors:
-            if _debug:
-                FaultAlgorithm._debug("    - monitor: %r", monitor)
-            monitor.obj._property_monitors[monitor.prop].remove(monitor.property_change)
-
-        # abandon the array
-        self._monitors = []
+        # if pCurrentReliability is None it implies that the monitored object
+        # has an intrinsic fault algorithm but does not have a reliability
+        # property (huh?).  If that's true then the result will be used
+        # for event state detection only.
+        if self.pCurrentReliability is None:
+            self.pCurrentReliability = Reliability.noFaultDetected
 
     def _execute(self):
         if _debug:
@@ -306,16 +191,30 @@ class FaultAlgorithm(DebugContents):
         # check if the algorithm is inhibited
         if self.pReliabilityEvaluationInhibit is None:
             if _debug:
-                FaultAlgorithm._debug("    - no reliabilityEvaluationInhibit")
+                FaultAlgorithm._debug("    - no reliability-evaluation-inhibit")
         elif self.pReliabilityEvaluationInhibit:
             if _debug:
                 FaultAlgorithm._debug("    - inhibited")
+            self.evaluated_reliability = None
             return
 
         self._execute_enabled = False
 
+        # default to no transition
+        self.evaluated_reliability = None
+
         # let the algorithm run
         self._execute_fn()
+        if _debug:
+            if self.evaluated_reliability is None:
+                FaultAlgorithm._debug(
+                    "    - evaluated_reliability: None (no-transition)"
+                )
+            else:
+                FaultAlgorithm._debug(
+                    "    - evaluated_reliability: %r",
+                    Reliability(self.evaluated_reliability),
+                )
 
         self._execute_enabled = True
 
@@ -349,12 +248,15 @@ class NoneFaultAlgorithm(FaultAlgorithm):
             NoneFaultAlgorithm._debug("__init__ %r", monitored_object)
         super().__init__(monitoring_object, monitored_object)
 
-        pCurrentReliability = Reliability.noFaultDetected
-        pReliabilityEvaluationInhibit = False
+        self.pCurrentReliability = None
+        self.pReliabilityEvaluationInhibit = None
 
     def execute(self):
         if _debug:
             NoneFaultAlgorithm._debug("execute")
+
+        # no reliability transition
+        self.evaluated_reliability = None
 
 
 #
@@ -461,6 +363,8 @@ class ExtendedFaultAlgorithm(FaultAlgorithm):
         if _debug:
             ExtendedFaultAlgorithm._debug("execute")
 
+        self.evaluated_reliability = Reliability.noFaultDetected
+
 
 #
 #   LifeSafetyFaultAlgorithm -- 13.4.4
@@ -515,7 +419,7 @@ class StatusFlagsFaultAlgorithm(FaultAlgorithm):
 
     def execute(self):
         if _debug:
-            ChangeOfValueFaultAlgorithm._debug("execute")
+            StatusFlagsFaultAlgorithm._debug("execute")
 
 
 #
@@ -577,6 +481,7 @@ class OutOfRangeFaultAlgorithm(FaultAlgorithm, DebugContents):
             OutOfRangeFaultAlgorithm._debug(
                 "init(%s)", self.monitored_object.objectName
             )
+        super().init()
 
         # normalize the values
         if isinstance(self.pMinimumNormalValue, FaultParameterOutOfRangeValue):
@@ -588,6 +493,13 @@ class OutOfRangeFaultAlgorithm(FaultAlgorithm, DebugContents):
                 self.pMaximumNormalValue, self.pMaximumNormalValue._choice
             )
 
+        if _debug:
+            OutOfRangeFaultAlgorithm._debug(
+                "    - min..max: %r..%r",
+                self.pMinimumNormalValue,
+                self.pMaximumNormalValue,
+            )
+
     def execute(self):
         if _debug:
             OutOfRangeFaultAlgorithm._debug(
@@ -596,37 +508,38 @@ class OutOfRangeFaultAlgorithm(FaultAlgorithm, DebugContents):
             OutOfRangeFaultAlgorithm._debug(
                 "    - what changed: %r", self._what_changed
             )
+            OutOfRangeFaultAlgorithm._debug(
+                "    - pCurrentReliability: %r", Reliability(self.pCurrentReliability)
+            )
 
         if (self.pCurrentReliability == Reliability.noFaultDetected) and (
             self.pMonitoredValue < self.pMinimumNormalValue
         ):
-            self.monitored_object.reliability = Reliability.underRange
+            self.evaluated_reliability = Reliability.underRange
         elif (self.pCurrentReliability == Reliability.noFaultDetected) and (
             self.pMonitoredValue > self.pMaximumNormalValue
         ):
-            self.monitored_object.reliability = Reliability.overRange
+            self.evaluated_reliability = Reliability.overRange
         elif (self.pCurrentReliability == Reliability.underRange) and (
             self.pMonitoredValue > self.pMaximumNormalValue
         ):
-            self.monitored_object.reliability = Reliability.overRange
+            self.evaluated_reliability = Reliability.overRange
         elif (self.pCurrentReliability == Reliability.overRange) and (
             self.pMonitoredValue < self.pMinimumNormalValue
         ):
-            self.monitored_object.reliability = Reliability.underRange
+            self.evaluated_reliability = Reliability.underRange
         elif (
             (self.pCurrentReliability == Reliability.underRange)
             and (self.pMonitoredValue >= self.pMinimumNormalValue)
             and (self.pMonitoredValue <= self.pMaximumNormalValue)
         ):
-            self.monitored_object.reliability = Reliability.noFaultDetected
+            self.evaluated_reliability = Reliability.noFaultDetected
         elif (
             (self.pCurrentReliability == Reliability.overRange)
             and (self.pMonitoredValue >= self.pMinimumNormalValue)
             and (self.pMonitoredValue <= self.pMaximumNormalValue)
         ):
-            self.monitored_object.reliability = Reliability.noFaultDetected
-        else:
-            print("    - no transition")
+            self.evaluated_reliability = Reliability.noFaultDetected
 
 
 #
@@ -642,6 +555,7 @@ class FaultListedFaultAlgorithm(FaultAlgorithm):
 
     # pCurrentReliability: Reliability
     # pReliabilityEvaluationInhibit: Boolean
+    pMonitoredList: List
 
     def __init__(
         self,
@@ -655,11 +569,20 @@ class FaultListedFaultAlgorithm(FaultAlgorithm):
         if monitoring_object:
             self.bind(
                 pCurrentReliability=(monitoring_object, "reliability"),
-                pReliabilityEvaluationInhibit=(),
+                pReliabilityEvaluationInhibit=(
+                    monitoring_object,
+                    "reliabilityEvaluationInhibit",
+                ),
+                pMonitoredList=monitoring_object.faultParameters.faultListed.faultListReference,
             )
         else:
             self.bind(
                 pCurrentReliability=(monitored_object, "reliability"),
+                pReliabilityEvaluationInhibit=(
+                    monitored_object,
+                    "reliabilityEvaluationInhibit",
+                ),
+                pMonitoredList=(monitored_object, "faultSignals"),
             )
 
     def execute(self):

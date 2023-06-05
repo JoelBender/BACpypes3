@@ -2241,6 +2241,9 @@ class DateTime(Sequence):
         # return an instance
         return cast(DateTime, cls(date=Date.now(when), time=Time.now(when)))
 
+    def __str__(self) -> str:
+        return f"{self.date} {self.time}"
+
 
 class TimeValue(Sequence):
     _order = ("time", "value")
@@ -2277,6 +2280,9 @@ class TimeStamp(Choice):
     @classmethod
     def as_dateTime(cls: type, when: Optional[float] = None) -> TimeStamp:
         return cls(dateTime=DateTime.now(when))
+
+    def __str__(self) -> str:
+        return str(getattr(self, self._choice, "None"))
 
 
 class Recipient(Choice):
@@ -3257,7 +3263,9 @@ class EventParameterChangeOfBitstring(Sequence):
 class EventParameterChangeOfCharacterString(Sequence):
     _order = ("timeDelay", "listOfAlarmValues")
     timeDelay = Unsigned(_context=0)
-    listOfAlarmValues = SequenceOf(CharacterString, _context=1)  # maybe ArrayOf(OptionalCharacterString)
+    listOfAlarmValues = SequenceOf(
+        CharacterString, _context=1
+    )  # maybe ArrayOf(OptionalCharacterString)
 
 
 class EventParameterChangeOfDiscreteValue(Sequence):
@@ -3463,7 +3471,7 @@ class FaultParameterOutOfRangeValue(Choice):
 
 
 class FaultParameterOutOfRange(Sequence):
-    _order = ("minNormalValue","maxNormalValue")
+    _order = ("minNormalValue", "maxNormalValue")
     minNormalValue = FaultParameterOutOfRangeValue(_context=0)
     maxNormalValue = FaultParameterOutOfRangeValue(_context=1)
 

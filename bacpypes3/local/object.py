@@ -1,6 +1,7 @@
 """
 Local Object
 """
+from __future__ import annotations
 
 import asyncio
 import inspect
@@ -9,7 +10,7 @@ from collections import defaultdict
 from copy import deepcopy
 from functools import partial
 from threading import Thread
-from typing import Any as _Any, Callable, Dict, List
+from typing import Any as _Any, Callable, Dict, List, Optional, Tuple, Union
 
 from ..debugging import bacpypes_debugging, ModuleLogger
 from ..errors import PropertyError
@@ -89,6 +90,220 @@ class PropertyChangeThread(Thread):
 
 
 @bacpypes_debugging
+class Algorithm:
+    """
+    This is an abstract superclass of FaultAlgorithm and EventAlgorithm.
+    """
+
+    _debug: Callable[..., None]
+
+    _monitors: List[PropertyMonitor]
+    _what_changed: Dict[str, Tuple[_Any, _Any]]
+
+    _execute_enabled: bool
+    _execute_handle: Optional[asyncio.Handle]
+    _execute_fn: Callable[Algorithm, None]
+
+    def __init__(self):
+        if _debug:
+            Algorithm._debug("__init__")
+
+        # detection monitor objects
+        self._monitors = []
+        self._what_changed = {}
+
+        # handle for being scheduled to run
+        self._execute_enabled = True
+        self._execute_handle = None
+        self._execute_fn = self.execute
+
+    def bind(self, **kwargs):
+        if _debug:
+            Algorithm._debug("bind %r", kwargs)
+
+        parm_names = []
+        parm_tasks = []
+
+        # loop through the parameter bindings
+        for parameter, parameter_value in kwargs.items():
+            if not isinstance(parameter_value, tuple):
+                setattr(self, parameter, parameter_value)
+                continue
+
+            parameter_object, parameter_property = parameter_value
+
+            # make a detection monitor
+            monitor = PropertyMonitor(
+                self, parameter, parameter_object, parameter_property
+            )
+            if _debug:
+                Algorithm._debug("    - monitor: %r", monitor)
+
+            # keep track of all of these monitor objects for if/when we unbind
+            self._monitors.append(monitor)
+
+            # make a task to read the value
+            parm_names.append(parameter)
+            parm_tasks.append(parameter_object.read_property(parameter_property))
+
+        if parm_tasks:
+            if _debug:
+                Algorithm._debug("    - parm_tasks: %r", parm_tasks)
+
+            # gather all the parameter tasks and continue algorithm specific
+            # initialization after they are all finished
+            parm_await_task = asyncio.gather(*parm_tasks)
+            parm_await_task.add_done_callback(partial(self._parameter_init, parm_names))
+
+        else:
+            # proceed with initialization
+            self.init()
+
+    def unbind(self):
+        if _debug:
+            Algorithm._debug("unbind")
+
+        # remove the property value monitor functions
+        for monitor in self._monitors:
+            if _debug:
+                Algorithm._debug("    - monitor: %r", monitor)
+            monitor.obj._property_monitors[monitor.prop].remove(monitor.property_change)
+
+        # abandon the array
+        self._monitors = []
+
+    def _parameter_init(self, parm_names, parm_await_task) -> None:
+        """
+        This callback function is associated with the asyncio.gather() task
+        that reads all of the current property values collected together during
+        the bind() call.
+        """
+        if _debug:
+            Algorithm._debug("_parameter_init: %r %r", parm_names, parm_await_task)
+
+        parm_values = parm_await_task.result()
+        if _debug:
+            Algorithm._debug("    - parm_values: %r", parm_values)
+
+        for parm_name, parm_value in zip(parm_names, parm_values):
+            setattr(self, parm_name, parm_value)
+
+        # proceed with initialization
+        self.init()
+
+    def init(self):
+        """
+        This is called after the `bind()` call and after all of the parameter
+        initialization tasks have completed.
+        """
+        if _debug:
+            Algorithm._debug("init")
+
+    def _execute(self):
+        if _debug:
+            Algorithm._debug("_execute")
+
+        # no longer scheduled
+        self._execute_handle = None
+
+        # let the algorithm run
+        self._execute_fn()
+
+        # clear out what changed debugging
+        self._what_changed = {}
+
+    def execute(self):
+        raise NotImplementedError("execute() not implemented")
+
+
+@bacpypes_debugging
+class PropertyMonitor:
+    """
+    An instance of this class is used to associate a property of an
+    object to a parameter of an event algorithm.  The property_change()
+    function is called when the property changes value and that
+    value is passed along as an attribute of the algorithm.
+    """
+
+    _debug: Callable[..., None]
+
+    algorithm: Algorithm
+    parameter: str
+    obj: Object
+    prop: str
+    indx: Optional[int]
+
+    def __init__(
+        self,
+        algorithm: Algorithm,
+        parameter: str,
+        obj: Object,
+        prop: Union[int, str, PropertyIdentifier],
+        indx: Optional[int] = None,
+    ):
+        if _debug:
+            PropertyMonitor._debug("__init__ ... %r ...", parameter)
+
+        # the property is the attribute name
+        if isinstance(prop, int):
+            prop = PropertyIdentifier(prop)
+        if isinstance(prop, PropertyIdentifier):
+            prop = prop.attr
+        assert isinstance(prop, str)
+        if _debug:
+            PropertyMonitor._debug("    - prop: %r", prop)
+
+        # keep track of the parameter values
+        self.algorithm = algorithm
+        self.parameter = parameter
+        self.obj = obj
+        self.prop = prop
+        self.indx = indx
+
+        # add the property value monitor function
+        self.obj._property_monitors[self.prop].append(self.property_change)
+
+    def property_change(self, old_value, new_value):
+        if _debug:
+            PropertyMonitor._debug(
+                "property_change (%s) %r %r", self.parameter, old_value, new_value
+            )
+
+        # set the parameter value
+        setattr(self.algorithm, self.parameter, new_value)
+
+        if not self.algorithm._execute_enabled:
+            if _debug:
+                PropertyMonitor._debug("    - execute disabled")
+            return
+
+        # if the algorithm is scheduled to run, don't bother checking for more
+        if self.algorithm._execute_handle:
+            if _debug:
+                PropertyMonitor._debug("    - already scheduled")
+            return
+
+        # see if something changed
+        change_found = old_value != new_value
+        if _debug:
+            PropertyMonitor._debug("    - change_found: %r", change_found)
+
+        # handy for debugging
+        if change_found:
+            self.algorithm._what_changed[self.parameter] = (old_value, new_value)
+
+        # schedule it
+        if change_found and not self.algorithm._execute_handle:
+            self.algorithm._execute_handle = asyncio.get_event_loop().call_soon(
+                self.algorithm._execute
+            )
+            if _debug:
+                PropertyMonitor._debug(
+                    "    - scheduled: %r", self.algorithm._execute_handle
+                )
+
+
+@bacpypes_debugging
 class Object(_Object):
     """
     A local object has specialized property functions for changing the object
@@ -98,6 +313,8 @@ class Object(_Object):
     __objectName: CharacterString
     __objectIdentifier: ObjectIdentifier
     _property_monitors: Dict[str, List[Callable[..., None]]]
+    _event_algorithm: Optional[Algorithm] = None
+    _fault_algorithm: Optional[Algorithm] = None
 
     def __init__(self, **kwargs) -> None:
         if _debug:
@@ -146,7 +363,6 @@ class Object(_Object):
             inspect.iscoroutinefunction(attr_property.fget)
             or inspect.iscoroutinefunction(attr_property.fset)
         ):
-
             thread = PropertyChangeThread(
                 partial(attr_property.fget, self),
                 partial(attr_property.fset, self),
