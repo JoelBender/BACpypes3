@@ -247,7 +247,7 @@ async def main() -> None:
             description="test binary value",
             presentValue=BinaryPV.inactive,
             eventState=EventState.normal,
-            statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
+            # statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
             outOfService=False,
             # CHANGE_OF_STATE Event Algorithm
             # eventType=EventType.outOfRange,

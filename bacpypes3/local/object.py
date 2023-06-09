@@ -15,7 +15,7 @@ from typing import Any as _Any, Callable, Dict, List, Optional, Tuple, Union
 from ..debugging import bacpypes_debugging, ModuleLogger
 from ..errors import PropertyError
 from ..primitivedata import CharacterString, ObjectIdentifier
-from ..basetypes import PropertyIdentifier
+from ..basetypes import EventState, PropertyIdentifier, Reliability, StatusFlags
 from ..constructeddata import ArrayOf
 
 from ..object import Object as _Object
@@ -97,7 +97,7 @@ class Algorithm:
 
     _debug: Callable[..., None]
 
-    _monitors: List[PropertyMonitor]
+    _parameters: Dict[str, Parameter]
     _what_changed: Dict[str, Tuple[_Any, _Any]]
 
     _execute_enabled: bool
@@ -108,8 +108,8 @@ class Algorithm:
         if _debug:
             Algorithm._debug("__init__")
 
-        # detection monitor objects
-        self._monitors = []
+        # parameters
+        self._parameters = {}
         self._what_changed = {}
 
         # handle for being scheduled to run
@@ -117,84 +117,70 @@ class Algorithm:
         self._execute_handle = None
         self._execute_fn = self.execute
 
+    def __getattr__(self, attr: str) -> Any:
+        """
+        If attr is a parameter, redirect to the Parameter instance.
+        """
+        if attr.startswith("_") or (attr not in self._parameters):
+            return object.__getattribute__(self, attr)
+        if _debug:
+            Algorithm._debug("__getattr__ %r", attr)
+
+        return self._parameters[attr].getattr()
+
+    def __setattr__(self, attr: str, value: Any) -> None:
+        """
+        If attr is a parameter, redirect to the Parameter instance.
+        """
+        if attr.startswith("_") or (attr not in self._parameters):
+            super().__setattr__(attr, value)
+            return
+        if _debug:
+            Algorithm._debug("__setattr__ %r %r", attr, value)
+
+        return self._parameters[attr].setattr(value)
+
     def bind(self, **kwargs):
         if _debug:
             Algorithm._debug("bind %r", kwargs)
 
-        parm_names = []
-        parm_tasks = []
-
         # loop through the parameter bindings
-        for parameter, parameter_value in kwargs.items():
+        for parameter_name, parameter_value in kwargs.items():
+            # local value
             if not isinstance(parameter_value, tuple):
-                setattr(self, parameter, parameter_value)
+                setattr(self, parameter_name, parameter_value)
                 continue
 
-            parameter_object, parameter_property = parameter_value
-
-            # make a detection monitor
-            monitor = PropertyMonitor(
-                self, parameter, parameter_object, parameter_property
-            )
+            # make a parameter reference, a.k.a. "smart" pointer
+            parameter = Parameter(self, parameter_name, *parameter_value)
             if _debug:
-                Algorithm._debug("    - monitor: %r", monitor)
+                Algorithm._debug("    - parameter: %r", parameter)
 
             # keep track of all of these monitor objects for if/when we unbind
-            self._monitors.append(monitor)
+            self._parameters[parameter_name] = parameter
 
-            # make a task to read the value
-            parm_names.append(parameter)
-            parm_tasks.append(parameter_object.read_property(parameter_property))
-
-        if parm_tasks:
-            if _debug:
-                Algorithm._debug("    - parm_tasks: %r", parm_tasks)
-
-            # gather all the parameter tasks and continue algorithm specific
-            # initialization after they are all finished
-            parm_await_task = asyncio.gather(*parm_tasks)
-            parm_await_task.add_done_callback(partial(self._parameter_init, parm_names))
-
-        else:
-            # proceed with initialization
-            self.init()
+        # proceed with initialization
+        self.init()
 
     def unbind(self):
         if _debug:
             Algorithm._debug("unbind")
 
         # remove the property value monitor functions
-        for monitor in self._monitors:
+        for parameter in self._parameters.values():
             if _debug:
-                Algorithm._debug("    - monitor: %r", monitor)
-            monitor.obj._property_monitors[monitor.prop].remove(monitor.property_change)
+                Algorithm._debug("    - parameter: %r", parameter)
+            if parameter.listen:
+                parameter.obj._property_monitors[parameter.property_identifier].remove(
+                    parameter.property_change
+                )
 
-        # abandon the array
-        self._monitors = []
-
-    def _parameter_init(self, parm_names, parm_await_task) -> None:
-        """
-        This callback function is associated with the asyncio.gather() task
-        that reads all of the current property values collected together during
-        the bind() call.
-        """
-        if _debug:
-            Algorithm._debug("_parameter_init: %r %r", parm_names, parm_await_task)
-
-        parm_values = parm_await_task.result()
-        if _debug:
-            Algorithm._debug("    - parm_values: %r", parm_values)
-
-        for parm_name, parm_value in zip(parm_names, parm_values):
-            setattr(self, parm_name, parm_value)
-
-        # proceed with initialization
-        self.init()
+        # abandon the mapping
+        self._parameters = {}
 
     def init(self):
         """
-        This is called after the `bind()` call and after all of the parameter
-        initialization tasks have completed.
+        This is called after the `bind()` call.
         """
         if _debug:
             Algorithm._debug("init")
@@ -217,7 +203,7 @@ class Algorithm:
 
 
 @bacpypes_debugging
-class PropertyMonitor:
+class Parameter:
     """
     An instance of this class is used to associate a property of an
     object to a parameter of an event algorithm.  The property_change()
@@ -228,69 +214,92 @@ class PropertyMonitor:
     _debug: Callable[..., None]
 
     algorithm: Algorithm
-    parameter: str
+    parameter_name: str
     obj: Object
-    prop: str
-    indx: Optional[int]
+    property_identifier: str
+    listen: bool
 
     def __init__(
         self,
         algorithm: Algorithm,
-        parameter: str,
+        parameter_name: str,
         obj: Object,
-        prop: Union[int, str, PropertyIdentifier],
-        indx: Optional[int] = None,
+        property_identifier: Union[int, str, PropertyIdentifier],
+        listen: Optional[bool] = True,
     ):
         if _debug:
-            PropertyMonitor._debug("__init__ ... %r ...", parameter)
+            Parameter._debug("__init__ ... %r ...", parameter_name)
 
-        # the property is the attribute name
-        if isinstance(prop, int):
-            prop = PropertyIdentifier(prop)
-        if isinstance(prop, PropertyIdentifier):
-            prop = prop.attr
-        assert isinstance(prop, str)
+        # the property_identifier is the attribute name
+        if isinstance(property_identifier, int):
+            property_identifier = PropertyIdentifier(property_identifier).attr
+        if isinstance(property_identifier, PropertyIdentifier):
+            property_identifier = property_identifier.attr
         if _debug:
-            PropertyMonitor._debug("    - prop: %r", prop)
+            Parameter._debug("    - property_identifier: %r", property_identifier)
+
+        # tiny bit of error checking
+        if property_identifier not in obj._elements:
+            raise ValueError(f"{property_identifier!r} is not a property of {obj}")
 
         # keep track of the parameter values
         self.algorithm = algorithm
-        self.parameter = parameter
+        self.parameter_name = parameter_name
         self.obj = obj
-        self.prop = prop
-        self.indx = indx
+        self.property_identifier = property_identifier
+        self.listen = listen
 
         # add the property value monitor function
-        self.obj._property_monitors[self.prop].append(self.property_change)
+        if listen:
+            self.obj._property_monitors[self.property_identifier].append(
+                self.property_change
+            )
+
+    def getattr(self) -> Any:
+        """
+        This function is called when the algoritm needs the value of the
+        property from the object.
+        """
+        if _debug:
+            Parameter._debug("getattr (%s)", self.parameter_name)
+
+        return getattr(self.obj, self.property_identifier)
+
+    def setattr(self, value: Any) -> None:
+        """
+        This function is called when the algorithm updates the value of
+        a property from the object.
+        """
+        if _debug:
+            Parameter._debug("setattr (%s) %r", self.parameter_name, value)
+
+        return setattr(self.obj, self.property_identifier, value)
 
     def property_change(self, old_value, new_value):
         if _debug:
-            PropertyMonitor._debug(
-                "property_change (%s) %r %r", self.parameter, old_value, new_value
+            Parameter._debug(
+                "property_change (%s) %r %r", self.parameter_name, old_value, new_value
             )
-
-        # set the parameter value
-        setattr(self.algorithm, self.parameter, new_value)
 
         if not self.algorithm._execute_enabled:
             if _debug:
-                PropertyMonitor._debug("    - execute disabled")
+                Parameter._debug("    - execute disabled")
             return
 
         # if the algorithm is scheduled to run, don't bother checking for more
         if self.algorithm._execute_handle:
             if _debug:
-                PropertyMonitor._debug("    - already scheduled")
+                Parameter._debug("    - already scheduled")
             return
 
         # see if something changed
         change_found = old_value != new_value
         if _debug:
-            PropertyMonitor._debug("    - change_found: %r", change_found)
+            Parameter._debug("    - change_found: %r", change_found)
 
         # handy for debugging
         if change_found:
-            self.algorithm._what_changed[self.parameter] = (old_value, new_value)
+            self.algorithm._what_changed[self.parameter_name] = (old_value, new_value)
 
         # schedule it
         if change_found and not self.algorithm._execute_handle:
@@ -298,9 +307,7 @@ class PropertyMonitor:
                 self.algorithm._execute
             )
             if _debug:
-                PropertyMonitor._debug(
-                    "    - scheduled: %r", self.algorithm._execute_handle
-                )
+                Parameter._debug("    - scheduled: %r", self.algorithm._execute_handle)
 
 
 @bacpypes_debugging
@@ -509,3 +516,43 @@ class Object(_Object):
         """
         if _debug:
             Object._debug("propertyList(setter) %r", value)
+
+    @property
+    def statusFlags(self) -> ArrayOf(PropertyIdentifier):  # type: ignore[valid-type, override]
+        """Return the status flags."""
+        if _debug:
+            Object._debug("statusFlags(getter)")
+
+        self_event_state = getattr(self, "eventState", None)
+        self_reliability = getattr(self, "reliability", None)
+        self_out_of_service = getattr(self, "outOfService", None)
+
+        status_flags = StatusFlags(
+            [
+                int(
+                    (self_event_state is not None)
+                    and (self_event_state != EventState.normal)
+                ),  # in alarm
+                int(
+                    (self_reliability is not None)
+                    and (self_reliability != Reliability.noFaultDetected)
+                ),  # fault
+                0,  # overridden
+                int(self_out_of_service == 1),  # out of service
+            ]
+        )
+        if _debug:
+            Object._debug("    - status_flags: %r", status_flags)
+
+        return StatusFlags(status_flags)
+
+    @statusFlags.setter
+    def statusFlags(self, value: _Any) -> None:
+        """
+        Change the status flags, usually called with None in the case of
+        an object being initialized, or in the case when the value is
+        unmarshalled from a JSON blob or RDF graph, in both cases it
+        can be ignored.
+        """
+        if _debug:
+            Object._debug("statusFlags(setter) %r", value)

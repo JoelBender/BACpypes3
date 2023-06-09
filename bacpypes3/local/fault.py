@@ -26,7 +26,7 @@ from ..basetypes import (
     SequenceOfFaultParameterExtendedParameters,
 )
 from ..object import Object, EventEnrollmentObject
-from .object import Algorithm, PropertyMonitor
+from .object import Algorithm
 
 # some debugging
 _debug = 0
@@ -77,94 +77,16 @@ class FaultAlgorithm(Algorithm, DebugContents):
         parm_names = []
         parm_tasks = []
 
-        # trigger on reliability -- optional for the monitored object,
-        # required for the monitoring object
-        if self.monitoring_object:
-            monitor = PropertyMonitor(
-                self, "pCurrentReliability", self.monitoring_object, "reliability"
-            )
-            if _debug:
-                FaultAlgorithm._debug("    - monitor: %r", monitor)
+        config_object = self.monitoring_object or self.monitored_object
 
-            # keep track of all of these monitor objects for if/when we unbind
-            self._monitors.append(monitor)
-
-            # make a task to read the value
-            parm_names.append("pCurrentReliability")
-            parm_tasks.append(
-                self.monitoring_object.read_property(PropertyIdentifier.reliability)
-            )
-        else:
-            monitor = PropertyMonitor(
-                self, "pCurrentReliability", self.monitored_object, "reliability"
-            )
-            if _debug:
-                FaultAlgorithm._debug("    - monitor: %r", monitor)
-
-            # keep track of all of these monitor objects for if/when we unbind
-            self._monitors.append(monitor)
-
-            # make a task to read the value
-            parm_names.append("pCurrentReliability")
-            parm_tasks.append(
-                self.monitored_object.read_property(PropertyIdentifier.reliability)
-            )
-
-        # trigger on reliability-evaluation-inhibit
-        monitor = PropertyMonitor(
-            self,
-            "pReliabilityEvaluationInhibit",
-            self.monitored_object,
+        kwargs["pCurrentReliability"] = (config_object, "reliability")
+        kwargs["pReliabilityEvaluationInhibit"] = (
+            config_object,
             "reliabilityEvaluationInhibit",
         )
-        if _debug:
-            FaultAlgorithm._debug("    - monitor: %r", monitor)
 
-        # keep track of all of these monitor objects for if/when we unbind
-        self._monitors.append(monitor)
-
-        # make a task to read the value
-        parm_names.append("pReliabilityEvaluationInhibit")
-        parm_tasks.append(
-            self.monitored_object.read_property(
-                PropertyIdentifier.reliabilityEvaluationInhibit
-            )
-        )
-
-        # loop through the rest of the parameter bindings
-        for parameter, parameter_value in kwargs.items():
-            if not isinstance(parameter_value, tuple):
-                setattr(self, parameter, parameter_value)
-                continue
-
-            parameter_object, parameter_property = parameter_value
-
-            # make a detection monitor
-            monitor = PropertyMonitor(
-                self, parameter, parameter_object, parameter_property
-            )
-            if _debug:
-                FaultAlgorithm._debug("    - monitor: %r", monitor)
-
-            # keep track of all of these monitor objects for if/when we unbind
-            self._monitors.append(monitor)
-
-            # make a task to read the value
-            parm_names.append(parameter)
-            parm_tasks.append(parameter_object.read_property(parameter_property))
-
-        if parm_tasks:
-            if _debug:
-                FaultAlgorithm._debug("    - parm_tasks: %r", parm_tasks)
-
-            # gather all the parameter tasks and continue algorithm specific
-            # initialization after they are all finished
-            parm_await_task = asyncio.gather(*parm_tasks)
-            parm_await_task.add_done_callback(partial(self._parameter_init, parm_names))
-
-        else:
-            # proceed with initialization
-            self.init()
+        # continue with binding
+        super().bind(**kwargs)
 
     def init(self):
         """

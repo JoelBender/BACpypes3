@@ -347,7 +347,7 @@ async def main() -> None:
             objectName="avo2",
             description="test analog value",
             presentValue=50.0,
-            statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
+            # statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
             eventState=EventState.normal,
             outOfService=False,
             units=EngineeringUnits.degreesFahrenheit,
@@ -394,7 +394,7 @@ async def main() -> None:
             eventDetectionEnable=True,
             # eventAlgorithmInhibitReference=ObjectPropertyReference
             # eventAlgorithmInhibit=False,
-            statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
+            # statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
             reliability=Reliability.noFaultDetected,
             # faultType=
             # faultParameters=

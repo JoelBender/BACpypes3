@@ -348,7 +348,7 @@ async def main() -> None:
             description="test analog value",
             presentValue=50.0,
             eventState=EventState.normal,
-            statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
+            # statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
             outOfService=False,
             units=EngineeringUnits.degreesFahrenheit,
             # OUT_OF_RANGE Event Algorithm

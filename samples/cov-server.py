@@ -105,7 +105,6 @@ async def main() -> None:
             objectIdentifier=("analog-value", 1),
             objectName="Wowzers!",
             presentValue=75.0,
-            statusFlags=[],
             covIncrement=1.0,
         )
         if _debug:
