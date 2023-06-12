@@ -120,13 +120,11 @@ class FaultAlgorithm(Algorithm, DebugContents):
             self.evaluated_reliability = None
             return
 
+        # turn off property change notifications
         self._execute_enabled = False
 
-        # default to no transition
-        self.evaluated_reliability = None
-
         # let the algorithm run
-        self._execute_fn()
+        self.evaluated_reliability = self._execute_fn()
         if _debug:
             if self.evaluated_reliability is None:
                 FaultAlgorithm._debug(
@@ -138,12 +136,19 @@ class FaultAlgorithm(Algorithm, DebugContents):
                     Reliability(self.evaluated_reliability),
                 )
 
+        # turn property change notifications back on
         self._execute_enabled = True
 
         # clear out what changed debugging
         self._what_changed = {}
 
-    def execute(self):
+    def execute(self) -> Optional[Reliability]:
+        """
+        Using the bound parameters, determine if there should be a change in the
+        reliability by providing a value to evaluated_reliability, for no
+        transition leave it None.  This should be an @abstractmethod at some
+        point.
+        """
         raise NotImplementedError("execute() not implemented")
 
 
@@ -173,12 +178,12 @@ class NoneFaultAlgorithm(FaultAlgorithm):
         self.pCurrentReliability = None
         self.pReliabilityEvaluationInhibit = None
 
-    def execute(self):
+    def execute(self) -> Optional[Reliability]:
         if _debug:
             NoneFaultAlgorithm._debug("execute")
 
         # no reliability transition
-        self.evaluated_reliability = None
+        return None
 
 
 #
@@ -233,7 +238,7 @@ class CharacterStringFaultAlgorithm(FaultAlgorithm):
                 pFaultValues=(monitored_object, "faultValues"),
             )
 
-    def execute(self):
+    def execute(self) -> Optional[Reliability]:
         if _debug:
             CharacterStringFaultAlgorithm._debug("execute")
 
@@ -281,11 +286,11 @@ class ExtendedFaultAlgorithm(FaultAlgorithm):
             pParameters=monitoring_object.faultParameters.extended.parameters,
         )
 
-    def execute(self):
+    def execute(self) -> Optional[Reliability]:
         if _debug:
             ExtendedFaultAlgorithm._debug("execute")
 
-        self.evaluated_reliability = Reliability.noFaultDetected
+        return Reliability.noFaultDetected
 
 
 #
@@ -313,7 +318,7 @@ class StateFaultAlgorithm(FaultAlgorithm):
         super().__init__(monitoring_object, monitored_object)
         raise NotImplementedError()
 
-    def execute(self):
+    def execute(self) -> Optional[Reliability]:
         if _debug:
             StateFaultAlgorithm._debug("execute")
 
@@ -339,7 +344,7 @@ class StatusFlagsFaultAlgorithm(FaultAlgorithm):
         super().__init__(monitoring_object, monitored_object)
         raise NotImplementedError()
 
-    def execute(self):
+    def execute(self) -> Optional[Reliability]:
         if _debug:
             StatusFlagsFaultAlgorithm._debug("execute")
 
@@ -422,7 +427,7 @@ class OutOfRangeFaultAlgorithm(FaultAlgorithm, DebugContents):
                 self.pMaximumNormalValue,
             )
 
-    def execute(self):
+    def execute(self) -> Optional[Reliability]:
         if _debug:
             OutOfRangeFaultAlgorithm._debug(
                 "execute(%s)", self.monitored_object.objectName
@@ -437,31 +442,31 @@ class OutOfRangeFaultAlgorithm(FaultAlgorithm, DebugContents):
         if (self.pCurrentReliability == Reliability.noFaultDetected) and (
             self.pMonitoredValue < self.pMinimumNormalValue
         ):
-            self.evaluated_reliability = Reliability.underRange
+            return Reliability.underRange
         elif (self.pCurrentReliability == Reliability.noFaultDetected) and (
             self.pMonitoredValue > self.pMaximumNormalValue
         ):
-            self.evaluated_reliability = Reliability.overRange
+            return Reliability.overRange
         elif (self.pCurrentReliability == Reliability.underRange) and (
             self.pMonitoredValue > self.pMaximumNormalValue
         ):
-            self.evaluated_reliability = Reliability.overRange
+            return Reliability.overRange
         elif (self.pCurrentReliability == Reliability.overRange) and (
             self.pMonitoredValue < self.pMinimumNormalValue
         ):
-            self.evaluated_reliability = Reliability.underRange
+            return Reliability.underRange
         elif (
             (self.pCurrentReliability == Reliability.underRange)
             and (self.pMonitoredValue >= self.pMinimumNormalValue)
             and (self.pMonitoredValue <= self.pMaximumNormalValue)
         ):
-            self.evaluated_reliability = Reliability.noFaultDetected
+            return Reliability.noFaultDetected
         elif (
             (self.pCurrentReliability == Reliability.overRange)
             and (self.pMonitoredValue >= self.pMinimumNormalValue)
             and (self.pMonitoredValue <= self.pMaximumNormalValue)
         ):
-            self.evaluated_reliability = Reliability.noFaultDetected
+            return Reliability.noFaultDetected
 
 
 #
@@ -507,6 +512,6 @@ class FaultListedFaultAlgorithm(FaultAlgorithm):
                 pMonitoredList=(monitored_object, "faultSignals"),
             )
 
-    def execute(self):
+    def execute(self) -> Optional[Reliability]:
         if _debug:
             FaultListedFaultAlgorithm._debug("execute")

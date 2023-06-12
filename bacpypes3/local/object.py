@@ -10,7 +10,7 @@ from collections import defaultdict
 from copy import deepcopy
 from functools import partial
 from threading import Thread
-from typing import Any as _Any, Callable, Dict, List, Optional, Tuple, Union
+from typing import cast, Any as _Any, Callable, Dict, List, Optional, Tuple, Union
 
 from ..debugging import bacpypes_debugging, ModuleLogger
 from ..errors import PropertyError
@@ -24,6 +24,8 @@ from ..object import Object as _Object
 _debug = 0
 _log = ModuleLogger(globals())
 
+# type for the execute() method of an algorithm
+ExecuteMethod = Callable[["Algorithm"], _Any]
 
 # this is for sample applications
 _vendor_id = 999
@@ -102,7 +104,7 @@ class Algorithm:
 
     _execute_enabled: bool
     _execute_handle: Optional[asyncio.Handle]
-    _execute_fn: Callable[Algorithm, None]
+    _execute_fn: ExecuteMethod
 
     def __init__(self):
         if _debug:
@@ -115,7 +117,7 @@ class Algorithm:
         # handle for being scheduled to run
         self._execute_enabled = True
         self._execute_handle = None
-        self._execute_fn = self.execute
+        self._execute_fn = cast(ExecuteMethod, self.execute)
 
     def __getattr__(self, attr: str) -> Any:
         """
@@ -198,7 +200,11 @@ class Algorithm:
         # clear out what changed debugging
         self._what_changed = {}
 
-    def execute(self):
+    def execute(self) -> _Any:
+        """
+        Using the bound parameters, execute the algorithm.  This should be an
+        @abstractmethod at some point.
+        """
         raise NotImplementedError("execute() not implemented")
 
 
