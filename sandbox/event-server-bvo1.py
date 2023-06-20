@@ -4,8 +4,6 @@ Simple example that has a device object and an additional custom object.
 
 import asyncio
 import re
-import json
-from copy import copy
 
 from typing import Callable, Optional
 
@@ -14,36 +12,23 @@ from bacpypes3.argparse import SimpleArgumentParser
 from bacpypes3.console import Console
 from bacpypes3.cmd import Cmd
 
-from bacpypes3.argparse import create_log_handler
-
 from bacpypes3.comm import bind
 from bacpypes3.primitivedata import ObjectIdentifier
 from bacpypes3.basetypes import (
     BinaryPV,
     Destination,
-    DeviceObjectPropertyReference,
-    EngineeringUnits,
-    EventParameter,
-    EventParameterOutOfRange,
     EventState,
-    EventType,
-    FaultType,
     NotifyType,
     PropertyIdentifier,
     Recipient,
-    Reliability,
     TimeStamp,
 )
 from bacpypes3.object import (
-    BinaryValueObject as _BinaryValueObject,
-    EventEnrollmentObject as _EventEnrollmentObject,
     NotificationClassObject,
-    VendorInfo,
 )
 
 from bacpypes3.app import Application
-from bacpypes3.local.object import Object as _Object
-from bacpypes3.local.event import ChangeOfStateEventAlgorithm
+from bacpypes3.local.binary import BinaryValueObjectIR
 
 # some debugging
 _debug = 0
@@ -54,33 +39,6 @@ app = None
 
 # 'property[index]' matching
 property_index_re = re.compile(r"^([A-Za-z-]+)(?:\[([0-9]+)\])?$")
-
-
-@bacpypes_debugging
-class BinaryValueObject(_Object, _BinaryValueObject):
-    """
-    Vanilla Binary Value Object
-    """
-
-    pass
-
-
-@bacpypes_debugging
-class BinaryValueObjectIR(BinaryValueObject):
-    """
-    Binary Value Object with Intrinsic Reporting
-    """
-
-    _debug: Callable[..., None]
-    _event_algorithm: ChangeOfStateEventAlgorithm
-
-    def __init__(self, **kwargs):
-        if _debug:
-            BinaryValueObjectIR._debug("__init__ ...")
-        super().__init__(**kwargs)
-
-        # intrinsic event algorithm
-        self._event_algorithm = ChangeOfStateEventAlgorithm(None, self)
 
 
 @bacpypes_debugging
@@ -111,15 +69,13 @@ class SampleCmd(Cmd):
         # split the property identifier and its index
         property_index_match = property_index_re.match(property_identifier)
         if not property_index_match:
-            await self.response("property specification incorrect")
-            return
+            raise ValueError("property specification incorrect")
         property_name, property_array_index = property_index_match.groups()
+        if property_array_index is not None:
+            raise NotImplementedError("property array index")
         attribute_name = PropertyIdentifier(property_name).attr
 
-        if property_array_index is None:
-            await self.response(repr(getattr(obj, attribute_name)))
-        else:
-            print("not implemented")
+        await self.response(repr(getattr(obj, attribute_name)))
 
     async def do_write(
         self,
@@ -135,7 +91,7 @@ class SampleCmd(Cmd):
             SampleCmd._debug(
                 "do_write %r %r %r %r",
                 object_identifier,
-                attribute_name,
+                property_identifier,
                 value,
                 priority,
             )
@@ -152,12 +108,15 @@ class SampleCmd(Cmd):
         # split the property identifier and its index
         property_index_match = property_index_re.match(property_identifier)
         if not property_index_match:
-            await self.response("property specification incorrect")
-            return
+            raise ValueError("property specification incorrect")
         property_name, property_array_index = property_index_match.groups()
         if property_array_index is not None:
-            property_array_index = int(property_array_index)
+            raise NotImplementedError("property array index")
         prop = PropertyIdentifier(property_name)
+
+        # no priority :-(
+        if priority:
+            raise NotImplementedError("priority")
 
         # now get the property type from the class
         property_type = object_class.get_property_type(prop)
@@ -169,50 +128,45 @@ class SampleCmd(Cmd):
         if _debug:
             SampleCmd._debug("    - value: %r", value)
 
-        if property_array_index is None:
-            setattr(obj, prop.attr, value)
-        else:
-            print("not implemented")
+        setattr(obj, prop.attr, value)
 
-    def do_lowLimitEnable(
+    async def do_enable(
         self,
-        object_name: str,
-        value: int,
+        object_identifier: ObjectIdentifier,
     ) -> None:
         """
-        usage: do_lowLimitEnable object_name (1 | 0)
+        usage: enable objid
         """
         if _debug:
-            SampleCmd._debug(
-                "lowLimitEnable %r %r",
-                object_name,
-                value,
-            )
+            SampleCmd._debug("do_enable %r", object_identifier)
+        assert app
 
-        obj = eval(object_name)
-        limit_enable = copy(obj.limitEnable)
-        limit_enable[LimitEnable.lowLimitEnable] = value
-        obj.limitEnable = limit_enable
+        # get the object
+        obj = app.get_object_id(object_identifier)
+        if not obj:
+            raise RuntimeError("object not found")
 
-    def do_highLimitEnable(
+        # enable event detection
+        obj.eventAlgorithmInhibit = False
+
+    async def do_disable(
         self,
-        object_name: str,
-        value: int,
+        object_identifier: ObjectIdentifier,
     ) -> None:
         """
-        usage: do_highLimitEnable object_name (1 | 0)
+        usage: disable objid
         """
         if _debug:
-            SampleCmd._debug(
-                "highLimitEnable %r %r",
-                object_name,
-                value,
-            )
+            SampleCmd._debug("do_disable %r", object_identifier)
+        assert app
 
-        obj = eval(object_name)
-        limit_enable = copy(obj.limitEnable)
-        limit_enable[LimitEnable.highLimitEnable] = value
-        obj.limitEnable = limit_enable
+        # get the object
+        obj = app.get_object_id(object_identifier)
+        if not obj:
+            raise RuntimeError("object not found")
+
+        # disable event detection
+        obj.eventAlgorithmInhibit = True
 
     def do_debug(
         self,
@@ -240,6 +194,8 @@ async def main() -> None:
         if _debug:
             _log.debug("app: %r", app)
 
+        print(f"\n{BinaryValueObjectIR.__mro__}\n")
+
         # make an object with intrinsic reporting
         bvo1 = BinaryValueObjectIR(
             objectIdentifier="binary-value,1",
@@ -250,7 +206,6 @@ async def main() -> None:
             # statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
             outOfService=False,
             # CHANGE_OF_STATE Event Algorithm
-            # eventType=EventType.outOfRange,
             timeDelay=10,
             notificationClass=1,
             alarmValue=BinaryPV.active,
@@ -263,12 +218,12 @@ async def main() -> None:
                 TimeStamp(time=(255, 255, 255, 255)),
             ],
             eventMessageTexts=["", "", ""],
+            eventDetectionEnable=True,
             # eventMessageTextsConfig=[
             #     "to off normal - {pCurrentState}",
             #     "to fault",
             #     "to normal",
             # ],
-            eventDetectionEnable=True,
             # eventAlgorithmInhibitReference=ObjectPropertyReference
             eventAlgorithmInhibit=False,
             timeDelayNormal=2,

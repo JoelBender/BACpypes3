@@ -32,7 +32,57 @@ _vendor_id = 999
 
 
 @bacpypes_debugging
-class PropertyChangeThread(Thread):
+class PropertyGetterThread(Thread):
+    """
+    An instance of this class is used when the getter of a property is a
+    coroutine function and must run in its own event loop.
+    """
+
+    def __init__(self, getattr_fn) -> None:
+        if _debug:
+            PropertyGetterThread._debug("__init__ %r", getattr_fn)
+        super().__init__()
+
+        self.getattr_fn = getattr_fn
+
+        # result is a (old_value, new_value) tuple if it changed
+        self.result = None
+
+        self.start()
+
+    def run(self):
+        loop = asyncio.new_event_loop()
+        self.result = loop.run_until_complete(self._run())
+        loop.close()
+
+    async def _run(self):
+        if _debug:
+            PropertyGetterThread._debug("_run")
+
+        # get the current value, wait for it if necessary
+        current_value: _Any = self.getattr_fn()
+        if _debug:
+            PropertyGetterThread._debug("    - current_value: %r", current_value)
+
+        if inspect.iscoroutinefunction(current_value):
+            current_value = await current_value
+            if _debug:
+                PropertySetterThread._debug(
+                    "    - awaited coroutine current_value: %r", current_value
+                )
+
+        if inspect.isawaitable(current_value):
+            current_value = await current_value
+            if _debug:
+                PropertyGetterThread._debug(
+                    "    - awaited awaitable current_value: %r", current_value
+                )
+
+        return current_value
+
+
+@bacpypes_debugging
+class PropertySetterThread(Thread):
     """
     An instance of this class is used when the setter and/or getter of
     a property is a coroutine function and must run in its own event
@@ -41,7 +91,7 @@ class PropertyChangeThread(Thread):
 
     def __init__(self, getattr_fn, setattr_fn, new_value) -> None:
         if _debug:
-            PropertyChangeThread._debug(
+            PropertySetterThread._debug(
                 "__init__ %r %r %r", getattr_fn, setattr_fn, new_value
             )
         super().__init__()
@@ -62,17 +112,24 @@ class PropertyChangeThread(Thread):
 
     async def _run(self):
         if _debug:
-            PropertyChangeThread._debug("_run")
+            PropertySetterThread._debug("_run")
 
         # get the current value, wait for it if necessary
         current_value: _Any = self.getattr_fn()
         if _debug:
-            PropertyChangeThread._debug("    - current_value: %r", current_value)
+            PropertySetterThread._debug("    - current_value: %r", current_value)
+
+        if inspect.iscoroutinefunction(current_value):
+            current_value = await current_value
+            if _debug:
+                PropertySetterThread._debug(
+                    "    - awaited coroutine current_value: %r", current_value
+                )
         if inspect.isawaitable(current_value):
             current_value = await current_value
             if _debug:
-                PropertyChangeThread._debug(
-                    "    - awaited current_value: %r", current_value
+                PropertySetterThread._debug(
+                    "    - awaited awaitable current_value: %r", current_value
                 )
 
         # usually these are primitive data elements
@@ -82,11 +139,12 @@ class PropertyChangeThread(Thread):
 
         set_result = self.setattr_fn(self.new_value)
         if _debug:
-            PropertyChangeThread._debug("    - set_result: %r", set_result)
+            PropertySetterThread._debug("    - set_result: %r", set_result)
+
         if inspect.isawaitable(set_result):
             set_result = await set_result
             if _debug:
-                PropertyChangeThread._debug("    - awaited set_result: %r", set_result)
+                PropertySetterThread._debug("    - awaited set_result: %r", set_result)
 
         return (current_value, self.new_value)
 
@@ -339,12 +397,53 @@ class Object(_Object):
 
         super().__init__(**kwargs)
 
+    def __getattribute__(self, attr: str) -> _Any:
+        if attr.startswith("_") or (attr not in self._elements):
+            return object.__getattribute__(self, attr)
+        if _debug:
+            Object._debug("__getattribute__ %r", attr)
+
+        # this might not be an @property defined attribute
+        try:
+            attr_property = inspect.getattr_static(self, attr)
+        except AttributeError:
+            attr_property = None
+        if _debug:
+            Object._debug("    - attr_property: %r", attr_property)
+
+        # if the getter and/or setter are coroutine functions then both
+        # calls need to run in a separate thread with its own event
+        # loop.
+        if isinstance(attr_property, property) and (
+            inspect.iscoroutinefunction(attr_property.fget)
+        ):
+            thread = PropertyGetterThread(
+                partial(attr_property.fget, self),
+            )
+            if _debug:
+                Object._debug("    - thread: %r", thread)
+
+            thread.join()
+            value = thread.result
+        else:
+            getattr_fn = partial(super().__getattribute__, attr)
+
+            element = self._elements[attr]
+            if _debug:
+                Object._debug("    - element: %r", element)
+
+            value = element.get_attribute(getter=getattr_fn)
+        if _debug:
+            Object._debug("    - value: %r", value)
+
+        return value
+
     def __setattr__(self, attr: str, value: _Any) -> None:
         """
         This function traps changes to properties that have at least
         one associated monitor function.
         """
-        if attr.startswith("_") or (attr not in self._property_monitors):
+        if attr.startswith("_"):
             super().__setattr__(attr, value)
             return
         if _debug:
@@ -376,13 +475,15 @@ class Object(_Object):
             inspect.iscoroutinefunction(attr_property.fget)
             or inspect.iscoroutinefunction(attr_property.fset)
         ):
-            thread = PropertyChangeThread(
+            thread = PropertySetterThread(
                 partial(attr_property.fget, self),
                 partial(attr_property.fset, self),
                 value,
             )
             thread.join()
             if not thread.result:
+                if _debug:
+                    Object._debug("    - no change")
                 return
 
             current_value, value = thread.result
@@ -398,6 +499,8 @@ class Object(_Object):
             # usually these are primitive data elements
             # current_value = deepcopy(current_value)
             if value == current_value:
+                if _debug:
+                    Object._debug("    - no change")
                 return
 
             element.set_attribute(

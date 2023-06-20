@@ -4,7 +4,7 @@ Event
 from __future__ import annotations
 
 import asyncio
-from typing import Callable, Dict, Optional, Tuple
+from typing import Callable, Optional, Tuple
 
 from ..debugging import bacpypes_debugging, ModuleLogger, DebugContents
 from ..primitivedata import (
@@ -32,6 +32,7 @@ from ..basetypes import (
     OptionalCharacterString,
     PropertyIdentifier,
     PropertyStates,
+    PropertyValue,
     Reliability,
     SequenceOfEventParameterExtendedParameters,
     StatusFlags,
@@ -57,7 +58,7 @@ from ..object import (
     CharacterStringValueObject,
     CredentialDataInputObject,
     EscalatorObject,
-    EventEnrollmentObject,
+    EventEnrollmentObject as _EventEnrollmentObject,
     GlobalGroupObject,
     IntegerValueObject,
     LargeAnalogValueObject,
@@ -70,14 +71,14 @@ from ..object import (
     MultiStateInputObject,
     MultiStateOutputObject,
     MultiStateValueObject,
-    Object,
+    NotificationClassObject,
     PositiveIntegerValueObject,
     ProgramObject,
     PulseConverterObject,
     StagingObject,
     TimerObject,
 )
-from .object import Algorithm
+from .object import Algorithm, Object as _Object
 from .fault import FaultAlgorithm
 
 # some debugging
@@ -102,6 +103,7 @@ class EventAlgorithm(Algorithm, DebugContents):
     fault_algorithm: Optional[FaultAlgorithm]
 
     pCurrentState: EventState
+    pCurrentReliability: Reliability
     pEventDetectionEnable: Boolean
     pEventAlgorithmInhibit: Boolean
 
@@ -110,6 +112,8 @@ class EventAlgorithm(Algorithm, DebugContents):
     pNotificationClass: Unsigned
     pEventEnable: EventTransitionBits
     pAckedTransitions: EventTransitionBits
+
+    _current_state: Optional[EventState]
 
     # if the transition is delayed then the handle is what was returned by
     # call_later() and the state is what it is scheduled to transition to
@@ -155,6 +159,7 @@ class EventAlgorithm(Algorithm, DebugContents):
         config_object = self.monitoring_object or self.monitored_object
 
         kwargs["pCurrentState"] = (config_object, "eventState")
+        kwargs["pCurrentReliability"] = (config_object, "reliability")
         kwargs["pEventAlgorithmInhibit"] = (config_object, "eventAlgorithmInhibit")
         kwargs["pEventDetectionEnable"] = (config_object, "eventDetectionEnable")
 
@@ -199,12 +204,11 @@ class EventAlgorithm(Algorithm, DebugContents):
         # no longer scheduled
         self._execute_handle = None
 
-        # turn off property change notifications
-        self._execute_enabled = False
-
         # snapshot of the current state which can be used in the execute()
         # method and event_notification_parameters
         self._current_state: EventState = self.pCurrentState
+        if _debug:
+            EventAlgorithm._debug("    - _current_state: %r", self._current_state)
 
         if not self.pEventDetectionEnable:
             if _debug:
@@ -223,17 +227,46 @@ class EventAlgorithm(Algorithm, DebugContents):
                 config_object = self.monitoring_object or self.monitored_object
                 config_object.eventState = EventState.normal
 
-        elif self.fault_algorithm:
+            self._what_changed = {}
+            return
+
+        # reliability comes from the fault detection algorithm, but could also
+        # be modified by an application (like a Binary Output Object that has
+        # some other way of determining no-sensor or something) or when
+        # out-of-service is True and there is a simulated fault
+
+        if "pCurrentReliability" in self._what_changed:
+            old_value, new_value = self._what_changed["pCurrentReliability"]
+            if _debug:
+                EventAlgorithm._debug(
+                    "    - reliability changed: %r to %r", old_value, new_value
+                )
+            if new_value == Reliability.noFaultDetected:
+                if _debug:
+                    EventAlgorithm._debug("    - no fault detected")
+                self.state_transition(EventState.normal)
+            else:
+                if _debug:
+                    EventAlgorithm._debug("    - fault detected")
+                self.state_transition(EventState.fault)
+            return
+
+        evaluated_reliability: Optional[Reliability] = None
+        if self.fault_algorithm:
+            evaluated_reliability = self.fault_algorithm.evaluated_reliability
+            if _debug:
+                EventAlgorithm._debug(
+                    "    - fault algorithm reliability: %r", evaluated_reliability
+                )
+
+        if evaluated_reliability is not None:
             """
             Fault detection takes precedence over the detection of normal and
             offnormal states. As such, when Reliability has a value other than
             NO_FAULT_DETECTED, the event-state-detection process will determine
             the object's event state to be FAULT.
             """
-            if (
-                self.fault_algorithm.evaluated_reliability
-                == Reliability.noFaultDetected
-            ):
+            if evaluated_reliability == Reliability.noFaultDetected:
                 if _debug:
                     EventAlgorithm._debug("    - no fault detected")
 
@@ -278,6 +311,9 @@ class EventAlgorithm(Algorithm, DebugContents):
                             "    - state change from normal/offnormal to fault"
                         )
 
+                    # turn off property change notifications
+                    self._execute_enabled = False
+
                     # if there is a monitoring object and its reliability is
                     # no-fault-detected then it can change to
                     # monitored-object-fault, otherwise it reflects the value of the
@@ -293,28 +329,34 @@ class EventAlgorithm(Algorithm, DebugContents):
                     # reliability is an optional, still send notifications
                     if self.fault_algorithm.monitored_object.reliability is not None:
                         self.fault_algorithm.monitored_object.reliability = (
-                            self.fault_algorithm.evaluated_reliability
+                            evaluated_reliability
                         )
+
+                    # turn property change notifications back on
+                    self._execute_enabled = True
 
                     # transition to fault
                     self.state_transition(EventState.fault)
                     return
 
-                if (
-                    self.fault_algorithm.pCurrentReliability
-                    == self.fault_algorithm.evaluated_reliability
-                ):
+                if self.fault_algorithm.pCurrentReliability == evaluated_reliability:
                     if _debug:
                         EventAlgorithm._debug("    - no reliability change")
                 else:
                     if _debug:
                         EventAlgorithm._debug("    - state change from fault to fault")
 
+                    # turn off property change notifications
+                    self._execute_enabled = False
+
                     # the state hasn't changed so the event enrollment object
                     # reliability doesn't change, just the monitored object
                     self.fault_algorithm.monitored_object.reliability = (
-                        self.fault_algorithm.evaluated_reliability
+                        evaluated_reliability
                     )
+
+                    # turn property change notifications back on
+                    self._execute_enabled = True
 
                     # still fault, but for a different reason
                     self.state_transition(EventState.fault)
@@ -322,7 +364,7 @@ class EventAlgorithm(Algorithm, DebugContents):
 
         else:
             if _debug:
-                EventAlgorithm._debug("    - no fault detection")
+                EventAlgorithm._debug("    - no reliability change")
 
         if "pEventAlgorithmInhibit" in self._what_changed:
             old_value, new_value = self._what_changed["pEventAlgorithmInhibit"]
@@ -364,9 +406,6 @@ class EventAlgorithm(Algorithm, DebugContents):
             # let the event algorithm run
             self._execute_fn()
 
-        # turn property change notifications back on
-        self._execute_enabled = True
-
         # clear out what changed debugging, turn property monitors back on
         self._what_changed = {}
 
@@ -396,30 +435,92 @@ class EventAlgorithm(Algorithm, DebugContents):
         # transition now please
         self.state_transition(new_state, True)
 
-    def state_transition(self, new_state: EventState, immediate: bool = False) -> None:
+    def state_transition_cancel(self) -> None:
+        """
+        This method is called to cancel a transition that has been scheduled.
+        """
+        if _debug:
+            EventAlgorithm._debug("state_transition_cancel")
+
+        self._transition_state = None
+        self._transition_timeout_handle.cancel()
+        self._transition_timeout_handle = None
+
+    def state_transition(
+        self, new_state: Optional[EventState], immediate: bool = False
+    ) -> None:
+        """
+        Request a transition to a new state, or new_state is None then the
+        current state is acceptable.
+        """
         if _debug:
             EventAlgorithm._debug(
-                "state_transition %r %r", EventState(new_state), immediate
+                "state_transition %r immediate=%r",
+                EventState(new_state) if new_state is not None else None,
+                immediate,
+            )
+            EventAlgorithm._debug(
+                "    - current state: %r", EventState(self._current_state)
+            )
+            EventAlgorithm._debug(
+                "    - transition state: %r",
+                EventState(self._transition_state)
+                if self._transition_timeout_handle
+                else None,
             )
 
-        if immediate:
-            # check for possibly pending transition
+        if new_state is not None:
+            # a new state is being requested
             if self._transition_timeout_handle:
-                self._transition_state = None
-                self._transition_timeout_handle.cancel()
-                self._transition_timeout_handle = None
+                if new_state == self._transition_state:
+                    if _debug:
+                        EventAlgorithm._debug("    - transition already scheduled")
+                    return
+
+                if new_state == self._current_state:
+                    if _debug:
+                        EventAlgorithm._debug("    - canceling old transition (1)")
+                    self.state_transition_cancel()
+                    return
+
+        else:
+            # no new state is being requested, current state is fine
+            if self._transition_timeout_handle and (
+                self._current_state != self._transition_state
+            ):
+                if _debug:
+                    EventAlgorithm._debug(
+                        "    - current state no longer needs to be transition state (2)"
+                    )
+                self.state_transition_cancel()
+                return
+
+        # check for possibly pending transition
+        if immediate:
+            if self._transition_timeout_handle:
+                if _debug:
+                    EventAlgorithm._debug("    - canceling old transition (4)")
+                self.state_transition_cancel()
         else:
             if self._transition_timeout_handle:
                 if new_state == self._transition_state:
                     if _debug:
                         EventAlgorithm._debug("    - transition already scheduled")
                     return
-                else:
+
+                if _debug:
+                    EventAlgorithm._debug("    - canceling old transition (5)")
+                self.state_transition_cancel()
+
+                if new_state == self._current_state:
                     if _debug:
-                        EventAlgorithm._debug("    - canceling old transition")
-                    self._transition_state = None
-                    self._transition_timeout_handle.cancel()
-                    self._transition_timeout_handle = None
+                        EventAlgorithm._debug("    - transition noop")
+                    return
+
+            if new_state is None:
+                if _debug:
+                    EventAlgorithm._debug("    - no transition")
+                return
 
             # check for a time delay
             if new_state == EventState.normal:
@@ -434,18 +535,28 @@ class EventAlgorithm(Algorithm, DebugContents):
                 EventAlgorithm._debug("    - time_delay: %r", time_delay)
 
             if time_delay:
+                if _debug:
+                    EventAlgorithm._debug("    - schedule to run %ds later", time_delay)
+
                 # schedule this to run later
-                try:
-                    self._transition_state = new_state
-                    self._transition_timeout_handle = (
-                        asyncio.get_running_loop().call_later(
-                            time_delay,
-                            self.state_transition_delayed,
-                        )
-                    )
-                except RuntimeError:
-                    self._transition_timeout_handle = None
+                self._transition_state = new_state
+                self._transition_timeout_handle = asyncio.get_running_loop().call_later(
+                    time_delay,
+                    self.state_transition_delayed,
+                )
                 return
+
+        # turn off property change notifications
+        self._execute_enabled = False
+
+        event_initiating_object = self.monitoring_object or self.monitored_object
+        if _debug:
+            EventAlgorithm._debug(
+                "    - event_initiating_object: %r", event_initiating_object
+            )
+
+        # change the event state
+        event_initiating_object.eventState = new_state
 
         # evaluate the current state group
         current_state_group: EventState
@@ -464,45 +575,6 @@ class EventAlgorithm(Algorithm, DebugContents):
             new_state_group = EventState.fault
         else:
             new_state_group = EventState.offnormal
-
-        # look up a transition function
-        fn = EventAlgorithm.transition_functions.get(
-            (current_state_group, new_state_group), None
-        )
-        if not fn:
-            raise RuntimeError(
-                f"no {EventState(current_state_group)} to {EventState(new_state_group)} transition function"
-            )
-
-        # pass along the transition
-        fn(self, new_state)
-
-    def transition_action(self, new_state: EventState) -> None:
-        """
-        Clause 13.2.2.1.4
-        """
-        if _debug:
-            EventAlgorithm._debug("transition_action %r", EventState(new_state))
-
-        # evaluate the new state group
-        new_state_group: EventState
-        if new_state == EventState.normal:
-            new_state_group = EventState.normal
-        elif new_state == EventState.fault:
-            new_state_group = EventState.fault
-        else:
-            new_state_group = EventState.offnormal
-        if _debug:
-            EventAlgorithm._debug("    - new_state_group: %r", new_state_group)
-
-        event_initiating_object = self.monitoring_object or self.monitored_object
-        if _debug:
-            EventAlgorithm._debug(
-                "    - event_initiating_object: %r", event_initiating_object
-            )
-
-        # change the event state
-        event_initiating_object.eventState = new_state
 
         # the event arrays are in a different order than event states
         new_state_index = {
@@ -533,120 +605,23 @@ class EventAlgorithm(Algorithm, DebugContents):
         # Clause 13.2.3) and the event-notification-distribution process (see
         # Clause 13.2.5).
 
-    # -----
+        # turn property change notifications back on
+        self._execute_enabled = True
 
-    def normal_to_normal(self, new_state: EventState) -> None:
-        """
-        If reliability-evaluation indicates a value of NO_FAULT_DETECTED
-        and the event algorithm indicates a transition to the Normal state
-        and Event_Algorithm_Inhibit is FALSE, then perform the corresponding
-        transition actions and re-enter the Normal state.
-        """
-        if _debug:
-            EventAlgorithm._debug("normal_to_normal %r", EventState(new_state))
-
-    def normal_to_offnormal(self, new_state: EventState) -> None:
-        """
-        If reliability-evaluation indicates a value of NO_FAULT_DETECTED and
-        the event algorithm indicates an offnormal event state and
-        Event_Algorithm_Inhibit is FALSE, then perform the corresponding
-        transition actions (see Clause 13.2.2.1.4) and enter the OffNormal
-        state.
-        """
+        # check for a transition to/from fault
+        notification_parameters: NotificationParameters
+        if (current_state_group == EventState.fault) or (
+            new_state_group == EventState.fault
+        ):
+            if _debug:
+                EventAlgorithm._debug("    - to/from fault")
+            notification_parameters = self.fault_notification_parameters()
+        else:
+            notification_parameters = self.event_notification_parameters()
         if _debug:
             EventAlgorithm._debug(
-                "normal_to_offnormal %r",
-                EventState(new_state),
+                "    - notification_parameters: %r", notification_parameters
             )
-
-        # if there is no fault algorithm assume no fault detected
-        no_fault_detected = (not self.fault_algorithm) or (
-            self.fault_algorithm.evaluated_reliability == Reliability.noFaultDetected
-        )
-        if _debug:
-            EventAlgorithm._debug("    - no_fault_detected: %r", no_fault_detected)
-
-        if no_fault_detected and (not self.pEventAlgorithmInhibit):
-            self.transition_action(new_state)
-
-    def normal_to_fault(self, new_state: EventState) -> None:
-        """
-        If reliability-evaluation indicates a value other than
-        NO_FAULT_DETECTED, then perform the corresponding transition
-        actions and enter the Fault state.
-        """
-        if _debug:
-            EventAlgorithm._debug("normal_to_fault %r", EventState(new_state))
-
-    def offnormal_to_normal(self, new_state: EventState) -> None:
-        """
-        If reliability-evaluation indicates a value of NO_FAULT_DETECTED
-        and the event algorithm indicates a normal event state, or if
-        reliability-evaluation indicates a value of NO_FAULT_DETECTED and
-        Event_Algorithm_Inhibit is TRUE, then perform the corresponding
-        transition actions and enter the Normal state.
-        """
-        if _debug:
-            EventAlgorithm._debug("offnormal_to_normal %r", EventState(new_state))
-
-        # if there is no fault algorithm assume no fault detected
-        no_fault_detected = (not self.fault_algorithm) or (
-            self.fault_algorithm.evaluated_reliability == Reliability.noFaultDetected
-        )
-        if _debug:
-            EventAlgorithm._debug("    - no_fault_detected: %r", no_fault_detected)
-
-        if no_fault_detected or self.pEventAlgorithmInhibit:
-            self.transition_action(new_state)
-
-    def offnormal_to_offnormal(self, new_state: EventState) -> None:
-        """
-        If reliability-evaluation indicates a value of NO_FAULT_DETECTED
-        and the event algorithm indicates a transition to the OffNormal
-        state and Event_Algorithm_Inhibit is FALSE, then perform the
-        corresponding transition actions and re-enter the OffNormal state.
-        """
-        if _debug:
-            EventAlgorithm._debug("offnormal_to_offnormal %r", EventState(new_state))
-
-        # if there is no fault algorithm assume no fault detected
-        no_fault_detected = (not self.fault_algorithm) or (
-            self.fault_algorithm.evaluated_reliability == Reliability.noFaultDetected
-        )
-        if _debug:
-            EventAlgorithm._debug("    - no_fault_detected: %r", no_fault_detected)
-
-        if no_fault_detected and (not self.pEventAlgorithmInhibit):
-            self.transition_action(new_state)
-
-    def offnormal_to_fault(self, new_state: EventState) -> None:
-        """
-        If reliability-evaluation indicates a value other than
-        NO_FAULT_DETECTED, then perform the corresponding transition
-        actions and enter the Fault state.
-        """
-        if _debug:
-            EventAlgorithm._debug("offnormal_to_fault %r", EventState(new_state))
-
-    def fault_to_normal(self, new_state: EventState) -> None:
-        """
-        If reliability-evaluation indicates a value of NO_FAULT_DETECTED,
-        then perform the corresponding transition actions and enter the
-        Normal state.
-        """
-        if _debug:
-            EventAlgorithm._debug("fault_to_normal %r %r", EventState(new_state))
-
-    def fault_to_fault(self, new_state: EventState) -> None:
-        """
-        If reliability-evaluation indicates a different Reliability value
-        and the new Reliability value is not NO_FAULT_DETECTED or
-        reliability-evaluation indicates a transition to the Fault state
-        with the same Reliability value, then perform the corresponding
-        transition actions and re-enter the Fault state.
-        """
-        if _debug:
-            EventAlgorithm._debug("fault_to_fault %r", EventState(new_state))
 
     # -----
 
@@ -658,7 +633,7 @@ class EventAlgorithm(Algorithm, DebugContents):
         if _debug:
             EventAlgorithm._debug("fault_notification_parameters")
 
-        monitored_object = self.fault_algorithm.monitored_object
+        monitored_object = self.monitored_object
         properties: Tuple[str, ...] = ()
 
         if isinstance(monitored_object, (AccessDoorObject,)):
@@ -689,8 +664,8 @@ class EventAlgorithm(Algorithm, DebugContents):
                 IntegerValueObject,
                 LargeAnalogValueObject,
                 LightingOutputObject,
-                MultistateInputObject,
-                MultistateValueObject,
+                MultiStateInputObject,
+                MultiStateValueObject,
                 PositiveIntegerValueObject,
                 PulseConverterObject,
             ),
@@ -698,7 +673,7 @@ class EventAlgorithm(Algorithm, DebugContents):
             properties = ("presentValue",)
         elif isinstance(
             monitored_object,
-            (BinaryOutputObject, BinaryLightingOutputObject, MultistateOutputObject),
+            (BinaryOutputObject, BinaryLightingOutputObject, MultiStateOutputObject),
         ):
             properties = ("presentValue", "feedbackValue")
         elif isinstance(monitored_object, (CredentialDataInputObject,)):
@@ -746,7 +721,7 @@ class EventAlgorithm(Algorithm, DebugContents):
 
         notification_parameters = NotificationParameters(
             changeOfReliability=NotificationParametersChangeOfReliabilityType(
-                reliability=self.fault_algorithm.evaluated_reliability,
+                reliability=self.pCurrentReliability,
                 statusFlags=monitored_object.statusFlags,
                 propertyValues=property_values,
             )
@@ -765,17 +740,6 @@ class EventAlgorithm(Algorithm, DebugContents):
 
         raise NotImplementedError("")
 
-
-EventAlgorithm.transition_functions: Dict[Tuple[int, int], Callable[..., None]] = {
-    (EventState.normal, EventState.normal): EventAlgorithm.normal_to_normal,
-    (EventState.normal, EventState.offnormal): EventAlgorithm.normal_to_offnormal,
-    (EventState.normal, EventState.fault): EventAlgorithm.normal_to_fault,
-    (EventState.offnormal, EventState.normal): EventAlgorithm.offnormal_to_normal,
-    (EventState.offnormal, EventState.offnormal): EventAlgorithm.offnormal_to_offnormal,
-    (EventState.offnormal, EventState.fault): EventAlgorithm.offnormal_to_fault,
-    (EventState.fault, EventState.normal): EventAlgorithm.fault_to_normal,
-    (EventState.fault, EventState.fault): EventAlgorithm.fault_to_fault,
-}
 
 #
 #   ChangeOfBitstringEventAlgorithm
@@ -871,7 +835,7 @@ class ChangeOfStateEventAlgorithm(EventAlgorithm):
             for (
                 property_state
             ) in monitoring_object.eventParameters.changeOfState.listOfValues:
-                property_value = property_state.getattr(property_state._choice)
+                property_value = getattr(property_state, property_state._choice)
                 list_of_values.append(property_value)
             if _debug:
                 ChangeOfStateEventAlgorithm._debug(
@@ -921,9 +885,6 @@ class ChangeOfStateEventAlgorithm(EventAlgorithm):
         # extract some parameter values
         monitored_value: Atomic = self.pMonitoredValue
 
-        # set a new value
-        new_state: Optional[EventState] = None
-
         """
         (a) If pCurrentState is NORMAL, and pMonitoredValue is equal to any of
         the values contained in pAlarmValues for pTimeDelay, then indicate a
@@ -934,7 +895,8 @@ class ChangeOfStateEventAlgorithm(EventAlgorithm):
         ):
             if _debug:
                 ChangeOfStateEventAlgorithm._debug("    - (a)")
-            new_state = EventState.offnormal
+            self.state_transition(EventState.offnormal)
+            return
 
         """
         (b) If pCurrentState is OFFNORMAL, and pMonitoredValue is not equal to
@@ -946,7 +908,8 @@ class ChangeOfStateEventAlgorithm(EventAlgorithm):
         ):
             if _debug:
                 ChangeOfStateEventAlgorithm._debug("    - (b)")
-            new_state = EventState.normal
+            self.state_transition(EventState.normal)
+            return
 
         """
         (c) Optional: If pCurrentState is OFFNORMAL, and pMonitoredValue is
@@ -957,12 +920,16 @@ class ChangeOfStateEventAlgorithm(EventAlgorithm):
         """
         # not implemented
 
-        if new_state is not None:
-            self.state_transition(new_state)
+        if _debug:
+            ChangeOfStateEventAlgorithm._debug("    - (x)")
+        self.state_transition(None)
 
     def event_notification_parameters(self) -> NotificationParameters:
         if _debug:
             ChangeOfStateEventAlgorithm._debug("event_notification_parameters")
+
+        # extract some parameter values
+        monitored_value: Atomic = self.pMonitoredValue
 
         choice_types = set()
         for choice_type, choice_class in PropertyStates._elements.items():
@@ -1170,15 +1137,19 @@ class FloatingLimitEventAlgorithm(EventAlgorithm):
             # check setpointReference, the presence of a reference indicates the
             # property of another object contains the setpoint value
             spr: DeviceObjectPropertyReference = monitored_object.setpointReference
+            if spr:
+                if spr.propertyArrayIndex is not None:
+                    raise NotImplementedError()
+                if spr.deviceIdentifier is not None:
+                    raise NotImplementedError()
 
-            # resolve the spr.objectIdentifier to point to an object
-            spr_object: Optional[Object] = None
+                # resolve the spr.objectIdentifier to point to an object
+                spr_object: Optional[Object] = monitoring_object._app.get_object_id(
+                    spr.objectIdentifier
+                )
+                if not spr_object:
+                    raise RuntimeError("object not found")
 
-            # spr.propertyIdentifier used below
-            # spr.propertyArrayIndex not supported, simple properties only
-            # spr.deviceIdentifier not supported, this device only
-
-            if spr_object:
                 setpoint = (spr_object, spr.propertyIdentifier)
             else:
                 setpoint = (monitored_object, "setpoint")
@@ -1428,6 +1399,7 @@ class OutOfRangeEventAlgorithm(EventAlgorithm, DebugContents):
 
         if _debug:
             OutOfRangeEventAlgorithm._debug("    - (x)")
+        self.state_transition(None)
 
     def event_notification_parameters(self) -> NotificationParameters:
         if _debug:
@@ -1438,10 +1410,11 @@ class OutOfRangeEventAlgorithm(EventAlgorithm, DebugContents):
             OutOfRangeEventAlgorithm._debug(
                 "    - new_state: %r", EventState(new_state)
             )
-        new_status_flags: EventState = self.pStatusFlags
+        new_status_flags: StatusFlags = self.pStatusFlags
         if _debug:
             OutOfRangeEventAlgorithm._debug(
-                "    - new_status_flags: %r", EventState(new_status_flags)
+                "    - new_status_flags: %r",
+                new_status_flags,
             )
 
         if (self._current_state == EventState.normal) and (
@@ -2066,7 +2039,9 @@ class NoneEventEventAlgorithm(EventAlgorithm):
         monitored_object: Object,
     ):
         if _debug:
-            NoneEventEventAlgorithm._debug("__init__ %r", monitored_object)
+            NoneEventEventAlgorithm._debug(
+                "__init__ %r %r", monitoring_object, monitored_object
+            )
         super().__init__(monitoring_object, monitored_object)
 
     def execute(self):
@@ -2197,3 +2172,127 @@ class ChangeOfTimerEventAlgorithm(EventAlgorithm):
     def execute(self):
         if _debug:
             ChangeOfDiscreteValueEventAlgorithm._debug("execute")
+
+
+#
+#   EventEnrollmentObject
+#
+
+
+@bacpypes_debugging
+class EventEnrollmentObject(_Object, _EventEnrollmentObject):
+    """ """
+
+    _debug: Callable[..., None]
+    _event_algorithm: EventAlgorithm
+    _fault_algorithm: FaultAlgorithm
+    _monitored_object: _Object
+    _notification_class_object: NotificationClassObject
+
+    __reliability: Reliability = Reliability("no-fault-detected")
+
+    def __init__(self, **kwargs):
+        if _debug:
+            EventEnrollmentObject._debug("__init__ ...")
+        super().__init__(**kwargs)
+
+        # finish the initialization by following the object property reference
+        asyncio.ensure_future(self.post_init())
+
+    async def post_init(self):
+        """
+        This function is called after all of the objects are added to the
+        application so that the objectPropertyReference property can
+        find the correct object.
+        """
+        if _debug:
+            EventEnrollmentObject._debug("post_init")
+
+        # look up the object being monitored
+        dopr: DeviceObjectPropertyReference = self.objectPropertyReference
+        if dopr.propertyArrayIndex is not None:
+            raise NotImplementedError()
+        if dopr.deviceIdentifier is not None:
+            raise NotImplementedError()
+
+        self._monitored_object: Object = self._app.get_object_id(dopr.objectIdentifier)
+        if not self._monitored_object:
+            raise RuntimeError("object not found")
+
+        # the type of fault algorithm is based on the faultType property
+        fault_type: FaultType = self.faultType
+        if (fault_type is None) or (fault_type == FaultType.none):
+            self._fault_algorithm = None
+        elif fault_type == FaultType.faultOutOfRange:
+            self._fault_algorithm = OutOfRangeFaultAlgorithm(
+                self, self._monitored_object
+            )
+        else:
+            self._fault_algorithm = None
+        if _debug:
+            EventEnrollmentObject._debug(
+                "    - _fault_algorithm: %r",
+                self._fault_algorithm,
+            )
+
+        # the type of event algorithm is based on the eventType property
+        event_type: EventType = self.eventType
+        if event_type is None:
+            self._event_algorithm = None
+        elif event_type == EventType.outOfRange:
+            self._event_algorithm = OutOfRangeEventAlgorithm(
+                self, self._monitored_object
+            )
+        else:
+            raise NotImplementedError(f"event type not implemented: {event_type}")
+        if _debug:
+            EventEnrollmentObject._debug(
+                "    - _event_algorithm: %r",
+                self._event_algorithm,
+            )
+
+        # find the notification class
+        for objid, obj in self._app.objectIdentifier.items():
+            if isinstance(obj, NotificationClassObject):
+                if obj.notificationClass == self.notificationClass:
+                    self._notification_class_object = obj
+                    break
+        else:
+            raise RuntimeError(
+                f"notification class object {self.notificationClass} not found"
+            )
+        if _debug:
+            EventEnrollmentObject._debug(
+                "    - notification class object: %r",
+                self._notification_class_object.objectIdentifier,
+            )
+
+    @property
+    def reliability(self) -> Reliability:
+        """Return the reliability of the object, Clause 12.12.21."""
+        if _debug:
+            Object._debug("reliability(getter)")
+
+        if self.__reliability == Reliability.noFaultDetected:
+            if self._monitored_object.reliability != Reliability.noFaultDetected:
+                return Reliability.monitoredObjectFault
+            elif self._fault_algorithm:
+                evaluated_reliability = self._fault_algorithm.evaluated_reliability
+        else:
+            return self.__reliability
+
+    @reliability.setter
+    def reliability(self, value: Reliability) -> None:
+        """
+        Change the reliability of this object.
+        """
+        if _debug:
+            Object._debug("reliability(setter) %r", value)
+        if value is None:
+            raise ValueError("reliability")
+
+        # make sure it's the correct type
+        if not isinstance(value, Reliability):
+            value = Reliability.cast(value)
+
+        self.__reliability = value

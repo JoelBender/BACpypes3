@@ -271,11 +271,13 @@ class VendorInfo:
                 object_class,
             )
         if object_type in self.registered_object_classes:
-            warnings.warn(
-                f"object type {object_type!r}"
-                f" for vendor identifier {self.vendor_identifier}"
-                f" already registered: {self.registered_object_classes[object_type]}"
-            )
+            # built-in classes have multiple classes with different features
+            if self.vendor_identifier != 999:
+                warnings.warn(
+                    f"object type {object_type!r}"
+                    f" for vendor identifier {self.vendor_identifier}"
+                    f" already registered: {self.registered_object_classes[object_type]}"
+                )
             return
 
         self.registered_object_classes[object_type] = object_class
@@ -557,7 +559,7 @@ class Object(Sequence, metaclass=ObjectMetaclass):
         class_attr = getattr(self.__class__, attr, None)
         if isinstance(class_attr, property):
             if _debug:
-                Object._debug("    - writing to a property")
+                Object._debug("    - writing to a @property")
             getattr_fn = class_attr.fget
             if getattr_fn:
                 getattr_fn = partial(getattr_fn, self)
@@ -566,7 +568,7 @@ class Object(Sequence, metaclass=ObjectMetaclass):
                 setattr_fn = partial(setattr_fn, self)
         else:
             if _debug:
-                Object._debug("    - not writing to a property")
+                Object._debug("    - not writing to a @property")
             getattr_fn = partial(super().__getattribute__, attr)
             setattr_fn = partial(super().__setattr__, attr)
 

@@ -100,7 +100,6 @@ def monitor_filter(parameter):
 
 @bacpypes_debugging
 class DetectionAlgorithm:
-
     _debug: Callable[..., None]
 
     _monitors: List[DetectionMonitor]
@@ -195,7 +194,6 @@ class DetectionAlgorithm:
 
 @bacpypes_debugging
 class COVDetection(DetectionAlgorithm):
-
     properties_tracked = ()
     properties_reported = ()
     monitored_property_reference = None
@@ -340,7 +338,6 @@ class COVDetection(DetectionAlgorithm):
 
 
 class GenericCriteria(COVDetection):
-
     properties_tracked = (
         "presentValue",
         "statusFlags",
@@ -354,7 +351,6 @@ class GenericCriteria(COVDetection):
 
 @bacpypes_debugging
 class COVIncrementCriteria(COVDetection):
-
     properties_tracked = (
         "presentValue",
         "statusFlags",
@@ -375,7 +371,7 @@ class COVIncrementCriteria(COVDetection):
         self.previously_reported_value = None
 
     @monitor_filter("presentValue")
-    def present_value_filter(self, old_value, new_value):
+    def present_value_filter(self, old_value, new_value) -> bool:
         if _debug:
             COVIncrementCriteria._debug(
                 "present_value_filter %r %r", old_value, new_value
@@ -410,7 +406,6 @@ class COVIncrementCriteria(COVDetection):
 
 
 class AccessDoorCriteria(COVDetection):
-
     properties_tracked = (
         "presentValue",
         "statusFlags",
@@ -424,7 +419,6 @@ class AccessDoorCriteria(COVDetection):
 
 
 class AccessPointCriteria(COVDetection):
-
     properties_tracked = (
         "accessEventTime",
         "statusFlags",
@@ -441,7 +435,6 @@ class AccessPointCriteria(COVDetection):
 
 
 class CredentialDataInputCriteria(COVDetection):
-
     properties_tracked = ("updateTime", "statusFlags")
     properties_reported = (
         "presentValue",
@@ -451,7 +444,6 @@ class CredentialDataInputCriteria(COVDetection):
 
 
 class LoadControlCriteria(COVDetection):
-
     properties_tracked = (
         "presentValue",
         "statusFlags",
@@ -472,7 +464,6 @@ class LoadControlCriteria(COVDetection):
 
 @bacpypes_debugging
 class PulseConverterCriteria(COVIncrementCriteria):
-
     properties_tracked = (
         "presentValue",
         "statusFlags",
@@ -531,7 +522,7 @@ class PulseConverterCriteria(COVIncrementCriteria):
                 self.cov_period_task = None
 
     @monitor_filter("covPeriod")
-    def cov_period_filter(self, old_value, new_value):
+    def cov_period_filter(self, old_value, new_value) -> bool:
         if _debug:
             PulseConverterCriteria._debug(
                 "cov_period_filter %r %r", old_value, new_value
@@ -575,9 +566,9 @@ criteria_type_map = {
     "integerValue": COVIncrementCriteria,
     "positiveIntegerValue": COVIncrementCriteria,
     "lightingOutput": COVIncrementCriteria,
-    "binaryInput": GenericCriteria,
-    "binaryOutput": GenericCriteria,
-    "binaryValue": GenericCriteria,
+    ObjectType.binaryInput: GenericCriteria,
+    ObjectType.binaryOutput: GenericCriteria,
+    ObjectType.binaryValue: GenericCriteria,
     "lifeSafetyPoint": GenericCriteria,
     "lifeSafetyZone": GenericCriteria,
     "multiStateInput": GenericCriteria,

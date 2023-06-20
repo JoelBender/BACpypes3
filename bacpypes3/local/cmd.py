@@ -8,7 +8,11 @@ from typing import (
 from bacpypes3.debugging import bacpypes_debugging, ModuleLogger
 
 from bacpypes3.errors import PropertyError
-from bacpypes3.basetypes import PriorityArray as _PriorityArray, PriorityValue
+from bacpypes3.basetypes import (
+    OptionalUnsigned,
+    PriorityArray as _PriorityArray,
+    PriorityValue,
+)
 from bacpypes3.local.object import Object as _Object
 
 # some debugging
@@ -77,6 +81,12 @@ class Commandable:
         if priority_array is None:
             priority_array = [PriorityValue(null=()) for _ in range(16)]
         self.priorityArray = PriorityArray(priority_array, obj=self)
+
+        # default relinquishDefault is initial presentValue
+        if self.relinquishDefault is None:
+            super().__setattr__("relinquishDefault", self.presentValue)
+        if self.currentCommandPriority is None:
+            super().__setattr__("currentCommandPriority", OptionalUnsigned(null=()))
 
     def __setattr__(self, attr: str, value: _Any) -> None:
         """
@@ -160,11 +170,17 @@ class Commandable:
             pv = priority_array[i]
             if pv.null is None:
                 value = getattr(pv, pv._choice)
+                if _debug:
+                    Commandable._debug("    - value at %d: %r", i, value)
+                super().__setattr__(
+                    "currentCommandPriority", OptionalUnsigned(unsigned=i + 1)
+                )
                 break
         else:
             value = self.relinquishDefault
-        if _debug:
-            Commandable._debug("    - present value: %r", value)
+            super().__setattr__("currentCommandPriority", OptionalUnsigned(null=()))
+            if _debug:
+                Commandable._debug("    - relinquish default")
 
         # update the presentValue
         super().__setattr__("presentValue", value)

@@ -3,9 +3,6 @@ Fault
 """
 from __future__ import annotations
 
-import asyncio
-from functools import partial
-
 from typing import Callable, List, Optional, Tuple, Union
 
 from ..debugging import bacpypes_debugging, ModuleLogger, DebugContents
@@ -74,12 +71,9 @@ class FaultAlgorithm(Algorithm, DebugContents):
         if _debug:
             FaultAlgorithm._debug("bind %r", kwargs)
 
-        parm_names = []
-        parm_tasks = []
-
         config_object = self.monitoring_object or self.monitored_object
 
-        kwargs["pCurrentReliability"] = (config_object, "reliability")
+        kwargs["pCurrentReliability"] = (config_object, "reliability", False)
         kwargs["pReliabilityEvaluationInhibit"] = (
             config_object,
             "reliabilityEvaluationInhibit",
@@ -96,16 +90,22 @@ class FaultAlgorithm(Algorithm, DebugContents):
         if _debug:
             FaultAlgorithm._debug("init")
 
-        # if pCurrentReliability is None it implies that the monitored object
-        # has an intrinsic fault algorithm but does not have a reliability
-        # property (huh?).  If that's true then the result will be used
-        # for event state detection only.
-        if self.pCurrentReliability is None:
-            self.pCurrentReliability = Reliability.noFaultDetected
+        current_reliability = self.pCurrentReliability
+        if _debug:
+            FaultAlgorithm._debug(
+                "    - current_reliability: %r",
+                None
+                if current_reliability is None
+                else Reliability(current_reliability),
+            )
+        if current_reliability is None:
+            if _debug:
+                FaultAlgorithm._debug("    - event state detection only")
 
     def _execute(self):
         if _debug:
             FaultAlgorithm._debug("_execute")
+            FaultAlgorithm._debug("    - what changed: %r", self._what_changed)
 
         # no longer scheduled
         self._execute_handle = None
@@ -135,6 +135,13 @@ class FaultAlgorithm(Algorithm, DebugContents):
                     "    - evaluated_reliability: %r",
                     Reliability(self.evaluated_reliability),
                 )
+
+        # if there is no monitoring object this is intrinsic fault detection
+        # and the evaluated reliability becomes its reliability
+        if not self.monitoring_object and (self.evaluated_reliability is not None):
+            if _debug:
+                FaultAlgorithm._debug("    - update reliability")
+            self.monitored_object.reliability = self.evaluated_reliability
 
         # turn property change notifications back on
         self._execute_enabled = True
@@ -219,21 +226,11 @@ class CharacterStringFaultAlgorithm(FaultAlgorithm):
 
         if monitoring_object:
             self.bind(
-                pCurrentReliability=(monitoring_object, "reliability"),
-                pReliabilityEvaluationInhibit=(
-                    monitoring_object,
-                    "reliabilityEvaluationInhibit",
-                ),
                 pMonitoredValue=(monitored_object, "presentValue"),
                 pFaultValues=monitoring_object.faultParameters.faultCharacterString.listOfFaultValues,
             )
         else:
             self.bind(
-                pCurrentReliability=(monitored_object, "reliability"),
-                pReliabilityEvaluationInhibit=(
-                    monitored_object,
-                    "reliabilityEvaluationInhibit",
-                ),
                 pMonitoredValue=(monitored_object, "presentValue"),
                 pFaultValues=(monitored_object, "faultValues"),
             )
@@ -260,8 +257,6 @@ class ExtendedFaultAlgorithm(FaultAlgorithm):
         "pParameters",
     )
 
-    # pCurrentReliability: Reliability
-    # pReliabilityEvaluationInhibit: Boolean
     pVendorId: Unsigned
     pFaultType: Unsigned
     pParameters: SequenceOfFaultParameterExtendedParameters
@@ -276,11 +271,6 @@ class ExtendedFaultAlgorithm(FaultAlgorithm):
         super().__init__(monitoring_object, monitored_object)
 
         self.bind(
-            pCurrentReliability=(monitoring_object, "reliability"),
-            pReliabilityEvaluationInhibit=(
-                monitoring_object,
-                "reliabilityEvaluationInhibit",
-            ),
             pVendorId=monitoring_object.faultParameters.extended.vendorID,
             pFaultType=monitoring_object.faultParameters.extended.extendedFaultType,
             pParameters=monitoring_object.faultParameters.extended.parameters,
@@ -382,22 +372,12 @@ class OutOfRangeFaultAlgorithm(FaultAlgorithm, DebugContents):
 
         if monitoring_object:
             self.bind(
-                pCurrentReliability=(monitoring_object, "reliability"),
-                pReliabilityEvaluationInhibit=(
-                    monitoring_object,
-                    "reliabilityEvaluationInhibit",
-                ),
                 pMinimumNormalValue=monitoring_object.faultParameters.faultOutOfRange.minNormalValue,
                 pMaximumNormalValue=monitoring_object.faultParameters.faultOutOfRange.maxNormalValue,
                 pMonitoredValue=(monitored_object, "presentValue"),
             )
         else:
             self.bind(
-                pCurrentReliability=(monitored_object, "reliability"),
-                pReliabilityEvaluationInhibit=(
-                    monitored_object,
-                    "reliabilityEvaluationInhibit",
-                ),
                 pMinimumNormalValue=(monitored_object, "faultLowLimit"),
                 pMaximumNormalValue=(monitored_object, "faultHighLimit"),
                 pMonitoredValue=(monitored_object, "presentValue"),
@@ -432,37 +412,40 @@ class OutOfRangeFaultAlgorithm(FaultAlgorithm, DebugContents):
             OutOfRangeFaultAlgorithm._debug(
                 "execute(%s)", self.monitored_object.objectName
             )
+
+        # capture the current reliability from the monitored object if it is
+        # intrinsic fault detection or from the monitoring object if it is
+        # algorithmic (and it might not be one of the special values used)
+        current_reliability = self.pCurrentReliability
+        if _debug:
             OutOfRangeFaultAlgorithm._debug(
-                "    - what changed: %r", self._what_changed
-            )
-            OutOfRangeFaultAlgorithm._debug(
-                "    - pCurrentReliability: %r", Reliability(self.pCurrentReliability)
+                "    - current_reliability: %r", Reliability(current_reliability)
             )
 
-        if (self.pCurrentReliability == Reliability.noFaultDetected) and (
+        if (current_reliability == Reliability.noFaultDetected) and (
             self.pMonitoredValue < self.pMinimumNormalValue
         ):
             return Reliability.underRange
-        elif (self.pCurrentReliability == Reliability.noFaultDetected) and (
+        elif (current_reliability == Reliability.noFaultDetected) and (
             self.pMonitoredValue > self.pMaximumNormalValue
         ):
             return Reliability.overRange
-        elif (self.pCurrentReliability == Reliability.underRange) and (
+        elif (current_reliability == Reliability.underRange) and (
             self.pMonitoredValue > self.pMaximumNormalValue
         ):
             return Reliability.overRange
-        elif (self.pCurrentReliability == Reliability.overRange) and (
+        elif (current_reliability == Reliability.overRange) and (
             self.pMonitoredValue < self.pMinimumNormalValue
         ):
             return Reliability.underRange
         elif (
-            (self.pCurrentReliability == Reliability.underRange)
+            (current_reliability == Reliability.underRange)
             and (self.pMonitoredValue >= self.pMinimumNormalValue)
             and (self.pMonitoredValue <= self.pMaximumNormalValue)
         ):
             return Reliability.noFaultDetected
         elif (
-            (self.pCurrentReliability == Reliability.overRange)
+            (current_reliability == Reliability.overRange)
             and (self.pMonitoredValue >= self.pMinimumNormalValue)
             and (self.pMonitoredValue <= self.pMaximumNormalValue)
         ):
@@ -480,8 +463,6 @@ class FaultListedFaultAlgorithm(FaultAlgorithm):
     Clause 13.4.8
     """
 
-    # pCurrentReliability: Reliability
-    # pReliabilityEvaluationInhibit: Boolean
     pMonitoredList: List
 
     def __init__(
@@ -495,20 +476,10 @@ class FaultListedFaultAlgorithm(FaultAlgorithm):
 
         if monitoring_object:
             self.bind(
-                pCurrentReliability=(monitoring_object, "reliability"),
-                pReliabilityEvaluationInhibit=(
-                    monitoring_object,
-                    "reliabilityEvaluationInhibit",
-                ),
                 pMonitoredList=monitoring_object.faultParameters.faultListed.faultListReference,
             )
         else:
             self.bind(
-                pCurrentReliability=(monitored_object, "reliability"),
-                pReliabilityEvaluationInhibit=(
-                    monitored_object,
-                    "reliabilityEvaluationInhibit",
-                ),
                 pMonitoredList=(monitored_object, "faultSignals"),
             )
 

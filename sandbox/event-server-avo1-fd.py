@@ -4,7 +4,6 @@ Simple example that has a device object and an additional custom object.
 
 import asyncio
 import re
-from copy import copy
 
 from typing import Callable, Optional
 
@@ -17,26 +16,17 @@ from bacpypes3.comm import bind
 from bacpypes3.primitivedata import ObjectIdentifier
 from bacpypes3.basetypes import (
     Destination,
-    DeviceObjectPropertyReference,
     EngineeringUnits,
-    EventParameter,
-    EventParameterOutOfRange,
     EventState,
-    EventType,
-    LimitEnable,
-    NotifyType,
     PropertyIdentifier,
     Recipient,
-    Reliability,
-    TimeStamp,
 )
 from bacpypes3.object import (
     NotificationClassObject,
 )
 
 from bacpypes3.app import Application
-from bacpypes3.local.event import EventEnrollmentObject
-from bacpypes3.local.analog import AnalogValueObject
+from bacpypes3.local.analog import AnalogValueObjectFD
 
 # some debugging
 _debug = 0
@@ -140,46 +130,6 @@ class SampleCmd(Cmd):
         else:
             print("not implemented")
 
-    def do_lowLimitEnable(
-        self,
-        object_name: str,
-        value: int,
-    ) -> None:
-        """
-        usage: do_lowLimitEnable object_name (1 | 0)
-        """
-        if _debug:
-            SampleCmd._debug(
-                "lowLimitEnable %r %r",
-                object_name,
-                value,
-            )
-
-        obj = eval(object_name)
-        limit_enable = copy(obj.limitEnable)
-        limit_enable[LimitEnable.lowLimitEnable] = value
-        obj.limitEnable = limit_enable
-
-    def do_highLimitEnable(
-        self,
-        object_name: str,
-        value: int,
-    ) -> None:
-        """
-        usage: do_highLimitEnable object_name (1 | 0)
-        """
-        if _debug:
-            SampleCmd._debug(
-                "highLimitEnable %r %r",
-                object_name,
-                value,
-            )
-
-        obj = eval(object_name)
-        limit_enable = copy(obj.limitEnable)
-        limit_enable[LimitEnable.highLimitEnable] = value
-        obj.limitEnable = limit_enable
-
     def do_debug(
         self,
         expr: str,
@@ -191,7 +141,7 @@ class SampleCmd(Cmd):
 
 
 async def main() -> None:
-    global app, avo2, eeo2, nc1
+    global app, avo1, nc1
 
     try:
         app = None
@@ -206,70 +156,26 @@ async def main() -> None:
         if _debug:
             _log.debug("app: %r", app)
 
-        # make an analog value object with only the required parameters
-        avo2 = AnalogValueObject(
-            objectIdentifier="analog-value,2",
-            objectName="avo2",
-            description="test analog value",
+        # make an object with intrinsic reporting
+        avo1 = AnalogValueObjectFD(
+            objectIdentifier="analog-value,1",
+            objectName="avo1",
+            description="test analog value with fault detection",
             presentValue=50.0,
-            # statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
             eventState=EventState.normal,
+            # statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
             outOfService=False,
             units=EngineeringUnits.degreesFahrenheit,
+            # ----- fault detection
+            faultHighLimit=100.0,
+            faultLowLimit=0.0,
         )
         if _debug:
-            _log.debug("avo2: %r", avo2)
+            _log.debug("avo1: %r", avo1)
 
-        app.add_object(avo2)
+        app.add_object(avo1)
 
-        # make an event enrollment object with only the required parameters
-        eeo2 = EventEnrollmentObject(
-            objectIdentifier="event-enrollment,2",
-            objectName="eeo2",
-            description="test event enrollment",
-            eventType=EventType.outOfRange,
-            notifyType=NotifyType.alarm,  # event, ackNotification
-            eventParameters=EventParameter(
-                outOfRange=EventParameterOutOfRange(
-                    timeDelay=10,
-                    lowLimit=0.0,
-                    highLimit=100.0,
-                    deadband=5.0,
-                ),
-            ),
-            objectPropertyReference=DeviceObjectPropertyReference(
-                objectIdentifier="analog-value,2",
-                propertyIdentifier=PropertyIdentifier.presentValue,
-            ),
-            eventState=EventState.normal,
-            eventEnable=[1, 1, 1],  # toOffNormal, toFault, toNormal
-            ackedTransitions=[0, 0, 0],  # toOffNormal, toFault, toNormal
-            notificationClass=1,
-            eventTimeStamps=[
-                TimeStamp(time=(255, 255, 255, 255)),
-                TimeStamp(time=(255, 255, 255, 255)),
-                TimeStamp(time=(255, 255, 255, 255)),
-            ],
-            # eventMessageTexts=["to off normal", "to fault", "to normal"],
-            # eventMessageTextsConfig=[
-            #     "to off normal config",
-            #     "to fault config",
-            #     "to normal config",
-            # ],
-            eventDetectionEnable=True,
-            # eventAlgorithmInhibitReference=ObjectPropertyReference
-            # eventAlgorithmInhibit=False,
-            # statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
-            reliability=Reliability.noFaultDetected,
-            # faultType=
-            # faultParameters=
-        )
-        if _debug:
-            _log.debug("eeo2: %r", eeo2)
-
-        app.add_object(eeo2)
-
-        # notification class object
+        # notification class
         nc1 = NotificationClassObject(
             objectIdentifier="notification-class,1",
             objectName="nc1",
