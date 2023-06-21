@@ -18,7 +18,8 @@ from ..primitivedata import CharacterString, ObjectIdentifier
 from ..basetypes import EventState, PropertyIdentifier, Reliability, StatusFlags
 from ..constructeddata import ArrayOf
 
-from ..object import Object as _Object
+from ..object import Object as _Object, NotificationClassObject
+
 
 # some debugging
 _debug = 0
@@ -177,7 +178,7 @@ class Algorithm:
         self._execute_handle = None
         self._execute_fn = cast(ExecuteMethod, self.execute)
 
-    def __getattr__(self, attr: str) -> Any:
+    def __getattr__(self, attr: str) -> _Any:
         """
         If attr is a parameter, redirect to the Parameter instance.
         """
@@ -188,7 +189,7 @@ class Algorithm:
 
         return self._parameters[attr].getattr()
 
-    def __setattr__(self, attr: str, value: Any) -> None:
+    def __setattr__(self, attr: str, value: _Any) -> None:
         """
         If attr is a parameter, redirect to the Parameter instance.
         """
@@ -319,7 +320,7 @@ class Parameter:
                 self.property_change
             )
 
-    def getattr(self) -> Any:
+    def getattr(self) -> _Any:
         """
         This function is called when the algoritm needs the value of the
         property from the object.
@@ -329,7 +330,7 @@ class Parameter:
 
         return getattr(self.obj, self.property_identifier)
 
-    def setattr(self, value: Any) -> None:
+    def setattr(self, value: _Any) -> None:
         """
         This function is called when the algorithm updates the value of
         a property from the object.
@@ -386,6 +387,7 @@ class Object(_Object):
     _property_monitors: Dict[str, List[Callable[..., None]]]
     _event_algorithm: Optional[Algorithm] = None
     _fault_algorithm: Optional[Algorithm] = None
+    _notification_class_object: Optional[NotificationClassObject] = None
 
     def __init__(self, **kwargs) -> None:
         if _debug:
@@ -396,6 +398,35 @@ class Object(_Object):
         self._property_monitors = defaultdict(list)
 
         super().__init__(**kwargs)
+
+        # finish the initialization later
+        asyncio.ensure_future(self._post_init())
+
+    async def _post_init(self):
+        """
+        This function is called after all of the objects are added to the
+        application so that references between objects can be made.
+        """
+        if _debug:
+            Object._debug("_post_init")
+
+        # link to the notification class object
+        notification_class = self.notificationClass
+        if notification_class is not None:
+            for objid, obj in self._app.objectIdentifier.items():
+                if isinstance(obj, NotificationClassObject):
+                    if obj.notificationClass == notification_class:
+                        self._notification_class_object = obj
+                        break
+            else:
+                raise RuntimeError(
+                    f"notification class object {self.notificationClass} not found"
+                )
+            if _debug:
+                Object._debug(
+                    "    - notification class object: %r",
+                    self._notification_class_object.objectIdentifier,
+                )
 
     def __getattribute__(self, attr: str) -> _Any:
         if attr.startswith("_") or (attr not in self._elements):

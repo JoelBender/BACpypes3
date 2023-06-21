@@ -4,21 +4,11 @@ Binary Input, Output, and Value Object
 
 from __future__ import annotations
 
-from typing import Any, Callable, List
+from typing import Callable
 
 from ..debugging import bacpypes_debugging, ModuleLogger
-from ..primitivedata import Date, Time, ObjectIdentifier, ObjectType
-from ..basetypes import (
-    AddressBinding,
-    DeviceStatus,
-    Segmentation,
-    ServicesSupported,
-    ObjectTypesSupported,
-    ListOfCOVSubscription,
-)
-from ..constructeddata import ArrayOf, ListOf
 
-# object module provides basic BinaryInputObject
+# object module provides basic objects
 from ..object import (
     BinaryInputObject as _BinaryInputObject,
     BinaryOutputObject as _BinaryOutputObject,
@@ -62,6 +52,7 @@ class BinaryInputObjectIR(BinaryInputObject):
 
     _debug: Callable[..., None]
     _event_algorithm: ChangeOfStateEventAlgorithm
+
     _required = (  # footnote 5
         "timeDelay",
         "notificationClass",
@@ -110,6 +101,7 @@ class BinaryOutputObjectIR(BinaryOutputObject):
 
     _debug: Callable[..., None]
     _event_algorithm: CommandFailureEventAlgorithm
+
     _required = (  # footnote 4
         "timeDelay",
         "notificationClass",

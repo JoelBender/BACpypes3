@@ -18,7 +18,6 @@ from ..constructeddata import ListOf
 from ..basetypes import (
     FaultParameterOutOfRangeValue,
     OptionalCharacterString,
-    PropertyIdentifier,
     Reliability,
     SequenceOfFaultParameterExtendedParameters,
 )
@@ -73,7 +72,12 @@ class FaultAlgorithm(Algorithm, DebugContents):
 
         config_object = self.monitoring_object or self.monitored_object
 
+        # reference the current reliability to make it easy to get the value,
+        # but don't bother listening for changes
         kwargs["pCurrentReliability"] = (config_object, "reliability", False)
+
+        # the reliability-evaluation-inhibit might be None (because it is
+        # optional) but if it's there then listen for changes
         kwargs["pReliabilityEvaluationInhibit"] = (
             config_object,
             "reliabilityEvaluationInhibit",
@@ -111,10 +115,7 @@ class FaultAlgorithm(Algorithm, DebugContents):
         self._execute_handle = None
 
         # check if the algorithm is inhibited
-        if self.pReliabilityEvaluationInhibit is None:
-            if _debug:
-                FaultAlgorithm._debug("    - no reliability-evaluation-inhibit")
-        elif self.pReliabilityEvaluationInhibit:
+        if self.pReliabilityEvaluationInhibit:
             if _debug:
                 FaultAlgorithm._debug("    - inhibited")
             self.evaluated_reliability = None
@@ -137,8 +138,13 @@ class FaultAlgorithm(Algorithm, DebugContents):
                 )
 
         # if there is no monitoring object this is intrinsic fault detection
-        # and the evaluated reliability becomes its reliability
-        if not self.monitoring_object and (self.evaluated_reliability is not None):
+        # and the evaluated reliability becomes its reliability.  If it didn't
+        # have a reliability (!) don't add one.
+        if (
+            not self.monitoring_object
+            and (self.monitored_object.reliability is not None)
+            and (self.evaluated_reliability is not None)
+        ):
             if _debug:
                 FaultAlgorithm._debug("    - update reliability")
             self.monitored_object.reliability = self.evaluated_reliability
@@ -181,9 +187,6 @@ class NoneFaultAlgorithm(FaultAlgorithm):
         if _debug:
             NoneFaultAlgorithm._debug("__init__ %r", monitored_object)
         super().__init__(monitoring_object, monitored_object)
-
-        self.pCurrentReliability = None
-        self.pReliabilityEvaluationInhibit = None
 
     def execute(self) -> Optional[Reliability]:
         if _debug:

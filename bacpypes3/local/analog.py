@@ -4,19 +4,9 @@ Analog Input, Output, and Value Object
 
 from __future__ import annotations
 
-from typing import Any, Callable, List
+from typing import Callable
 
 from ..debugging import bacpypes_debugging, ModuleLogger
-from ..primitivedata import Date, Time, ObjectIdentifier, ObjectType
-from ..basetypes import (
-    AddressBinding,
-    DeviceStatus,
-    Segmentation,
-    ServicesSupported,
-    ObjectTypesSupported,
-    ListOfCOVSubscription,
-)
-from ..constructeddata import ArrayOf, ListOf
 
 # object module provides basic AnalogInputObject
 from ..object import (
@@ -29,7 +19,7 @@ from ..object import (
 from .object import Object as _Object
 from .cov import COVIncrementCriteria
 from .cmd import Commandable
-from .event import OutOfRangeEventAlgorithm, NoneEventEventAlgorithm
+from .event import OutOfRangeEventAlgorithm
 from .fault import OutOfRangeFaultAlgorithm
 
 # some debugging
@@ -248,4 +238,3 @@ class AnalogValueObjectFD(AnalogValueObject):
 
         # intrinsic fault algorithm
         self._fault_algorithm = OutOfRangeFaultAlgorithm(None, self)
-        self._event_algorithm = NoneEventEventAlgorithm(None, self)
