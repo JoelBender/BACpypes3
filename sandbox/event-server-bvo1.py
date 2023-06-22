@@ -246,7 +246,8 @@ async def main() -> None:
                     validDays=[1, 1, 1, 1, 1, 1, 1],
                     fromTime=(0, 0, 0, 0),
                     toTime=(23, 59, 59, 99),
-                    recipient=Recipient(device="device,999"),
+                    # recipient=Recipient(device="device,999"),
+                    recipient=Recipient(address="10.0.1.70"),
                     processIdentifier=0,
                     issueConfirmedNotifications=False,
                     transitions=[1, 1, 1],  # toOffNormal, toFault, toNormal

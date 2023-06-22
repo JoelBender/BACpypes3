@@ -7,6 +7,13 @@ import asyncio
 from typing import Any as _Any, Callable, Dict, Optional, Tuple
 
 from ..debugging import bacpypes_debugging, ModuleLogger, DebugContents
+from ..pdu import (
+    Address,
+    LocalBroadcast,
+    LocalStation,
+    RemoteBroadcast,
+    RemoteStation,
+)
 from ..primitivedata import (
     Atomic,
     BitString,
@@ -16,6 +23,8 @@ from ..primitivedata import (
     Integer,
     Real,
     Unsigned,
+    Date,
+    Time,
 )
 from ..basetypes import (
     BinaryPV,
@@ -617,6 +626,84 @@ class EventAlgorithm(Algorithm, DebugContents):
     ) -> None:
         if _debug:
             EventAlgorithm._debug("send_notifications %r", notification_parameters)
+
+        event_initiating_object = self.monitoring_object or self.monitored_object
+        notification_class_object = event_initiating_object._notification_class_object
+        if _debug:
+            EventAlgorithm._debug(
+                "    - event_initiating_object: %r", event_initiating_object
+            )
+            EventAlgorithm._debug(
+                "    - notification_class_object: %r", notification_class_object
+            )
+
+        # my goodness, look at the time
+        current_date = Date.now()
+        current_time = Time.now()
+        if _debug:
+            EventAlgorithm._debug(
+                "    - current_date, current_time: %r, %r", current_date, current_time
+            )
+
+        for destination in notification_class_object.recipientList:
+            if _debug:
+                EventAlgorithm._debug("    - destination: %r", destination)
+            if not destination.validDays[3]:
+                if _debug:
+                    EventAlgorithm._debug("    - not today")
+                continue
+            if (current_time < destination.fromTime) or (
+                current_time > destination.toTime
+            ):
+                if _debug:
+                    EventAlgorithm._debug("    - not now")
+                continue
+
+            # evaluate the new state index
+            new_state = notification_parameters["toState"]
+            if new_state == EventState.normal:
+                new_state_index = 2
+            elif new_state == EventState.fault:
+                new_state_index = 1
+            else:
+                new_state_index = 0
+            if not destination.transitions[new_state_index]:
+                if _debug:
+                    EventAlgorithm._debug("    - not these transitions")
+                continue
+
+            # get the recipient
+            recipient = destination.recipient
+            if _debug:
+                EventAlgorithm._debug("    - recipient: %r", recipient)
+
+            # get its address
+            pdu_destination: Address
+            if recipient.device:
+                device_info = await event_initiating_object._app.device_info_cache.get_device_info(
+                    recipient.device[1]
+                )
+                if not device_info:
+                    raise NotImplementedError("missing device info")
+                pdu_destination = device_info.address
+            elif recipient.address:
+                network_number = recipient.address.networkNumber
+                mac_address = recipient.address.macAddress
+
+                if network_number == 0:
+                    if not mac_address:
+                        pdu_destination = LocalBroadcast()
+                    else:
+                        pdu_destination = LocalStation(mac_address)
+                else:
+                    if not mac_address:
+                        pdu_destination = RemoteBroadcast(network_number)
+                    else:
+                        pdu_destination = RemoteStation(network_number, mac_address)
+            else:
+                raise RuntimeError("invalid recipient")
+            if _debug:
+                EventAlgorithm._debug("    - pdu_destination: %r", pdu_destination)
 
     # -----
 

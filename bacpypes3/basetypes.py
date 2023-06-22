@@ -2251,10 +2251,50 @@ class TimeValue(Sequence):
     value = AnyAtomic()
 
 
+@bacpypes_debugging
 class DeviceAddress(Sequence):
     _order = ("networkNumber", "macAddress")
     networkNumber = Unsigned()
     macAddress = OctetString()
+
+    def __init__(
+        self,
+        arg: Optional[str] = None,
+        **kwargs,
+    ) -> None:
+        if _debug:
+            DeviceAddress._debug("DeviceAddress.__init__ %r %r", arg, kwargs)
+
+        if arg is None:
+            pass
+        else:
+            if isinstance(arg, str):
+                arg = _Address(arg)
+            if not isinstance(arg, _Address):
+                raise TypeError(type(arg))
+            if not any(
+                (
+                    arg.is_localbroadcast,
+                    arg.is_localstation,
+                    arg.is_remotebroadcast,
+                    arg.is_remotestation,
+                )
+            ):
+                raise ValueError(arg)
+            kwargs["networkNumber"] = arg.addrNet or 0
+            kwargs["macAddress"] = arg.addrAddr or b""
+
+        super().__init__(**kwargs)
+
+    @classmethod
+    def cast(cls, arg):
+        if _debug:
+            HostAddress._debug("DeviceAddress.cast %r", arg)
+
+        if isinstance(arg, (bytes, bytearray, str, dict, IPv4Address, IPv6Address)):
+            return arg
+        else:
+            raise TypeError(type(arg))
 
 
 _sequence_number = 0
