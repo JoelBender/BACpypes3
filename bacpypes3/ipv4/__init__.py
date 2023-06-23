@@ -11,7 +11,7 @@ from typing import Any, Callable, Optional, List, Tuple, Union, cast
 from ..debugging import ModuleLogger, bacpypes_debugging
 
 from ..comm import Server
-from ..pdu import LocalBroadcast, IPv4Address, PDU
+from ..pdu import LocalStation, LocalBroadcast, IPv4Address, PDU
 
 
 # some debugging
@@ -213,14 +213,16 @@ class IPv4DatagramServer(Server[PDU]):
             self._transport_tasks = []
 
         # downstream packets can have a specific or local broadcast address
-        if isinstance(pdu.pduDestination, LocalBroadcast):
+        if isinstance(pdu.pduDestination, LocalStation):
+            pdu_destination = IPv4Address(pdu.pduDestination).addrTuple
+        elif isinstance(pdu.pduDestination, LocalBroadcast):
             if not self.broadcast_address:
                 raise RuntimeError("no broadcast")
             pdu_destination = self.broadcast_address
         elif isinstance(pdu.pduDestination, IPv4Address):
             pdu_destination = pdu.pduDestination.addrTuple
         else:
-            raise ValueError("invalid destination: {pdu.pduDestination}")
+            raise ValueError(f"invalid destination: {pdu.pduDestination}")
         if _debug:
             IPv4DatagramServer._debug("    - pdu_destination: %r", pdu_destination)
 

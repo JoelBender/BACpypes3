@@ -206,7 +206,7 @@ async def main() -> None:
             # statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
             outOfService=False,
             # CHANGE_OF_STATE Event Algorithm
-            timeDelay=10,
+            timeDelay=1,
             notificationClass=1,
             alarmValue=BinaryPV.active,
             eventEnable=[1, 1, 1],  # toOffNormal, toFault, toNormal
@@ -226,7 +226,7 @@ async def main() -> None:
             # ],
             # eventAlgorithmInhibitReference=ObjectPropertyReference
             eventAlgorithmInhibit=False,
-            timeDelayNormal=2,
+            timeDelayNormal=1,
         )
         if _debug:
             _log.debug("bvo1: %r", bvo1)
@@ -249,7 +249,7 @@ async def main() -> None:
                     # recipient=Recipient(device="device,999"),
                     recipient=Recipient(address="10.0.1.70"),
                     processIdentifier=0,
-                    issueConfirmedNotifications=False,
+                    issueConfirmedNotifications=True,
                     transitions=[1, 1, 1],  # toOffNormal, toFault, toNormal
                 )
             ],

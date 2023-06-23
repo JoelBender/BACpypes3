@@ -88,6 +88,11 @@ from ..object import (
     StagingObject,
     TimerObject,
 )
+from ..apdu import (
+    APDU,
+    ConfirmedEventNotificationRequest,
+    UnconfirmedEventNotificationRequest,
+)
 from .object import Algorithm, Object
 from .fault import FaultAlgorithm, OutOfRangeFaultAlgorithm
 
@@ -585,10 +590,14 @@ class EventAlgorithm(Algorithm, DebugContents):
             "eventObjectIdentifier": event_initiating_object.objectIdentifier,
             "timeStamp": time_stamp,
             "notificationClass": event_initiating_object.notificationClass,
-            "priority": event_initiating_object._notification_class_object.priority,
+            "priority": event_initiating_object._notification_class_object.priority[
+                new_state_group
+            ],
             "messageText": message_text,
             "notifyType": event_initiating_object.notifyType,
-            "ackRequired": event_initiating_object._notification_class_object.ackRequired,
+            "ackRequired": event_initiating_object._notification_class_object.ackRequired[
+                new_state_group
+            ],
             "fromState": old_state,
             "toState": new_state,
         }
@@ -644,6 +653,9 @@ class EventAlgorithm(Algorithm, DebugContents):
             EventAlgorithm._debug(
                 "    - current_date, current_time: %r, %r", current_date, current_time
             )
+
+        # build up a set of request calls
+        recipient_futures = set()
 
         for destination in notification_class_object.recipientList:
             if _debug:
@@ -704,6 +716,53 @@ class EventAlgorithm(Algorithm, DebugContents):
                 raise RuntimeError("invalid recipient")
             if _debug:
                 EventAlgorithm._debug("    - pdu_destination: %r", pdu_destination)
+
+            # make an APDU
+            notification_request: APDU
+            if destination.issueConfirmedNotifications:
+                notification_request = ConfirmedEventNotificationRequest(
+                    **notification_parameters
+                )
+            else:
+                notification_request = UnconfirmedEventNotificationRequest(
+                    **notification_parameters
+                )
+
+            # set the destination and process identifier
+            notification_request.pduDestination = pdu_destination
+            notification_request.processIdentifier = destination.processIdentifier
+
+            # pass along to the application
+            recipient_futures.add(
+                event_initiating_object._app.request(notification_request)
+            )
+
+        # might not be any notifications to send out
+        if not recipient_futures:
+            if _debug:
+                EventAlgorithm._debug("    - no requests to send")
+            return
+
+        # wait for them all to complete
+        done, pending = await asyncio.wait(recipient_futures)
+        if _debug:
+            EventAlgorithm._debug("    - done: %r", done)
+            EventAlgorithm._debug("    - pending: %r", pending)
+
+        # look for exceptions, which _should_ be mapped back to resolving
+        # problems with the recipient
+        for request_future in done:
+            try:
+                request_exception = request_future.exception()
+                if not request_exception:
+                    continue
+                if _debug:
+                    EventAlgorithm._debug(
+                        "    - request exception: %r", request_exception
+                    )
+            except asyncio.CancelledError:
+                if _debug:
+                    EventAlgorithm._debug("    - cancelled error: %r")
 
     # -----
 

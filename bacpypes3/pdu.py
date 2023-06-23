@@ -98,7 +98,7 @@ combined_pattern = re.compile(
 )
 
 ethernet_re = re.compile(r"^([0-9A-Fa-f][0-9A-Fa-f][:]){5}([0-9A-Fa-f][0-9A-Fa-f])$")
-interface_port_re = re.compile(r"^(?:([\w]+))(?::(\d+))?$")
+interface_port_re = re.compile(r"^(?:([\w.]+))(?::(\d+))?$")
 host_port_re = re.compile(r"^(?:([\w.]+))(?::(\d+))?$")
 
 network_types: Dict[str, type]
@@ -1097,62 +1097,88 @@ class IPv4Address(Address, ipaddress.IPv4Interface):
                             if adapter.name == interface:
                                 break
                         else:
-                            raise ValueError("no interface: %r" % (interface,))
+                            adapter = None
 
-                        # get a list of the IPv4 addresses, IPv6 are tuples
-                        ipv4_addresses = [
-                            ip for ip in adapter.ips if isinstance(ip.ip, str)
-                        ]
-                        if len(ipv4_addresses) == 0:
-                            raise ValueError(
-                                "no IPv4 addresses for interface: %r" % (interface,)
+                        if adapter:
+                            # get a list of the IPv4 addresses, IPv6 are tuples
+                            ipv4_addresses = [
+                                ip for ip in adapter.ips if isinstance(ip.ip, str)
+                            ]
+                            if len(ipv4_addresses) == 0:
+                                raise ValueError(
+                                    "no IPv4 addresses for interface: %r" % (interface,)
+                                )
+                            if len(ipv4_addresses) > 1:
+                                raise ValueError(
+                                    "multiple IPv4 addresses for interface: %r"
+                                    % (interface,)
+                                )
+
+                            # extract the address and the network size
+                            ipv4_address = (
+                                ipv4_addresses[0].ip
+                                + "/"
+                                + str(ipv4_addresses[0].network_prefix)
                             )
-                        if len(ipv4_addresses) > 1:
-                            raise ValueError(
-                                "multiple IPv4 addresses for interface: %r"
-                                % (interface,)
-                            )
 
-                        # extract the address and the network size
-                        ipv4_address = (
-                            ipv4_addresses[0].ip
-                            + "/"
-                            + str(ipv4_addresses[0].network_prefix)
-                        )
-
-                        ipaddress.IPv4Interface.__init__(self, ipv4_address)
-                        if _port:
-                            port = int(_port)
-                        break
+                            ipaddress.IPv4Interface.__init__(self, ipv4_address)
+                            if _port:
+                                port = int(_port)
+                            break
 
                     if netifaces:
                         ifaddresses = netifaces.ifaddresses(interface)
                         ipv4_addresses = ifaddresses.get(netifaces.AF_INET, None)
-                        if not ipv4_addresses:
-                            raise ValueError(
-                                "no IPv4 address for interface: %r" % (interface,)
-                            )
-                        if len(ipv4_addresses) > 1:
-                            raise ValueError(
-                                "multiple IPv4 addresses for interface: %r"
-                                % (interface,)
+                        if ipv4_addresses:
+                            if len(ipv4_addresses) > 1:
+                                raise ValueError(
+                                    "multiple IPv4 addresses for interface: %r"
+                                    % (interface,)
+                                )
+
+                            ipv4_address = ipv4_addresses[0]
+                            if _debug:
+                                IPv4Address._debug(
+                                    "    - ipv4_address: %r", ipv4_address
+                                )
+
+                            ipaddress.IPv4Interface.__init__(
+                                self,
+                                ipv4_address["addr"] + "/" + ipv4_address["netmask"],
                             )
 
-                        ipv4_address = ipv4_addresses[0]
+                            if _port:
+                                port = int(_port)
+                            break
+
+                    try:
+                        dns_addresses = set(
+                            str(info[4][0])
+                            for info in socket.getaddrinfo(
+                                interface, None, socket.AddressFamily.AF_INET
+                            )
+                        )
+                    except Exception as err:
+                        dns_addresses = set()
+                        if _debug:
+                            IPv4Address._debug("    - getaddrinfo exception: %r", err)
+                    if dns_addresses:
+                        if len(dns_addresses) > 1:
+                            raise ValueError(
+                                f"multiple IPv4 addresses for host {interface}"
+                            )
+
+                        ipv4_address = dns_addresses.pop()
                         if _debug:
                             IPv4Address._debug("    - ipv4_address: %r", ipv4_address)
 
-                        ipaddress.IPv4Interface.__init__(
-                            self, ipv4_address["addr"] + "/" + ipv4_address["netmask"]
-                        )
+                        ipaddress.IPv4Interface.__init__(self, ipv4_address + "/32")
 
                         if _port:
                             port = int(_port)
                         break
 
-                    raise RuntimeError(
-                        "install ifaddr or netifaces for interface name addresses"
-                    )
+                    raise RuntimeError(f"unable to resolve {interface}")
 
                 raise ValueError("invalid address")
 
