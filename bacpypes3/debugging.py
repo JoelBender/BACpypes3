@@ -24,8 +24,9 @@ from typing import (
     Union,
 )
 
-# create a root logger
+# create a root logger with a Null handler
 root_logger = logging.getLogger("bacpypes3")
+root_logger.addHandler(logging.NullHandler())
 
 # types
 FuncType = Callable[..., Any]
@@ -86,13 +87,6 @@ def ModuleLogger(globs: Dict[str, Any]) -> logging.Logger:
 
     # put in a reference to the module globals
     module_loggers[logger] = globs
-
-    # if this is a "root" logger add a default handler for warnings and up
-    if "." not in logger_name:
-        hdlr = logging.StreamHandler()
-        hdlr.setLevel(logging.WARNING)
-        hdlr.setFormatter(logging.Formatter(logging.BASIC_FORMAT, None))
-        logger.addHandler(hdlr)
 
     return logger
 
