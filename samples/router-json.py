@@ -124,7 +124,7 @@ async def main() -> None:
             _log.debug("settings: %r", settings)
 
         # build an application
-        app = Application.from_json(settings.config["application"])
+        app = Application.from_json(settings.json["application"])
         if _debug:
             _log.debug("app: %r", app)
 
