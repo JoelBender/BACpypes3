@@ -12,8 +12,9 @@ from __future__ import annotations
 
 from ..debugging import bacpypes_debugging, ModuleLogger
 
-from ..comm import bind, Server
+from ..comm import bind, Client, Server
 from ..pdu import PDU, LocalStation
+from ..vlan import VirtualNode
 
 # some debugging
 _debug = 0
@@ -25,7 +26,7 @@ _log = ModuleLogger(globals())
 
 
 @bacpypes_debugging
-class VirtualLinkLayer(Server[PDU]):
+class VirtualLinkLayer(Client[PDU], Server[PDU]):
     """
     Create a link layer mini-stack ...
     """
@@ -41,9 +42,25 @@ class VirtualLinkLayer(Server[PDU]):
                 kwargs,
             )
 
+        # create a node
+        self.node = VirtualNode(local_address, network_interface_name)
+
+        # add it below this in the stack
+        bind(self, self.node)
+
     async def indication(self, pdu: PDU) -> None:
         if _debug:
             VirtualLinkLayer._debug("indication %r", pdu)
+
+        # continue down the stack
+        await self.request(pdu)
+
+    async def confirmation(self, pdu: PDU) -> None:
+        if _debug:
+            VirtualLinkLayer._debug("confirmation %r", pdu)
+
+        # countinue up the stack
+        await self.response(pdu)
 
     def close(self):
         if _debug:
