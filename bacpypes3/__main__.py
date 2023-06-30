@@ -33,7 +33,7 @@ from bacpypes3.ipv4.bvll import Result as IPv4BVLLResult
 from bacpypes3.ipv4.service import BVLLServiceAccessPoint, BVLLServiceElement
 
 # for serializing the configuration
-from bacpypes3.json import sequence_to_json
+from .json import sequence_to_json
 
 # some debugging
 _debug = 0
@@ -41,8 +41,8 @@ _log = ModuleLogger(globals())
 
 
 # globals
-app: Application
-bvll_ase: BVLLServiceElement
+app: Optional[Application] = None
+bvll_ase: Optional[BVLLServiceElement] = None
 
 # 'property[index]' matching
 property_index_re = re.compile(r"^([A-Za-z-]+)(?:\[([0-9]+)\])?$")
@@ -162,9 +162,9 @@ class CmdShell(Cmd):
 
     async def do_whois(
         self,
-        address: Address = None,
-        low_limit: int = None,
-        high_limit: int = None,
+        address: Optional[Address] = None,
+        low_limit: Optional[int] = None,
+        high_limit: Optional[int] = None,
     ) -> None:
         """
         Send a Who-Is request and wait for the response(s).
@@ -185,7 +185,7 @@ class CmdShell(Cmd):
 
     async def do_iam(
         self,
-        address: Address = None,
+        address: Optional[Address] = None,
     ) -> None:
         """
         Send an I-Am request, no response.
@@ -211,14 +211,14 @@ class CmdShell(Cmd):
 
         if not args:
             raise RuntimeError("object-identifier or object-name expected")
-        args = list(args)
+        args_list: List[str] = list(args)
 
-        if args[0].isdigit():
-            low_limit = int(args.pop(0))
+        if args_list[0].isdigit():
+            low_limit = int(args_list.pop(0))
         else:
             low_limit = None
-        if args[0].isdigit():
-            high_limit = int(args.pop(0))
+        if args_list[0].isdigit():
+            high_limit = int(args_list.pop(0))
         else:
             high_limit = None
         if _debug:
@@ -226,27 +226,27 @@ class CmdShell(Cmd):
                 "    - low_limit, high_limit: %r, %r", low_limit, high_limit
             )
 
-        if not args:
+        if not args_list:
             raise RuntimeError("object-identifier expected")
         try:
-            object_identifier = ObjectIdentifier(args[0])
-            del args[0]
+            object_identifier = ObjectIdentifier(args_list[0])
+            del args_list[0]
         except ValueError:
             object_identifier = None
         if _debug:
             CmdShell._debug("    - object_identifier: %r", object_identifier)
 
-        if len(args) == 0:
+        if len(args_list) == 0:
             object_name = address = None
-        elif len(args) == 2:
-            object_name = args[0]
-            address = Address(args[1])
-        elif len(args) == 1:
+        elif len(args_list) == 2:
+            object_name = args_list[0]
+            address = Address(args_list[1])
+        elif len(args_list) == 1:
             try:
-                address = Address(args[0])
+                address = Address(args_list[0])
                 object_name = None
             except ValueError:
-                object_name = args[0]
+                object_name = args_list[0]
                 address = None
         else:
             raise RuntimeError("unrecognized arguments")
@@ -271,7 +271,7 @@ class CmdShell(Cmd):
         self,
         object_identifier: ObjectIdentifier,
         object_name: CharacterString,
-        address: Address = None,
+        address: Optional[Address] = None,
     ) -> None:
         """
         Send an I-Have request.
@@ -297,7 +297,7 @@ class CmdShell(Cmd):
         """
         if _debug:
             CmdShell._debug("do_rpm %r %r", address, args)
-        args = list(args)
+        args_list: List[str] = list(args)
 
         # get information about the device from the cache
         device_info = await app.device_info_cache.get_device_info(address)
@@ -313,10 +313,10 @@ class CmdShell(Cmd):
             CmdShell._debug("    - vendor_info: %r", vendor_info)
 
         parameter_list = []
-        while args:
+        while args_list:
             # get the object identifier and using the vendor information, look
             # up the class
-            object_identifier = vendor_info.object_identifier(args.pop(0))
+            object_identifier = vendor_info.object_identifier(args_list.pop(0))
             object_class = vendor_info.get_object_class(object_identifier[0])
             if not object_class:
                 await self.response(f"unrecognized object type: {object_identifier}")
@@ -327,7 +327,7 @@ class CmdShell(Cmd):
 
             while args:
                 # now get the property type from the class
-                property_identifier = vendor_info.property_identifier(args.pop(0))
+                property_identifier = vendor_info.property_identifier(args_list.pop(0))
                 if _debug:
                     CmdShell._debug(
                         "    - property_identifier: %r", property_identifier
@@ -350,13 +350,13 @@ class CmdShell(Cmd):
                 parameter_list.append(property_identifier)
 
                 # check for a property array index
-                if args and args[0].isdigit():
-                    property_array_index = int(args.pop(0))
+                if args and args_list[0].isdigit():
+                    property_array_index = int(args_list.pop(0))
                     # save this as a parameter
                     parameter_list.append(property_array_index)
 
                 # crude check to see if the next thing is an object identifier
-                if args and ((":" in args[0]) or ("," in args[0])):
+                if args and ((":" in args_list[0]) or ("," in args_list[0])):
                     break
 
         if not parameter_list:
@@ -389,7 +389,9 @@ class CmdShell(Cmd):
                     f"{object_identifier} {property_identifier} {property_value}"
                 )
 
-    async def do_wirtn(self, address: Address = None, network: int = None) -> None:
+    async def do_wirtn(
+        self, address: Optional[Address] = None, network: Optional[int] = None
+    ) -> None:
         """
         Who Is Router To Network
 
@@ -435,7 +437,7 @@ class CmdShell(Cmd):
 
         await self.response("\n".join(report))
 
-    async def do_irt(self, address: Address = None) -> None:
+    async def do_irt(self, address: Optional[Address] = None) -> None:
         """
         Initialize Routing Table
 
@@ -646,8 +648,6 @@ class CmdShell(Cmd):
 async def main() -> None:
     global app, bvll_ase
 
-    app = None
-    bvll_ase = None
     try:
         parser = SimpleArgumentParser(prog="bacpypes3")
         parser.add_argument(
@@ -708,6 +708,7 @@ async def main() -> None:
         local_adapter = app.nsap.local_adapter
         if _debug:
             _log.debug("local_adapter: %r", local_adapter)
+        assert local_adapter
         bvll_sap = local_adapter.clientPeer
 
         # only IPv4 for now
