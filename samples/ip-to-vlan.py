@@ -22,6 +22,7 @@ from bacpypes3.pdu import Address
 from bacpypes3.npdu import IAmRouterToNetwork
 from bacpypes3.netservice import NetworkAdapter
 from bacpypes3.app import Application
+from bacpypes3.vlan import VirtualNetwork
 
 # some debugging
 _debug = 0
@@ -112,9 +113,41 @@ class CmdShell(Cmd, CmdDebugging):
 
         await app.nse.i_am_router_to_network(destination=address, network=network)
 
+    async def do_whois(
+        self,
+        address: Address = None,
+        low_limit: int = None,
+        high_limit: int = None,
+    ) -> None:
+        """
+        Send a Who-Is request and wait for the response(s).
+
+        usage: whois [ address [ low_limit high_limit ] ]
+        """
+        if _debug:
+            CmdShell._debug("do_whois %r %r %r", address, low_limit, high_limit)
+
+        i_ams = await app.who_is(low_limit, high_limit, address)
+        if not i_ams:
+            await self.response("No response(s)")
+        else:
+            for i_am in i_ams:
+                if _debug:
+                    CmdShell._debug("    - i_am: %r", i_am)
+                await self.response(f"{i_am.iAmDeviceIdentifier[1]} {i_am.pduSource}")
+
+    def do_debug(
+        self,
+        expr: str,
+    ) -> None:
+        value = eval(expr)  # , globals())
+        print(value)
+        if hasattr(value, "debug_contents"):
+            value.debug_contents()
+
 
 async def main() -> None:
-    global app
+    global app, iut
 
     try:
         console = None
@@ -123,10 +156,21 @@ async def main() -> None:
             _log.debug("args: %r", args)
             _log.debug("settings: %r", settings)
 
+        # define the networks
+        for network_name in settings.json["networks"]:
+            net = VirtualNetwork(network_name)
+            if _debug:
+                _log.debug("net: %r", net)
+
         # build an application
-        app = Application.from_json(settings.json["application"])
+        app = Application.from_json(settings.json["router"])
         if _debug:
             _log.debug("app: %r", app)
+
+        # build an implementation under test
+        iut = Application.from_json(settings.json["iut"])
+        if _debug:
+            _log.debug("iut: %r", iut)
 
         # build a very small stack
         console = Console()

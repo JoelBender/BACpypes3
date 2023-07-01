@@ -14,7 +14,7 @@ from typing import Any, List, Optional, Callable, TypeVar, Generic
 from ..errors import ConfigurationError
 from ..debugging import ModuleLogger, bacpypes_debugging
 
-from ..pdu import IPv4Address, PDU
+from ..pdu import LocalStation, LocalBroadcast, IPv4Address, PDU
 from ..comm import Client, Server, bind
 
 AddrType = TypeVar("AddrType")
@@ -377,3 +377,69 @@ class IPv4Router:
                     if _debug:
                         IPv4Router._debug("    - processing: %r", inode)
                     await inode.process_pdu(pdu)
+
+
+#
+#   VirtualNetwork
+#
+
+
+@bacpypes_debugging
+class VirtualNetwork(Network[LocalStation]):
+
+    """
+    VirtualNetwork instances are Network objects where the addresses on the
+    network are instances of a generic local station.
+    """
+
+    _debug: Callable[..., None]
+    _networks: Dict[str, VirtualNetwork] = {}
+
+    def __init__(self, network_name: str) -> None:
+        if _debug:
+            VirtualNetwork._debug("__init__ %r", network_name)
+        Network.__init__(self, name=network_name, broadcast_address=LocalBroadcast())
+
+        # check for name collisions
+        if network_name in VirtualNetwork._networks:
+            raise ValueError(f"existing network: {network_name!r}")
+
+        # save a reference
+        VirtualNetwork._networks[network_name] = self
+
+
+#
+#   VirtualNode
+#
+
+
+@bacpypes_debugging
+class VirtualNode(Node[LocalStation]):
+
+    """
+    An VirtualNode is a Node where the address is a generic local station.
+    """
+
+    _debug: Callable[..., None]
+
+    def __init__(
+        self,
+        addr: LocalStation,
+        network_name: str,
+    ) -> None:
+        if _debug:
+            VirtualNode._debug("__init__ %r %r", addr, network_name)
+
+        # get a reference to the virtual network
+        lan = VirtualNetwork._networks.get(network_name, None)
+        if _debug:
+            VirtualNode._debug("    - lan: %r", lan)
+        if lan is None:
+            raise ValueError(f"undefined network: {network_name!r}")
+
+        # continue initializing
+        Node.__init__(
+            self,
+            addr,
+            lan=lan,
+        )

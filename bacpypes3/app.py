@@ -74,13 +74,16 @@ from .service.object import (
 )
 from .service.cov import ChangeOfValueServices
 
+# network port interpretation
 from .local.networkport import NetworkPortObject
 from .ipv4.link import (
     NormalLinkLayer as NormalLinkLayer_ipv4,
     ForeignLinkLayer as ForeignLinkLayer_ipv4,
     BBMDLinkLayer as BBMDLinkLayer_ipv4,
 )
+from .vlan.link import VirtualLinkLayer
 
+# objects with specialized interpreters
 from .local.schedule import ScheduleObject
 
 # for serialized parameter initialization
@@ -652,6 +655,27 @@ class Application(
 
             elif obj.networkType == NetworkType.ipv6:
                 raise NotImplementedError("IPv6")
+
+            elif obj.networkType == NetworkType.virtual:
+                link_address = obj.address
+                if _debug:
+                    Application._debug("     - link_address: %r", link_address)
+
+                link_layer = VirtualLinkLayer(link_address, obj.networkInterfaceName)
+                if _debug:
+                    Application._debug("     - link_layer: %r", link_layer)
+
+                # save a reference from the object to the link layer, maybe
+                # this will be deleted (in which case it will be closed)
+                self.link_layers[obj.objectIdentifier] = link_layer
+
+                # let the NSAP know about this link layer
+                if obj.networkNumber == 0:
+                    self.nsap.bind(link_layer, address=link_address)
+                else:
+                    self.nsap.bind(
+                        link_layer, net=obj.networkNumber, address=link_address
+                    )
 
             else:
                 raise NotImplementedError(f"{obj.networkType}")

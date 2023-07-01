@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Callable, Optional
 
 from ..debugging import bacpypes_debugging, ModuleLogger
-from ..pdu import Address, IPv4Address, IPv6Address
+from ..pdu import Address, LocalStation, IPv4Address, IPv6Address
 from ..primitivedata import CharacterString, ObjectType
 
 from ..basetypes import NetworkType, NetworkNumberQuality
@@ -147,5 +147,11 @@ class NetworkPortObject(_Object, _NetworkPortObject):
             if _debug:
                 NetworkPortObject._debug("    - IPv6")
             raise NotImplementedError("no IPv6 yet")
+
+        elif self.networkType == NetworkType.virtual:
+            if _debug:
+                NetworkPortObject._debug("    - virtual")
+
+            return LocalStation(self.macAddress)
 
         return None

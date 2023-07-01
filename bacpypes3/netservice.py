@@ -603,9 +603,21 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server[PDU], DebugContents):
             npdu.pduDestination = LocalBroadcast()
             npdu.npduDADR = pdu.pduDestination
 
-            # send it to all of connected adapters
+            # send it to the local adapter
+            await local_adapter.process_npdu(npdu)
+
+            # make it look routed
+            if _debug:
+                NetworkServiceAccessPoint._debug("    - adding SADR")
+            npdu.npduSADR = RemoteStation(
+                local_adapter.adapterNet,  # type: ignore[arg-type]
+                local_adapter.adapterAddr.addrAddr,  # type: ignore[union-attr]
+            )
+
+            # send it to all of the other connected adapters
             for xadapter in self.adapters.values():
-                await xadapter.process_npdu(npdu)
+                if xadapter is not local_adapter:
+                    await xadapter.process_npdu(npdu)
             return
 
         # remote broadcast
@@ -620,8 +632,23 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server[PDU], DebugContents):
         if _debug:
             NetworkServiceAccessPoint._debug("    - dnet: %r", dnet)
 
-        # if the network matches the local adapter it's local
-        if local_adapter and (dnet == local_adapter.adapterNet):
+        # look for a direct connection
+        direct_adapter = self.adapters.get(dnet, None)
+        if _debug:
+            NetworkServiceAccessPoint._debug("    - direct_adapter: %r", direct_adapter)
+
+        # found one
+        if direct_adapter:
+            # maybe it looks routed
+            if direct_adapter is not local_adapter:
+                if _debug:
+                    NetworkServiceAccessPoint._debug("    - adding SADR")
+                npdu.npduSADR = RemoteStation(
+                    local_adapter.adapterNet,  # type: ignore[arg-type]
+                    local_adapter.adapterAddr.addrAddr,  # type: ignore[union-attr]
+                )
+
+            # remap the destination
             if npdu.pduDestination.addrType == Address.remoteStationAddr:
                 if _debug:
                     NetworkServiceAccessPoint._debug(
@@ -637,7 +664,7 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server[PDU], DebugContents):
             else:
                 raise RuntimeError("addressing problem")
 
-            await local_adapter.process_npdu(npdu)
+            await direct_adapter.process_npdu(npdu)
             return
 
         # get it ready to send when the path is found
