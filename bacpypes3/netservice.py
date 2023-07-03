@@ -606,18 +606,20 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server[PDU], DebugContents):
             # send it to the local adapter
             await local_adapter.process_npdu(npdu)
 
-            # make it look routed
-            if _debug:
-                NetworkServiceAccessPoint._debug("    - adding SADR")
-            npdu.npduSADR = RemoteStation(
-                local_adapter.adapterNet,  # type: ignore[arg-type]
-                local_adapter.adapterAddr.addrAddr,  # type: ignore[union-attr]
-            )
+            # make sure we're really a router
+            if len(self.adapters) > 1:
+                # make it look routed
+                if _debug:
+                    NetworkServiceAccessPoint._debug("    - adding SADR")
+                npdu.npduSADR = RemoteStation(
+                    local_adapter.adapterNet,  # type: ignore[arg-type]
+                    local_adapter.adapterAddr.addrAddr,  # type: ignore[union-attr]
+                )
 
-            # send it to all of the other connected adapters
-            for xadapter in self.adapters.values():
-                if xadapter is not local_adapter:
-                    await xadapter.process_npdu(npdu)
+                # send it to all of the other connected adapters
+                for xadapter in self.adapters.values():
+                    if xadapter is not local_adapter:
+                        await xadapter.process_npdu(npdu)
             return
 
         # remote broadcast
