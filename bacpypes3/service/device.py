@@ -52,6 +52,7 @@ class WhoIsFuture:
 
     low_limit: Optional[int]
     high_limit: Optional[int]
+    wois_timeout: Optional[int]
     future: asyncio.Future
 
     i_ams: Dict[int, IAmRequest]
@@ -63,6 +64,7 @@ class WhoIsFuture:
         address: Optional[Address],
         low_limit: Optional[int],
         high_limit: Optional[int],
+        whois_timeout: Optional[int],
     ) -> None:
         if _debug:
             WhoIsFuture._debug(
@@ -73,6 +75,7 @@ class WhoIsFuture:
         self.address = address
         self.low_limit = low_limit
         self.high_limit = high_limit
+        self.whois_timeout = whois_timeout
 
         self.i_ams = {}
         self.only_one = (address is not None) or (
@@ -92,7 +95,7 @@ class WhoIsFuture:
 
         # schedule a call
         self.who_is_timeout_handle = loop.call_later(
-            WHO_IS_TIMEOUT, self.who_is_timeout
+            self.whois_timeout, self.who_is_timeout
         )
         if _debug:
             WhoIsFuture._debug(
