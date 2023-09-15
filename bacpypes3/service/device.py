@@ -216,7 +216,7 @@ class WhoIsIAmServices:
             else None,
             low_limit,
             high_limit,
-            whois_timeout=30
+            whois_timeout
         )
         self._who_is_futures.append(who_is_future)
 
