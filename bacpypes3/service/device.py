@@ -42,7 +42,6 @@ _debug = 0
 _log = ModuleLogger(globals())
 
 # settings
-WHO_IS_TIMEOUT = 3.0  # how long to wait for I-Am's
 WHO_HAS_TIMEOUT = 3.0  # how long to wait for I-Have's
 
 
