@@ -42,7 +42,6 @@ _debug = 0
 _log = ModuleLogger(globals())
 
 # settings
-WHO_IS_TIMEOUT = 3.0  # how long to wait for I-Am's
 WHO_HAS_TIMEOUT = 3.0  # how long to wait for I-Have's
 
 
@@ -52,6 +51,7 @@ class WhoIsFuture:
 
     low_limit: Optional[int]
     high_limit: Optional[int]
+    wois_timeout: Optional[int]
     future: asyncio.Future
 
     i_ams: Dict[int, IAmRequest]
@@ -63,6 +63,7 @@ class WhoIsFuture:
         address: Optional[Address],
         low_limit: Optional[int],
         high_limit: Optional[int],
+        whois_timeout: Optional[int],
     ) -> None:
         if _debug:
             WhoIsFuture._debug(
@@ -73,6 +74,7 @@ class WhoIsFuture:
         self.address = address
         self.low_limit = low_limit
         self.high_limit = high_limit
+        self.whois_timeout = whois_timeout
 
         self.i_ams = {}
         self.only_one = (address is not None) or (
@@ -92,7 +94,7 @@ class WhoIsFuture:
 
         # schedule a call
         self.who_is_timeout_handle = loop.call_later(
-            WHO_IS_TIMEOUT, self.who_is_timeout
+            self.whois_timeout, self.who_is_timeout
         )
         if _debug:
             WhoIsFuture._debug(
@@ -169,6 +171,7 @@ class WhoIsIAmServices:
         low_limit: Optional[int] = None,
         high_limit: Optional[int] = None,
         address: Optional[Address] = None,
+        whois_timeout: Optional[int] = None,
     ) -> asyncio.Future:
         if _debug:
             WhoIsIAmServices._debug("who_is")
@@ -199,6 +202,9 @@ class WhoIsIAmServices:
             # high limit is fine
             who_is.deviceInstanceRangeHighLimit = high_limit
 
+        if whois_timeout is None:
+            raise ParameterOutOfRange("Who-is time-out parameter was not provided!")
+
         if _debug:
             WhoIsIAmServices._debug("    - who_is: %r", who_is)
 
@@ -210,6 +216,7 @@ class WhoIsIAmServices:
             else None,
             low_limit,
             high_limit,
+            whois_timeout
         )
         self._who_is_futures.append(who_is_future)
 
