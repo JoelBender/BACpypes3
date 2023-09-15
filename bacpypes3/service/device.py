@@ -172,6 +172,7 @@ class WhoIsIAmServices:
         low_limit: Optional[int] = None,
         high_limit: Optional[int] = None,
         address: Optional[Address] = None,
+        whois_timeout: Optional[int] = None,
     ) -> asyncio.Future:
         if _debug:
             WhoIsIAmServices._debug("who_is")
