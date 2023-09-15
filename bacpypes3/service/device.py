@@ -203,6 +203,9 @@ class WhoIsIAmServices:
             # high limit is fine
             who_is.deviceInstanceRangeHighLimit = high_limit
 
+        if whois_timeout is None:
+            raise ParameterOutOfRange("Who-is time-out parameter was not provided!")
+
         if _debug:
             WhoIsIAmServices._debug("    - who_is: %r", who_is)
 
@@ -214,6 +217,7 @@ class WhoIsIAmServices:
             else None,
             low_limit,
             high_limit,
+            whois_timeout=30
         )
         self._who_is_futures.append(who_is_future)
 
