@@ -41,7 +41,8 @@ from ..apdu import (
 _debug = 0
 _log = ModuleLogger(globals())
 
-# settings
+# service timeouts
+WHO_IS_TIMEOUT = 3.0  # how long to wait for I-Am's
 WHO_HAS_TIMEOUT = 3.0  # how long to wait for I-Have's
 
 
@@ -51,7 +52,7 @@ class WhoIsFuture:
 
     low_limit: Optional[int]
     high_limit: Optional[int]
-    wois_timeout: Optional[int]
+    timeout: Optional[int]
     future: asyncio.Future
 
     i_ams: Dict[int, IAmRequest]
@@ -63,18 +64,23 @@ class WhoIsFuture:
         address: Optional[Address],
         low_limit: Optional[int],
         high_limit: Optional[int],
-        whois_timeout: Optional[int],
+        timeout: Optional[int],
     ) -> None:
         if _debug:
             WhoIsFuture._debug(
-                "__init__ %r %r %r %r", app, address, low_limit, high_limit
+                "__init__ %r %r %r %r %r",
+                app,
+                address,
+                low_limit,
+                high_limit,
+                timeout,
             )
 
         self.app = app
         self.address = address
         self.low_limit = low_limit
         self.high_limit = high_limit
-        self.whois_timeout = whois_timeout
+        self.timeout = timeout
 
         self.i_ams = {}
         self.only_one = (address is not None) or (
@@ -93,9 +99,7 @@ class WhoIsFuture:
             WhoIsFuture._debug("    - loop time: %r", loop.time())
 
         # schedule a call
-        self.who_is_timeout_handle = loop.call_later(
-            self.whois_timeout, self.who_is_timeout
-        )
+        self.who_is_timeout_handle = loop.call_later(self.timeout, self.who_is_timeout)
         if _debug:
             WhoIsFuture._debug(
                 "    - who_is_timeout_handle: %r", self.who_is_timeout_handle
@@ -171,7 +175,7 @@ class WhoIsIAmServices:
         low_limit: Optional[int] = None,
         high_limit: Optional[int] = None,
         address: Optional[Address] = None,
-        whois_timeout: Optional[int] = None,
+        timeout: Optional[int] = WHO_IS_TIMEOUT,
     ) -> asyncio.Future:
         if _debug:
             WhoIsIAmServices._debug("who_is")
@@ -202,9 +206,6 @@ class WhoIsIAmServices:
             # high limit is fine
             who_is.deviceInstanceRangeHighLimit = high_limit
 
-        if whois_timeout is None:
-            raise ParameterOutOfRange("Who-is time-out parameter was not provided!")
-
         if _debug:
             WhoIsIAmServices._debug("    - who_is: %r", who_is)
 
@@ -216,7 +217,7 @@ class WhoIsIAmServices:
             else None,
             low_limit,
             high_limit,
-            whois_timeout
+            timeout,
         )
         self._who_is_futures.append(who_is_future)
 
@@ -320,6 +321,7 @@ class WhoHasFuture:
     high_limit: Optional[int]
     object_identifier: Optional[ObjectIdentifier]
     object_name: Optional[CharacterString]
+    timeout: Optional[int]
     future: asyncio.Future
 
     i_haves: List[IHaveRequest]
@@ -332,15 +334,17 @@ class WhoHasFuture:
         high_limit: Optional[int],
         object_identifier: Optional[ObjectIdentifier],
         object_name: Optional[CharacterString],
+        timeout: Optional[int],
     ) -> None:
         if _debug:
             WhoHasFuture._debug(
-                "__init__ %r %r %r %r %r",
+                "__init__ %r %r %r %r %r %r",
                 app,
                 low_limit,
                 high_limit,
                 object_identifier,
                 object_name,
+                timeout,
             )
 
         self.app = app
@@ -348,6 +352,7 @@ class WhoHasFuture:
         self.high_limit = high_limit
         self.object_identifier = object_identifier
         self.object_name = object_name
+        self.timeout = timeout
 
         self.i_haves = []
         self.only_one = (low_limit == high_limit) and (low_limit is not None)
@@ -365,7 +370,7 @@ class WhoHasFuture:
 
         # schedule a call
         self.who_has_timeout_handle = loop.call_later(
-            WHO_HAS_TIMEOUT, self.who_has_timeout
+            self.timeout, self.who_has_timeout
         )
         if _debug:
             WhoHasFuture._debug(
@@ -446,15 +451,17 @@ class WhoHasIHaveServices:
         object_identifier: Optional[ObjectIdentifier] = None,
         object_name: Optional[CharacterString] = None,
         address=None,
+        timeout: Optional[int] = WHO_HAS_TIMEOUT,
     ):
         if _debug:
             WhoHasIHaveServices._debug(
-                "who_has %r %r %r %r address=%r",
+                "who_has %r %r %r %r address=%r timeout=%r",
                 low_limit,
                 high_limit,
                 object_identifier,
                 object_name,
                 address,
+                timeout,
             )
 
         # should be __init__
@@ -497,7 +504,12 @@ class WhoHasIHaveServices:
 
         # create a future, store a reference to it to be resolved
         who_has_future = WhoHasFuture(
-            self, low_limit, high_limit, object_identifier, object_name
+            self,
+            low_limit,
+            high_limit,
+            object_identifier,
+            object_name,
+            timeout,
         )
         self._who_has_futures.append(who_has_future)
 

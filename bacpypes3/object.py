@@ -283,6 +283,12 @@ class VendorInfo:
         self.registered_object_classes[object_type] = object_class
 
     def get_object_class(self, object_type: int) -> Optional[type]:
+        if _debug:
+            VendorInfo._debug(
+                "get_object_class(%d) %r",
+                self.vendor_identifier,
+                object_type,
+            )
         return self.registered_object_classes.get(
             object_type, None
         ) or ASHRAE_vendor_info.registered_object_classes.get(
