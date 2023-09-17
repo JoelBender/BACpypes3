@@ -20,6 +20,7 @@ from typing import (
     Optional,
     Tuple,
     Set,
+    Union,
 )
 
 from .debugging import bacpypes_debugging, DebugContents, ModuleLogger
@@ -155,12 +156,17 @@ class DeviceInfoCache(DebugContents):
         # class for new records
         self.device_info_class = device_info_class
 
-    async def get_device_info(self, addr: Address) -> Optional[DeviceInfo]:
+    async def get_device_info(self, addr: Union[Address, int]) -> Optional[DeviceInfo]:
         if _debug:
             DeviceInfoCache._debug("get_device_info %r", addr)
 
         # get the info if it's there
-        device_info = self.address_cache.get(addr, None)
+        if isinstance(addr, Address):
+            device_info = self.address_cache.get(addr, None)
+        elif isinstance(addr, int):
+            device_info = self.instance_cache.get(addr, None)
+        else:
+            raise TypeError("address or device instance")
         if _debug:
             DeviceInfoCache._debug("    - device_info: %r", device_info)
 
