@@ -1,0 +1,22 @@
+@prefix bacnet: <http://data.ashrae.org/bacnet/2016#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<bacnet://999> a bacnet:Device ;
+    bacnet:device-address [ rdfs:label "10.0.1.90" ;
+            bacnet:mac-address "0a00015abac0"^^xsd:hexBinary ;
+            bacnet:network-number "0"^^xsd:nonNegativeInteger ] ;
+    bacnet:device-instance 999 ;
+    bacnet:hasObject <bacnet://999/device,999>,
+        <bacnet://999/network-port,1> .
+
+<bacnet://999/device,999> bacnet:object-identifier "device,999" ;
+    bacnet:object-name "Excelsior" ;
+    bacnet:object-type bacnet:ObjectType.device ;
+    bacnet:property-list "object-identifier;object-name;object-type;property-list;system-status;vendor-name;vendor-identifier;model-name;firmware-revision;application-software-version;protocol-version;protocol-revision;protocol-services-supported;protocol-object-types-supported;object-list;max-apdu-length-accepted;segmentation-supported;max-segments-accepted;local-time;local-date;apdu-segment-timeout;apdu-timeout;number-of-apdu-retries;device-address-binding;database-revision;active-cov-subscriptions;status-flags" .
+
+<bacnet://999/network-port,1> bacnet:object-identifier "network-port,1" ;
+    bacnet:object-name "NetworkPort-1" ;
+    bacnet:object-type bacnet:ObjectType.network-port ;
+    bacnet:property-list "object-identifier;object-name;object-type;property-list;status-flags;reliability;out-of-service;network-type;protocol-level;network-number;network-number-quality;changes-pending;mac-address;link-speed;bacnet-ip-mode;ip-address;bacnet-ip-udp-port;ip-subnet-mask" .
+

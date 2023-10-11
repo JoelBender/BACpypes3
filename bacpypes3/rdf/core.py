@@ -20,7 +20,13 @@ from ..primitivedata import (
 from ..basetypes import PropertyIdentifier
 from ..constructeddata import Sequence
 
-from .util import atomic_encode, attr_to_predicate, sequence_to_graph
+from .util import (
+    atomic_encode,
+    unsigned_encode,
+    octetstring_encode,
+    attr_to_predicate,
+    sequence_to_graph,
+)
 
 # some debugging
 _debug = 0
@@ -103,14 +109,14 @@ def bacnet_query(query: str) -> Any:
 
 find_device_by_address = bacnet_query(
     """
-    select ?s where { ?s bacnet:hasAddress [
-        bacnet::network-number ?net ;
+    select ?s where { ?s bacnet:device-address [
+        bacnet:network-number ?net ;
         bacnet:mac-address ?addr
         ] }
     """
 )
 find_device_by_instance = bacnet_query(
-    "select ?s where { ?s bacnet:deviceInstance ?device_instance .}"
+    "select ?s where { ?s bacnet:device-instance ?device_instance .}"
 )
 find_object_by_type = bacnet_query(
     "select ?s where { ?s bacnet:object-type ?objtype .}"
@@ -178,7 +184,7 @@ class BACnetGraph:
 
         if device_address is not None:
             device_address_iri = _blank_node()
-            self.graph.add((device_iri, BACnetNS.hasAddress, device_address_iri))
+            self.graph.add((device_iri, BACnetNS["device-address"], device_address_iri))
 
             # encode the network portion, local stations are network 0
             self.graph.add(
@@ -186,14 +192,12 @@ class BACnetGraph:
             )
 
             if device_address.addrNet is None:
-                device_address_net = Literal(0)
+                device_address_net = unsigned_encode(self.graph, 0)
             else:
-                device_address_net = Literal(device_address.addrNet)
+                device_address_net = unsigned_encode(self.graph, device_address.addrNet)
 
-            # encode the MAC address, hex string?
-            device_address_mac = Literal(
-                btox(device_address.addrAddr), datatype=XSD.hexBinary
-            )
+            # encode the MAC address
+            device_address_mac = octetstring_encode(self.graph, device_address.addrAddr)
 
             device_address_proxy = ObjectProxy(self, device_address_iri)
             device_address_proxy.networkNumber = device_address_net
@@ -201,7 +205,7 @@ class BACnetGraph:
 
         if device_identifier is not None:
             self.graph.add(
-                (device_iri, BACnetNS.deviceInstance, Literal(device_identifier[1]))
+                (device_iri, BACnetNS["device-instance"], Literal(device_identifier[1]))
             )
 
         return DeviceGraph(self, device_iri)
