@@ -351,6 +351,10 @@ class Cmd(Server[ConsolePDU]):
         try:
             # build a function call from the command profile
             cmd_fn, cmd_args, cmd_kwargs = cmd_profile(split_result)
+            if _debug:
+                Cmd._debug("    - cmd_args: %r", cmd_args)
+                Cmd._debug("    - cmd_kwargs: %r", cmd_kwargs)
+
             response = cmd_fn(*cmd_args, **cmd_kwargs)
             if inspect.isawaitable(response):
                 response = await response

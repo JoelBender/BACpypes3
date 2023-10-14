@@ -7,7 +7,7 @@ import asyncio
 import re
 import json
 
-from typing import Callable, List, Optional, Tuple
+from typing import Callable, List, Optional, Tuple, Union
 
 import bacpypes3
 from bacpypes3.settings import settings
@@ -60,7 +60,7 @@ class CmdShell(Cmd):
         self,
         address: Address,
         object_identifier: ObjectIdentifier,
-        property_identifier: str,
+        property_identifier: Union[int, str],
     ) -> None:
         """
         Send a Read Property Request and wait for the response.
@@ -73,14 +73,16 @@ class CmdShell(Cmd):
             )
         global app
 
-        # split the property identifier and its index
-        property_index_match = property_index_re.match(property_identifier)
-        if not property_index_match:
-            await self.response("property specification incorrect")
-            return
-        property_identifier, property_array_index = property_index_match.groups()
-        if property_array_index is not None:
-            property_array_index = int(property_array_index)
+        property_array_index = None
+        if isinstance(property_identifier, str):
+            # split the property identifier and its index
+            property_index_match = property_index_re.match(property_identifier)
+            if not property_index_match:
+                await self.response("property specification incorrect")
+                return
+            property_identifier, property_array_index = property_index_match.groups()
+            if property_array_index is not None:
+                property_array_index = int(property_array_index)
 
         try:
             property_value = await app.read_property(

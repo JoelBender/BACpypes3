@@ -285,14 +285,18 @@ class ReadWritePropertyServices:
             ReadWritePropertyServices._debug("    - object: %r", obj)
 
         # get the value
-        value = await obj.read_property(
-            apdu.propertyIdentifier, apdu.propertyArrayIndex
-        )
-        if _debug:
-            ReadWritePropertyServices._debug("    - value: %r", value)
+        try:
+            value = await obj.read_property(
+                apdu.propertyIdentifier, apdu.propertyArrayIndex
+            )
+            if _debug:
+                ReadWritePropertyServices._debug("    - value: %r", value)
 
-        # if it is None then the property isn't there
-        if value is None:
+            # if it is None then the property is defined but isn't there
+            if value is None:
+                raise PropertyError(errorCode="unknownProperty")
+        except AttributeError:
+            # exception if this is not a defined property
             raise PropertyError(errorCode="unknownProperty")
 
         # build a response
