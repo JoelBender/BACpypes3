@@ -3,7 +3,7 @@
 #
 
 from ..basetypes import PropertyIdentifier
-from ..object import VendorInfo
+from ..vendor import VendorInfo
 
 
 class LocalPropertyIdentifier(PropertyIdentifier):

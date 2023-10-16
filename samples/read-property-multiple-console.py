@@ -16,7 +16,7 @@ from bacpypes3.cmd import Cmd
 from bacpypes3.pdu import Address, IPv4Address
 from bacpypes3.comm import bind
 from bacpypes3.basetypes import PropertyIdentifier
-from bacpypes3.object import get_vendor_info
+from bacpypes3.vendor import get_vendor_info
 
 from bacpypes3.apdu import ErrorRejectAbortNack
 from bacpypes3.ipv4.app import NormalApplication

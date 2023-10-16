@@ -16,7 +16,7 @@ from bacpypes3.primitivedata import ObjectIdentifier
 from bacpypes3.basetypes import PropertyIdentifier
 from bacpypes3.apdu import AbortReason, AbortPDU, ErrorRejectAbortNack
 from bacpypes3.app import Application
-from bacpypes3.object import get_vendor_info
+from bacpypes3.vendor import get_vendor_info
 
 # some debugging
 _debug = 0

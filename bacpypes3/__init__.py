@@ -18,7 +18,7 @@ if _sys.platform not in _supported_platforms:
 #   Project Metadata
 #
 
-__version__ = "0.0.82"
+__version__ = "0.0.83"
 __author__ = "Joel Bender"
 __email__ = "joel@carrickbender.com"
 
@@ -83,6 +83,7 @@ from . import appservice
 
 from . import local
 from . import service
+from . import vendor
 
 #
 #   Library of useful functions

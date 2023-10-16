@@ -33,7 +33,7 @@ from ..apdu import (
     ConfirmedCOVNotificationRequest,
     UnconfirmedCOVNotificationRequest,
 )
-from ..object import get_vendor_info
+from ..vendor import get_vendor_info
 
 # some debugging
 _debug = 0

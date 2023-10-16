@@ -58,7 +58,8 @@ from .basetypes import (
     HostNPort,
     BDTEntry,
 )
-from .object import Object, DeviceObject, get_vendor_info
+from .object import Object, DeviceObject
+from .vendor import get_vendor_info
 
 from .appservice import ApplicationServiceAccessPoint
 from .netservice import (

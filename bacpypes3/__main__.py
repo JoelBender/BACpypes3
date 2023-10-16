@@ -20,11 +20,11 @@ from bacpypes3.pdu import Address, IPv4Address
 from bacpypes3.comm import bind
 
 from bacpypes3.primitivedata import Null, CharacterString, ObjectIdentifier
-from bacpypes3.basetypes import PropertyIdentifier
+from bacpypes3.basetypes import ErrorType, PropertyIdentifier, PropertyReference
 from bacpypes3.constructeddata import AnyAtomic
 from bacpypes3.apdu import ErrorRejectAbortNack
 from bacpypes3.npdu import IAmRouterToNetwork, InitializeRoutingTableAck
-from bacpypes3.object import get_vendor_info
+from bacpypes3.vendor import get_vendor_info
 from bacpypes3.app import Application
 from bacpypes3.netservice import NetworkAdapter
 
@@ -44,9 +44,6 @@ _log = ModuleLogger(globals())
 app: Optional[Application] = None
 bvll_ase: Optional[BVLLServiceElement] = None
 
-# 'property[index]' matching
-property_index_re = re.compile(r"^([A-Za-z-]+)(?:\[([0-9]+)\])?$")
-
 
 @bacpypes_debugging
 class CmdShell(Cmd):
@@ -59,7 +56,7 @@ class CmdShell(Cmd):
     async def do_read(
         self,
         address: Address,
-        object_identifier: ObjectIdentifier,
+        object_identifier: str,
         property_identifier: Union[int, str],
     ) -> None:
         """
@@ -73,20 +70,37 @@ class CmdShell(Cmd):
             )
         global app
 
-        property_array_index = None
-        if isinstance(property_identifier, str):
-            # split the property identifier and its index
-            property_index_match = property_index_re.match(property_identifier)
-            if not property_index_match:
-                await self.response("property specification incorrect")
-                return
-            property_identifier, property_array_index = property_index_match.groups()
-            if property_array_index is not None:
-                property_array_index = int(property_array_index)
+        # get information about the device from the cache
+        device_info = await app.device_info_cache.get_device_info(address)
+        if _debug:
+            CmdShell._debug("    - device_info: %r", device_info)
+
+        # using the device info, look up the vendor information
+        if device_info:
+            vendor_info = get_vendor_info(device_info.vendor_identifier)
+        else:
+            vendor_info = get_vendor_info(0)
+        if _debug:
+            CmdShell._debug("    - vendor_info: %r", vendor_info)
+
+        # use the vendor info to parse the object identifier
+        object_identifier = vendor_info.object_identifier(object_identifier)
+        if _debug:
+            CmdShell._debug("    - object_identifier: %r", object_identifier)
+
+        # use the vendor info to parse the property reference
+        property_reference = PropertyReference(
+            property_identifier, vendor_identifier=vendor_info.vendor_identifier
+        )
+        if _debug:
+            CmdShell._debug("    - property_reference: %r", property_reference)
 
         try:
             property_value = await app.read_property(
-                address, object_identifier, property_identifier, property_array_index
+                address,
+                object_identifier,
+                property_reference.propertyIdentifier,
+                property_reference.propertyArrayIndex,
             )
             if _debug:
                 CmdShell._debug("    - property_value: %r", property_value)
@@ -105,7 +119,7 @@ class CmdShell(Cmd):
     async def do_write(
         self,
         address: Address,
-        object_identifier: ObjectIdentifier,
+        object_identifier: str,
         property_identifier: str,
         value: str,
         priority: Optional[int] = None,
@@ -126,14 +140,30 @@ class CmdShell(Cmd):
             )
         global app
 
-        # split the property identifier and its index
-        property_index_match = property_index_re.match(property_identifier)
-        if not property_index_match:
-            await self.response("property specification incorrect")
-            return
-        property_identifier, property_array_index = property_index_match.groups()
-        if property_array_index is not None:
-            property_array_index = int(property_array_index)
+        # get information about the device from the cache
+        device_info = await app.device_info_cache.get_device_info(address)
+        if _debug:
+            CmdShell._debug("    - device_info: %r", device_info)
+
+        # using the device info, look up the vendor information
+        if device_info:
+            vendor_info = get_vendor_info(device_info.vendor_identifier)
+        else:
+            vendor_info = get_vendor_info(0)
+        if _debug:
+            CmdShell._debug("    - vendor_info: %r", vendor_info)
+
+        # use the vendor info to parse the object identifier
+        object_identifier = vendor_info.object_identifier(object_identifier)
+        if _debug:
+            CmdShell._debug("    - object_identifier: %r", object_identifier)
+
+        # use the vendor info to parse the property reference
+        property_reference = PropertyReference(
+            property_identifier, vendor_identifier=vendor_info.vendor_identifier
+        )
+        if _debug:
+            CmdShell._debug("    - property_reference: %r", property_reference)
 
         if value == "null":
             if priority is None:
@@ -144,9 +174,9 @@ class CmdShell(Cmd):
             response = await app.write_property(
                 address,
                 object_identifier,
-                property_identifier,
+                property_reference.propertyIdentifier,
                 value,
-                property_array_index,
+                property_reference.propertyArrayIndex,
                 priority,
             )
             if _debug:
@@ -295,7 +325,7 @@ class CmdShell(Cmd):
         """
         Read Property Multiple
 
-        usage: rpm address ( objid ( prop [ indx ] )... )...
+        usage: rpm address ( objid ( prop[indx] )... )...
         """
         if _debug:
             CmdShell._debug("do_rpm %r %r", address, args)
@@ -316,8 +346,8 @@ class CmdShell(Cmd):
 
         parameter_list = []
         while args_list:
-            # get the object identifier and using the vendor information, look
-            # up the class
+            # use the vendor information to translate the object identifier,
+            # then use the object type portion to look up the object class
             object_identifier = vendor_info.object_identifier(args_list.pop(0))
             object_class = vendor_info.get_object_class(object_identifier[0])
             if not object_class:
@@ -327,40 +357,39 @@ class CmdShell(Cmd):
             # save this as a parameter
             parameter_list.append(object_identifier)
 
-            while args:
-                # now get the property type from the class
-                property_identifier = vendor_info.property_identifier(args_list.pop(0))
+            while args_list:
+                # use the vendor info to parse the property reference
+                property_reference = PropertyReference(
+                    args_list.pop(0), vendor_identifier=vendor_info.vendor_identifier
+                )
                 if _debug:
-                    CmdShell._debug(
-                        "    - property_identifier: %r", property_identifier
-                    )
-                if property_identifier not in (
+                    CmdShell._debug("    - property_reference: %r", property_reference)
+
+                if property_reference.propertyIdentifier not in (
                     PropertyIdentifier.all,
                     PropertyIdentifier.required,
                     PropertyIdentifier.optional,
                 ):
-                    property_type = object_class.get_property_type(property_identifier)
+                    property_type = object_class.get_property_type(
+                        property_reference.propertyIdentifier
+                    )
                     if _debug:
                         CmdShell._debug("    - property_type: %r", property_type)
                     if not property_type:
                         await self.response(
-                            f"unrecognized property: {property_identifier}"
+                            f"unrecognized property: {property_reference.propertyIdentifier}"
                         )
                         return
 
                 # save this as a parameter
-                parameter_list.append(property_identifier)
-
-                # check for a property array index
-                if args and args_list[0].isdigit():
-                    property_array_index = int(args_list.pop(0))
-                    # save this as a parameter
-                    parameter_list.append(property_array_index)
+                parameter_list.append(property_reference)
 
                 # crude check to see if the next thing is an object identifier
-                if args and ((":" in args_list[0]) or ("," in args_list[0])):
+                if args_list and ((":" in args_list[0]) or ("," in args_list[0])):
                     break
 
+        if _debug:
+            CmdShell._debug("    - parameter_list: %r", parameter_list)
         if not parameter_list:
             await self.response("object identifier expected")
             return
@@ -389,6 +418,10 @@ class CmdShell(Cmd):
             else:
                 await self.response(
                     f"{object_identifier} {property_identifier} {property_value}"
+                )
+            if isinstance(property_value, ErrorType):
+                await self.response(
+                    f"    {property_value.errorClass}, {property_value.errorCode}"
                 )
 
     async def do_wirtn(

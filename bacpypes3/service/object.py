@@ -37,7 +37,8 @@ from ..basetypes import (
     ReadAccessResultElementChoice,
     ReadAccessSpecification,
 )
-from ..object import DeviceObject, get_vendor_info
+from ..object import DeviceObject
+from ..vendor import get_vendor_info
 from ..apdu import (
     SimpleAckPDU,
     ErrorRejectAbortNack,
@@ -469,7 +470,7 @@ class ReadWritePropertyMultipleServices:
     async def read_property_multiple(
         self,
         address: Address,
-        parameter_list: List[Union[ObjectIdentifier, PropertyIdentifier, int]],
+        parameter_list: List[Union[ObjectIdentifier, PropertyReference]],
     ) -> List[Tuple[ObjectIdentifier, PropertyIdentifier, Union[int, None], _Any]]:
         if _debug:
             ReadWritePropertyMultipleServices._debug(
@@ -504,45 +505,29 @@ class ReadWritePropertyMultipleServices:
             if not isinstance(object_identifier, ObjectIdentifier):
                 raise TypeError(f"object identifier expected: {object_identifier}")
 
-            object_class = vendor_info.get_object_class(object_identifier[0])
-            if not object_class:
-                raise TypeError(f"unrecognized object type: {object_identifier}")
-
             read_access_spec.objectIdentifier = object_identifier
 
             list_of_property_references = []
             while parameter_list:
-                property_reference = PropertyReference()
-                list_of_property_references.append(property_reference)
-
                 # now get the property type from the class
-                property_identifier = parameter_list.pop(0)
-                if not isinstance(property_identifier, PropertyIdentifier):
+                property_reference = parameter_list.pop(0)
+                if not isinstance(property_reference, PropertyReference):
                     raise TypeError(
-                        f"property identifier expected: {property_identifier}"
+                        f"property reference expected: {property_reference}"
                     )
 
-                property_reference.propertyIdentifier = property_identifier
-
-                if not parameter_list:
-                    break
+                list_of_property_references.append(property_reference)
 
                 # loop around maybe
+                if not parameter_list:
+                    break
                 if isinstance(parameter_list[0], ObjectIdentifier):
                     break
-                if isinstance(parameter_list[0], PropertyIdentifier):
-                    continue
-
-                # should be an array index
-                property_array_index = parameter_list.pop(0)
-                if not isinstance(property_identifier, int):
-                    raise TypeError(f"array index expected: {property_array_index}")
-                property_reference.propertyArrayIndex = property_array_index
 
             read_access_spec.listOfPropertyReferences = list_of_property_references
 
         if len(list_of_read_access_specs) == 0:
-            raise TypeError("object identifier expected")
+            raise TypeError("read access specification expected")
 
         read_property_multiple_request = ReadPropertyMultipleRequest(
             listOfReadAccessSpecs=SequenceOf(ReadAccessSpecification)(

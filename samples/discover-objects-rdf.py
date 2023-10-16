@@ -17,7 +17,7 @@ from bacpypes3.primitivedata import ObjectIdentifier
 from bacpypes3.basetypes import PropertyIdentifier
 from bacpypes3.apdu import AbortReason, AbortPDU, ErrorRejectAbortNack
 from bacpypes3.app import Application
-from bacpypes3.object import get_vendor_info
+from bacpypes3.vendor import get_vendor_info
 
 from rdflib import Graph  # type: ignore
 from bacpypes3.rdf import BACnetGraph

@@ -928,7 +928,7 @@ class ExtendedList(list, ElementInterface, metaclass=ExtendedListMetaclass):  # 
 
     def append(self, item: _Any) -> None:
         if _debug:
-            ExtendedList._debug("(%r).append %r", item)
+            ExtendedList._debug("(%r).append %r", self.__class__, item)
         cls = self._subtype
 
         if issubclass(cls, Atomic) and (not isinstance(item, cls)):

@@ -19,7 +19,7 @@ _debug = 0
 _log = ModuleLogger(globals())
 
 # 'property[index]' matching
-property_index_re = re.compile(r"^([A-Za-z-]+)(?:\[([0-9]+)\])?$")
+property_index_re = re.compile(r"^([0-9A-Za-z-]+)(?:\[([0-9]+)\])?$")
 
 
 async def main() -> None:
@@ -57,6 +57,8 @@ async def main() -> None:
         if not property_index_match:
             raise ValueError("property specification incorrect")
         property_identifier, property_array_index = property_index_match.groups()
+        if property_identifier.isdigit():
+            property_identifier = int(property_identifier)
         if property_array_index is not None:
             property_array_index = int(property_array_index)
 

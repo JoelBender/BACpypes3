@@ -18,7 +18,7 @@ from bacpypes3.pdu import Address
 from bacpypes3.comm import bind
 from bacpypes3.primitivedata import ObjectIdentifier
 from bacpypes3.constructeddata import AnyAtomic
-from bacpypes3.object import get_vendor_info
+from bacpypes3.vendor import get_vendor_info
 from bacpypes3.app import Application, DeviceInfo
 from bacpypes3.apdu import IAmRequest, ErrorRejectAbortNack
 

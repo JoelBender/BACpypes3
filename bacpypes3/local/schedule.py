@@ -8,7 +8,8 @@ from ..debugging import bacpypes_debugging, ModuleLogger
 from ..primitivedata import Atomic, Null, Unsigned, Date, Time
 from ..basetypes import CalendarEntry, WeekNDay, Reliability
 from ..constructeddata import Array
-from ..object import get_vendor_info, ScheduleObject as _ScheduleObject
+from ..object import ScheduleObject as _ScheduleObject
+from ..vendor import get_vendor_info
 
 from .object import Object as _Object
 
@@ -249,7 +250,6 @@ def datetime_to_time(date: Date, time: Time) -> float:
 
 @bacpypes_debugging
 class ScheduleObject(_Object, _ScheduleObject):
-
     _interpret_schedule_handle: Optional[asyncio.Handle]
 
     def __init__(self, **kwargs):

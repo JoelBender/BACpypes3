@@ -5,7 +5,6 @@ the BVLL service access point for an application service element.
 """
 
 import asyncio
-import re
 
 from typing import Callable
 
@@ -16,11 +15,7 @@ from bacpypes3.console import Console
 from bacpypes3.cmd import Cmd
 from bacpypes3.comm import bind, ApplicationServiceElement
 
-from bacpypes3.pdu import Address, IPv4Address
-from bacpypes3.primitivedata import ObjectIdentifier
-from bacpypes3.constructeddata import AnyAtomic
-from bacpypes3.apdu import ErrorRejectAbortNack
-
+from bacpypes3.pdu import IPv4Address
 from bacpypes3.ipv4.bvll import (
     LPDU,
     ReadBroadcastDistributionTable,
@@ -33,9 +28,6 @@ from bacpypes3.ipv4.service import BVLLServiceAccessPoint
 # some debugging
 _debug = 0
 _log = ModuleLogger(globals())
-
-# 'property[index]' matching
-property_index_re = re.compile(r"^([A-Za-z-]+)(?:\[([0-9]+)\])?$")
 
 # globals
 app: Application

@@ -5,7 +5,7 @@ Custom Objects and Properties
 from bacpypes3.debugging import ModuleLogger
 from bacpypes3.primitivedata import Integer, ObjectType
 from bacpypes3.basetypes import PropertyIdentifier
-from bacpypes3.object import VendorInfo
+from bacpypes3.vendor import VendorInfo
 
 from bacpypes3.local.object import Object
 from bacpypes3.local.device import DeviceObject as _DeviceObject
