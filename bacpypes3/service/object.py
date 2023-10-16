@@ -5,29 +5,18 @@ Application Module
 from __future__ import annotations
 
 import inspect
+from typing import Any as _Any
+from typing import Callable, Optional, Tuple, Union
 
-from typing import (
-    Any as _Any,
-    Callable,
-    Optional,
-    Tuple,
-    Union,
+from ..apdu import (
+    ErrorRejectAbortNack,
+    ReadPropertyACK,
+    ReadPropertyMultipleACK,
+    ReadPropertyMultipleRequest,
+    ReadPropertyRequest,
+    SimpleAckPDU,
+    WritePropertyRequest,
 )
-
-from ..debugging import bacpypes_debugging, ModuleLogger
-
-from ..pdu import Address
-from ..errors import (
-    ExecutionError,
-    ObjectError,
-    PropertyError,
-)
-from ..primitivedata import (
-    Null,
-    Unsigned,
-    ObjectIdentifier,
-)
-from ..constructeddata import Any, SequenceOf, Array, List
 from ..basetypes import (
     ErrorType,
     PropertyIdentifier,
@@ -37,17 +26,13 @@ from ..basetypes import (
     ReadAccessResultElementChoice,
     ReadAccessSpecification,
 )
+from ..constructeddata import Any, Array, List, SequenceOf
+from ..debugging import ModuleLogger, bacpypes_debugging
+from ..errors import ExecutionError, ObjectError, PropertyError
 from ..object import DeviceObject
+from ..pdu import Address
+from ..primitivedata import Null, ObjectIdentifier, Unsigned
 from ..vendor import get_vendor_info
-from ..apdu import (
-    SimpleAckPDU,
-    ErrorRejectAbortNack,
-    ReadPropertyRequest,
-    ReadPropertyACK,
-    ReadPropertyMultipleRequest,
-    ReadPropertyMultipleACK,
-    WritePropertyRequest,
-)
 
 # some debugging
 _debug = 0
@@ -470,7 +455,7 @@ class ReadWritePropertyMultipleServices:
     async def read_property_multiple(
         self,
         address: Address,
-        parameter_list: List[Union[ObjectIdentifier, PropertyReference]],
+        parameter_list: List[Union[ObjectIdentifier, List[PropertyReference]]],
     ) -> List[Tuple[ObjectIdentifier, PropertyIdentifier, Union[int, None], _Any]]:
         if _debug:
             ReadWritePropertyMultipleServices._debug(
@@ -510,13 +495,15 @@ class ReadWritePropertyMultipleServices:
             list_of_property_references = []
             while parameter_list:
                 # now get the property type from the class
-                property_reference = parameter_list.pop(0)
-                if not isinstance(property_reference, PropertyReference):
-                    raise TypeError(
-                        f"property reference expected: {property_reference}"
-                    )
+                _properties_to_read = parameter_list.pop(0)
+                for each in _properties_to_read:
+                    property_reference = PropertyReference(each)
+                    if not isinstance(property_reference, PropertyReference):
+                        raise TypeError(
+                            f"property reference expected: {property_reference}"
+                        )
 
-                list_of_property_references.append(property_reference)
+                    list_of_property_references.append(property_reference)
 
                 # loop around maybe
                 if not parameter_list:
