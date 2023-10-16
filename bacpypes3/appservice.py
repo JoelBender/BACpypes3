@@ -1820,7 +1820,7 @@ class ApplicationServiceAccessPoint(Client[PDU], ServiceAccessPoint):
                     return
 
                 xpdu = Error(
-                    service_choice=apdu.service_choice,
+                    service_choice=apdu.apduService,
                     errorClass="communication",
                     errorCode="invalid-tag",
                 )
