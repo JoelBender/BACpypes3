@@ -6,27 +6,6 @@ from __future__ import annotations
 
 from typing import Callable, Tuple, cast
 
-from .errors import DecodingError, TooManyArguments
-from .debugging import ModuleLogger, DebugContents, bacpypes_debugging
-
-from .pdu import PCI, PDUData, PDU
-from .primitivedata import (
-    Boolean,
-    CharacterString,
-    Enumerated,
-    Integer,
-    ObjectIdentifier,
-    OctetString,
-    Real,
-    TagList,
-    Unsigned,
-)
-from .constructeddata import (
-    Any,
-    Sequence,
-    SequenceOf,
-    SequenceOfAny,
-)
 from .basetypes import (
     AtomicReadFileACKAccessMethodChoice,
     AtomicReadFileRequestAccessMethodChoice,
@@ -70,6 +49,21 @@ from .basetypes import (
     WhoHasLimits,
     WhoHasObject,
     WriteAccessSpecification,
+)
+from .constructeddata import Any, Sequence, SequenceOf, SequenceOfAny
+from .debugging import DebugContents, ModuleLogger, bacpypes_debugging
+from .errors import DecodingError, TooManyArguments
+from .pdu import PCI, PDU, PDUData
+from .primitivedata import (
+    Boolean,
+    CharacterString,
+    Enumerated,
+    Integer,
+    ObjectIdentifier,
+    OctetString,
+    Real,
+    TagList,
+    Unsigned,
 )
 
 # some debugging
@@ -244,7 +238,6 @@ def decode_max_apdu_length_accepted(arg):
 
 @bacpypes_debugging
 class APCI(PCI):
-
     _debug: Callable[..., None]
     _debug_contents: Tuple[str, ...] = (
         "apduType",
@@ -1000,9 +993,12 @@ class APCISequence(APCI, Sequence):
                 apci_sequence_subclass,
                 apci_sequence_subclass.decode,
             )
+        print("To decode tags : ", apci_sequence_subclass)
+        print("To decode tags : ", type(apci_sequence_subclass))
 
         # decode the APDU data as a TagList
         tag_list = TagList.decode(apdu)
+        print("Tag List : ", tag_list.tagList)
         if _debug:
             APCISequence._debug("    - tag_list: %r len=%d", tag_list, len(tag_list))
             tag_list.debug_contents(indent=2)
@@ -1014,11 +1010,12 @@ class APCISequence(APCI, Sequence):
         apci_sequence = Sequence.decode(tag_list, class_=apci_sequence_subclass)
 
         # check for trailing unmatched tags
-        if len(tag_list) != 0:
-            if _debug:
-                APCISequence._debug("    - trailing unmatched tags: %r", tag_list)
-                tag_list.debug_contents(indent=2)
-            raise TooManyArguments()
+        # if len(tag_list) != 0:
+        #    if _debug:
+        #        APCISequence._debug("    - trailing unmatched tags: %r", tag_list)
+        #        tag_list.debug_contents(indent=2)
+        #    print(tag_list.tagList)
+        #    raise TooManyArguments()
 
         # copy the header fields
         apci_sequence.update(apdu)
@@ -1053,7 +1050,6 @@ class APCISequence(APCI, Sequence):
 
 @bacpypes_debugging
 class ConfirmedRequestSequence(APCISequence, ConfirmedRequestPDU):  # type: ignore[misc]
-
     service_choice: int
 
     def __init__(self, *args, **kwargs):
@@ -1085,7 +1081,6 @@ class ConfirmedRequestSequence(APCISequence, ConfirmedRequestPDU):  # type: igno
 
 @bacpypes_debugging
 class ComplexAckSequence(APCISequence, ComplexAckPDU):  # type: ignore[misc]
-
     service_choice: int
 
     def __init__(self, *args, **kwargs):
@@ -1117,7 +1112,6 @@ class ComplexAckSequence(APCISequence, ComplexAckPDU):  # type: ignore[misc]
 
 @bacpypes_debugging
 class UnconfirmedRequestSequence(APCISequence, UnconfirmedRequestPDU):  # type: ignore[misc]
-
     service_choice: int
 
     def __init__(self, *args, **kwargs):
@@ -1149,7 +1143,6 @@ class UnconfirmedRequestSequence(APCISequence, UnconfirmedRequestPDU):  # type: 
 
 @bacpypes_debugging
 class ErrorSequence(APCISequence, ErrorPDU):  # type: ignore[misc]
-
     service_choice: int
 
     def __init__(self, *args, **kwargs):
