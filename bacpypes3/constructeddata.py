@@ -1036,7 +1036,9 @@ class ExtendedList(list, ElementInterface, metaclass=ExtendedListMetaclass):  # 
     def decode(cls, tag_list: TagList) -> ExtendedList:
         """Decode a choice from a tag list."""
         if _debug:
-            ExtendedList._debug("(%s).decode %r", cls.__name__, tag_list)
+            ExtendedList._debug(
+                "(%s).decode %r _context=%r", cls.__name__, tag_list, cls._context
+            )
 
         # look ahead for elements
         tag: Optional[Tag] = tag_list.peek()
@@ -1045,20 +1047,24 @@ class ExtendedList(list, ElementInterface, metaclass=ExtendedListMetaclass):  # 
 
         # if this is context encoded, check and consume the opening tag
         if cls._context is not None:
+            if _debug:
+                ExtendedList._debug("    - cls._context: %r", cls._context)
+
             if (not tag) or (tag.tag_class != TagClass.opening):
                 raise InvalidTag(f"opening tag {cls._context} expected")
             if tag.tag_number != cls._context:
                 raise InvalidTag("mismatched context")
             tag_list.pop()
             tag = tag_list.peek()
-            if _debug:
-                ExtendedList._debug("    - next tag: %r", tag)
 
         # result is an instance of an extended list
         list_elements = []
 
         # look for a matching element
         while tag:
+            if _debug:
+                ExtendedList._debug("    - tag: %r", tag)
+
             value: _Any = None
 
             # a closing tag is the end of the encoded elements in
@@ -1072,6 +1078,8 @@ class ExtendedList(list, ElementInterface, metaclass=ExtendedListMetaclass):  # 
 
                 # decode that which can be decoded
                 value = cls._subtype.decode(tag_list_copy)  # type: ignore[attr-defined]
+                if _debug:
+                    ExtendedList._debug("    - value: %r", value)
 
                 # delete from this list the tags that were consumed
                 del tag_list.tagList[
@@ -1638,27 +1646,30 @@ class Any(Element):
             Any._debug("    - first tag: %r", tag)
         if not tag:
             raise InvalidTag("empty tag list")
+
         if tag.tag_class == TagClass.application:
             if cls._context is not None:
                 raise InvalidTag(f"context tag {cls._context} expected")
-            return cls([tag_list.pop()])
+            return cls(TagList([tag_list.pop()]))
 
         if tag.tag_class == TagClass.context:
-            if cls._context is None:
-                raise InvalidTag("application tag expected")
-            if tag.tag_number != cls._context:
-                raise InvalidTag("mismatched context")
-            return cls([tag_list.pop()])
+            if cls._context is not None:
+                if tag.tag_number != cls._context:
+                    raise InvalidTag("mismatched context")
+            return cls(TagList([tag_list.pop()]))
 
         # don't step on someone elses closing tag
         if tag.tag_class == TagClass.closing:
             raise InvalidTag("tag expected")
 
-        # this is an opening tag, cls must have a matching context
-        if cls._context is None:
-            raise InvalidTag("opening tag {tag.tag_number} but no context")
-        if tag.tag_number != cls._context:
-            raise InvalidTag("mismatched context")
+        # this is an opening tag, cls might not have a matching context
+        if cls._context is not None:
+            # raise InvalidTag("opening tag {tag.tag_number} but no context")
+            if tag.tag_number != cls._context:
+                raise InvalidTag("mismatched context")
+
+        # save the opening tage context
+        opening_context = tag.tag_number
 
         # look for the matching closing tag
         i = 1
@@ -1669,7 +1680,7 @@ class Any(Element):
                 lvl += 1
             elif tag.tag_class == TagClass.closing:
                 if lvl == 0:
-                    if tag.tag_number != cls._context:
+                    if tag.tag_number != opening_context:
                         raise InvalidTag("mismatched context")
                     break
                 lvl -= 1
@@ -1804,10 +1815,6 @@ class Any(Element):
                 file.write("%s[%d] %r\n" % ("    " * indent, i, elem))
             indent -= 1
             file.write("%s    ]\n" % ("    " * indent,))
-
-
-class SequenceOfAny(SequenceOf(Any)):
-    pass
 
 
 @bacpypes_debugging

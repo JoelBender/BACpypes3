@@ -25,7 +25,6 @@ from .constructeddata import (
     Any,
     Sequence,
     SequenceOf,
-    SequenceOfAny,
 )
 from .basetypes import (
     AtomicReadFileACKAccessMethodChoice,
@@ -244,7 +243,6 @@ def decode_max_apdu_length_accepted(arg):
 
 @bacpypes_debugging
 class APCI(PCI):
-
     _debug: Callable[..., None]
     _debug_contents: Tuple[str, ...] = (
         "apduType",
@@ -1053,7 +1051,6 @@ class APCISequence(APCI, Sequence):
 
 @bacpypes_debugging
 class ConfirmedRequestSequence(APCISequence, ConfirmedRequestPDU):  # type: ignore[misc]
-
     service_choice: int
 
     def __init__(self, *args, **kwargs):
@@ -1085,7 +1082,6 @@ class ConfirmedRequestSequence(APCISequence, ConfirmedRequestPDU):  # type: igno
 
 @bacpypes_debugging
 class ComplexAckSequence(APCISequence, ComplexAckPDU):  # type: ignore[misc]
-
     service_choice: int
 
     def __init__(self, *args, **kwargs):
@@ -1117,7 +1113,6 @@ class ComplexAckSequence(APCISequence, ComplexAckPDU):  # type: ignore[misc]
 
 @bacpypes_debugging
 class UnconfirmedRequestSequence(APCISequence, UnconfirmedRequestPDU):  # type: ignore[misc]
-
     service_choice: int
 
     def __init__(self, *args, **kwargs):
@@ -1149,7 +1144,6 @@ class UnconfirmedRequestSequence(APCISequence, UnconfirmedRequestPDU):  # type: 
 
 @bacpypes_debugging
 class ErrorSequence(APCISequence, ErrorPDU):  # type: ignore[misc]
-
     service_choice: int
 
     def __init__(self, *args, **kwargs):
@@ -1781,7 +1775,7 @@ class ReadRangeACK(ComplexAckSequence):
     propertyArrayIndex = Unsigned(_context=2, _optional=True)
     resultFlags = ResultFlags(_context=3)
     itemCount = Unsigned(_context=4)
-    itemData = SequenceOfAny(_context=5)
+    itemData = Any(_context=5)  # SequenceOf(Any, _context=5)
     firstSequenceNumber = Unsigned(_context=6, _optional=True)
 
 
