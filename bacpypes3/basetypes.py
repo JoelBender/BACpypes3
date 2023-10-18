@@ -14,6 +14,7 @@ from typing import (
     cast,
     Any as _Any,
     Optional,
+    Union,
 )
 
 from .debugging import ModuleLogger, bacpypes_debugging
@@ -59,7 +60,7 @@ from .constructeddata import (
     SequenceOf,
     ListOf,
 )
-from .vendor import get_vendor_info
+from .vendor import VendorInfo, get_vendor_info
 
 # some debugging
 _debug = 0
@@ -1689,16 +1690,13 @@ class PropertyReference(Sequence):
     def __init__(
         self,
         arg: Union[int, str, tuple, None] = None,
+        *,
+        vendor_info: Optional[VendorInfo] = None,
+        vendor_identifier: Optional[int] = 0,
         **kwargs,
     ) -> None:
         if _debug:
             DeviceAddress._debug("PropertyReference.__init__ %r %r", arg, kwargs)
-
-        # if the vendor identifier is provided, use its property_identifier()
-        # method to translate names into enumerations, otherwise use ASHRAE
-        # definitions
-        vendor_identifier = kwargs.pop("vendor_identifier", 0)
-        vendor_info = get_vendor_info(vendor_identifier)
 
         # nothing provided
         if arg is None:
@@ -1722,6 +1720,13 @@ class PropertyReference(Sequence):
             if property_identifier.isdigit():
                 property_identifier = PropertyIdentifier(int(property_identifier))
             else:
+                # look for vendor information
+                if not vendor_info:
+                    vendor_info = get_vendor_info(vendor_identifier)
+                if _debug:
+                    DeviceAddress._debug("    - vendor_info: %r", vendor_info)
+
+                # translate the string
                 property_identifier = vendor_info.property_identifier(
                     property_identifier
                 )
@@ -1733,8 +1738,15 @@ class PropertyReference(Sequence):
         elif isinstance(arg, tuple) and (len(arg) == 2):
             property_identifier, property_array_index = arg
 
-            # look up the name ('some-property', 2
+            # look up the name ('some-property', 2)
             if isinstance(property_identifier, str):
+                # look for vendor information
+                if not vendor_info:
+                    vendor_info = get_vendor_info(vendor_identifier)
+                if _debug:
+                    DeviceAddress._debug("    - vendor_info: %r", vendor_info)
+
+                # translate the string
                 property_identifier = vendor_info.property_identifier(
                     property_identifier
                 )
