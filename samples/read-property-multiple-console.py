@@ -1,5 +1,7 @@
 """
-Simple console example that sends messages.
+Simple console example that sends read property multiple requests.  This
+version just builds the parameter list leaving everything as strings, it
+will be converted to the appropriate types inside the method.
 """
 
 import sys
@@ -15,8 +17,7 @@ from bacpypes3.cmd import Cmd
 
 from bacpypes3.pdu import Address, IPv4Address
 from bacpypes3.comm import bind
-from bacpypes3.basetypes import PropertyIdentifier
-from bacpypes3.vendor import get_vendor_info
+from bacpypes3.basetypes import ErrorType
 
 from bacpypes3.apdu import ErrorRejectAbortNack
 from bacpypes3.ipv4.app import NormalApplication
@@ -44,71 +45,29 @@ class SampleCmd(Cmd):
         *args: str,
     ) -> None:
         """
-        usage: rpm address ( objid ( prop [ indx ] )... )...
+        usage: rpm address ( objid ( prop[indx] )... )...
         """
         if _debug:
             SampleCmd._debug("do_rpm %r %r", address, args)
         args = list(args)
 
-        # get information about the device from the cache
-        device_info = await app.device_info_cache.get_device_info(address)
-        if _debug:
-            SampleCmd._debug("    - device_info: %r", device_info)
-
-        # using the device info, look up the vendor information
-        if device_info:
-            vendor_info = get_vendor_info(device_info.vendor_identifier)
-        else:
-            vendor_info = get_vendor_info(0)
-        if _debug:
-            SampleCmd._debug("    - vendor_info: %r", vendor_info)
-
         parameter_list = []
         while args:
-            # get the object identifier and using the vendor information, look
-            # up the class
-            object_identifier = vendor_info.object_identifier(args.pop(0))
-            object_class = vendor_info.get_object_class(object_identifier[0])
-            if not object_class:
-                await self.response(f"unrecognized object type: {object_identifier}")
-                return
-
-            # save this as a parameter
+            # grab the object identifier
+            object_identifier = args.pop(0)
             parameter_list.append(object_identifier)
 
+            property_reference_list = []
             while args:
-                # now get the property type from the class
-                property_identifier = vendor_info.property_identifier(args.pop(0))
-                if _debug:
-                    SampleCmd._debug(
-                        "    - property_identifier: %r", property_identifier
-                    )
-                if property_identifier not in (
-                    PropertyIdentifier.all,
-                    PropertyIdentifier.required,
-                    PropertyIdentifier.optional,
-                ):
-                    property_type = object_class.get_property_type(property_identifier)
-                    if _debug:
-                        SampleCmd._debug("    - property_type: %r", property_type)
-                    if not property_type:
-                        await self.response(
-                            f"unrecognized property: {property_identifier}"
-                        )
-                        return
-
-                # save this as a parameter
-                parameter_list.append(property_identifier)
-
-                # check for a property array index
-                if args and args[0].isdigit():
-                    property_array_index = int(args.pop(0))
-                    # save this as a parameter
-                    parameter_list.append(property_array_index)
+                # next thing is a property reference
+                property_reference = args.pop(0)
+                property_reference_list.append(property_reference)
 
                 # crude check to see if the next thing is an object identifier
                 if args and ((":" in args[0]) or ("," in args[0])):
                     break
+
+            parameter_list.append(property_reference_list)
 
         if not parameter_list:
             await self.response("object identifier expected")
@@ -130,11 +89,6 @@ class SampleCmd(Cmd):
             property_array_index,
             property_value,
         ) in response:
-            # if isinstance(property_value, AnyAtomic):
-            #     if _debug:
-            #         SampleCmd._debug("    - schedule objects")
-            #     property_value = property_value.get_value()
-
             if property_array_index is not None:
                 await self.response(
                     f"{object_identifier} {property_identifier}[{property_array_index}] {property_value}"
@@ -142,6 +96,10 @@ class SampleCmd(Cmd):
             else:
                 await self.response(
                     f"{object_identifier} {property_identifier} {property_value}"
+                )
+            if isinstance(property_value, ErrorType):
+                await self.response(
+                    f"    {property_value.errorClass}, {property_value.errorCode}"
                 )
 
 

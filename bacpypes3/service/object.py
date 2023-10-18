@@ -38,7 +38,7 @@ from ..basetypes import (
     ReadAccessSpecification,
 )
 from ..object import DeviceObject
-from ..vendor import get_vendor_info
+from ..vendor import VendorInfo, get_vendor_info
 from ..apdu import (
     SimpleAckPDU,
     ErrorRejectAbortNack,
@@ -470,59 +470,63 @@ class ReadWritePropertyMultipleServices:
     async def read_property_multiple(
         self,
         address: Address,
-        parameter_list: List[Union[ObjectIdentifier, PropertyReference]],
+        parameter_list: List[Union[ObjectIdentifier, List[PropertyReference]]],
+        vendor_info: Optional[VendorInfo] = None,
     ) -> List[Tuple[ObjectIdentifier, PropertyIdentifier, Union[int, None], _Any]]:
         if _debug:
             ReadWritePropertyMultipleServices._debug(
                 "read_property_multiple %r %r", address, parameter_list
             )
 
-        # get information about the device from the cache
-        device_info = await self.device_info_cache.get_device_info(address)
-        if _debug:
-            ReadWritePropertyMultipleServices._debug(
-                "    - device_info: %r", device_info
-            )
+        # if the vendor information was provided, use it, otherwise get the
+        # device information based on its address and look up the vendor
+        # information from that
+        if not vendor_info:
+            # get information about the device from the cache
+            device_info = await self.device_info_cache.get_device_info(address)
+            if _debug:
+                ReadWritePropertyMultipleServices._debug(
+                    "    - device_info: %r", device_info
+                )
 
-        # using the device info, look up the vendor information
-        if device_info:
-            vendor_info = get_vendor_info(device_info.vendor_identifier)
-        else:
-            vendor_info = get_vendor_info(0)
-        if _debug:
-            ReadWritePropertyMultipleServices._debug(
-                "    - vendor_info: %r", vendor_info
-            )
+            # using the device info, look up the vendor info
+            if device_info:
+                vendor_info = get_vendor_info(device_info.vendor_identifier)
+            else:
+                vendor_info = get_vendor_info(0)
+            if _debug:
+                ReadWritePropertyMultipleServices._debug(
+                    "    - vendor_info: %r", vendor_info
+                )
 
         list_of_read_access_specs = []
         while parameter_list:
             read_access_spec = ReadAccessSpecification()
             list_of_read_access_specs.append(read_access_spec)
 
-            # get the object identifier and using the vendor information, look
-            # up the class
-            object_identifier = parameter_list.pop(0)
-            if not isinstance(object_identifier, ObjectIdentifier):
-                raise TypeError(f"object identifier expected: {object_identifier}")
+            object_identifier, property_reference_list, *parameter_list = parameter_list
 
+            # resolve the object identifier
+            if not isinstance(object_identifier, ObjectIdentifier):
+                object_identifier = vendor_info.object_identifier(object_identifier)
+            if _debug:
+                ReadWritePropertyMultipleServices._debug(
+                    "    - object_identifier: %r", object_identifier
+                )
             read_access_spec.objectIdentifier = object_identifier
 
             list_of_property_references = []
-            while parameter_list:
-                # now get the property type from the class
-                property_reference = parameter_list.pop(0)
+            for property_reference in property_reference_list:
+                # resolve the property reference
                 if not isinstance(property_reference, PropertyReference):
-                    raise TypeError(
-                        f"property reference expected: {property_reference}"
+                    property_reference = PropertyReference(
+                        property_reference, vendor_info=vendor_info
                     )
-
+                if _debug:
+                    ReadWritePropertyMultipleServices._debug(
+                        "    - property_reference: %r", property_reference
+                    )
                 list_of_property_references.append(property_reference)
-
-                # loop around maybe
-                if not parameter_list:
-                    break
-                if isinstance(parameter_list[0], ObjectIdentifier):
-                    break
 
             read_access_spec.listOfPropertyReferences = list_of_property_references
 

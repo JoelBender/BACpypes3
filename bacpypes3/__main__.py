@@ -4,7 +4,6 @@ Command Shell
 
 import sys
 import asyncio
-import re
 import json
 
 from typing import Callable, List, Optional, Tuple, Union
@@ -357,10 +356,12 @@ class CmdShell(Cmd):
             # save this as a parameter
             parameter_list.append(object_identifier)
 
+            property_reference_list = []
             while args_list:
                 # use the vendor info to parse the property reference
                 property_reference = PropertyReference(
-                    args_list.pop(0), vendor_identifier=vendor_info.vendor_identifier
+                    args_list.pop(0),
+                    vendor_info=vendor_info,
                 )
                 if _debug:
                     CmdShell._debug("    - property_reference: %r", property_reference)
@@ -382,11 +383,14 @@ class CmdShell(Cmd):
                         return
 
                 # save this as a parameter
-                parameter_list.append(property_reference)
+                property_reference_list.append(property_reference)
 
                 # crude check to see if the next thing is an object identifier
                 if args_list and ((":" in args_list[0]) or ("," in args_list[0])):
                     break
+
+            # save this as a parameter
+            parameter_list.append(property_reference_list)
 
         if _debug:
             CmdShell._debug("    - parameter_list: %r", parameter_list)
