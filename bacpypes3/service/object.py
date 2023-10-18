@@ -496,11 +496,11 @@ class ReadWritePropertyMultipleServices:
             while parameter_list:
                 # now get the property type from the class
                 _properties_to_read = parameter_list.pop(0)
-                for each in _properties_to_read:
-                    property_reference = PropertyReference(each)
+                for property_reference in _properties_to_read:
                     if not isinstance(property_reference, PropertyReference):
-                        raise TypeError(
-                            f"property reference expected: {property_reference}"
+                        property_reference = PropertyReference(
+                            property_reference,
+                            vendor_identifier=vendor_info.vendor_identifier,
                         )
 
                     list_of_property_references.append(property_reference)
