@@ -50,7 +50,7 @@ from .basetypes import (
     WhoHasObject,
     WriteAccessSpecification,
 )
-from .constructeddata import Any, Sequence, SequenceOf, SequenceOfAny
+from .constructeddata import Any, Sequence, SequenceOf
 from .debugging import DebugContents, ModuleLogger, bacpypes_debugging
 from .errors import DecodingError, TooManyArguments
 from .pdu import PCI, PDU, PDUData
@@ -993,12 +993,9 @@ class APCISequence(APCI, Sequence):
                 apci_sequence_subclass,
                 apci_sequence_subclass.decode,
             )
-        print("To decode tags : ", apci_sequence_subclass)
-        print("To decode tags : ", type(apci_sequence_subclass))
 
         # decode the APDU data as a TagList
         tag_list = TagList.decode(apdu)
-        print("Tag List : ", tag_list.tagList)
         if _debug:
             APCISequence._debug("    - tag_list: %r len=%d", tag_list, len(tag_list))
             tag_list.debug_contents(indent=2)
@@ -1774,7 +1771,7 @@ class ReadRangeACK(ComplexAckSequence):
     propertyArrayIndex = Unsigned(_context=2, _optional=True)
     resultFlags = ResultFlags(_context=3)
     itemCount = Unsigned(_context=4)
-    itemData = SequenceOfAny(_context=5)
+    itemData = Any(_context=5)  # SequenceOf(Any, _context=5)
     firstSequenceNumber = Unsigned(_context=6, _optional=True)
 
 
