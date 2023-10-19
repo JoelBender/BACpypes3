@@ -260,7 +260,7 @@ class DeviceGraph:
         object_proxy.objectIdentifier = object_identifier
 
         # associate this object with its device -- layer hopping :-/
-        self.graph.graph.add((self.device_iri, BACnetNS.hasObject, object_iri))
+        self.graph.graph.add((self.device_iri, BACnetNS.contains, object_iri))
 
         return object_proxy
 
@@ -276,7 +276,7 @@ class DeviceGraph:
         object and delete all of its associated nodes.
         """
         # object_iri = _object_node(self.device_iri, object_identifier)
-        # self.graph.remove((self.device_iri, BACnetNS.hasObject, object_iri))
+        # self.graph.remove((self.device_iri, BACnetNS.contains, object_iri))
         pass
 
 

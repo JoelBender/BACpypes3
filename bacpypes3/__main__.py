@@ -669,7 +669,7 @@ class CmdShell(Cmd):
                         CmdShell._debug("    - obj: %r", obj)
 
                     obj_node = BNode()
-                    g.add((app_node, BACnetNS.hasObject, obj_node))
+                    g.add((app_node, BACnetNS.contains, obj_node))
 
                     sequence_to_graph(obj, obj_node, graph=g)
 
