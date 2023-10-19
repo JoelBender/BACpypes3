@@ -853,7 +853,7 @@ class ReadRangeServices:
         objid: ObjectIdentifier,
         prop: PropertyIdentifier,
         arr_index: Optional[int] = None,
-        range_params: List = None,
+        range_params: tuple = None,
     ) -> _Any:
         """
         Send a Read Range Request to an address and decode the response,
