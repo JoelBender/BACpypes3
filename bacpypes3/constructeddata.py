@@ -591,7 +591,7 @@ class Sequence(Element, DebugContents, metaclass=SequenceMetaclass):
         return not self.__eq__(other)
 
     def __hash__(self):
-        return hash(id(self))
+        return id(self)
 
 
 @bacpypes_debugging
