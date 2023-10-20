@@ -27,7 +27,7 @@ class ProprietaryObjectType(ObjectType):
     see Clause 23.4.1.
     """
 
-    custom = 128
+    custom_object = 128
 
 
 class ProprietaryPropertyIdentifier(PropertyIdentifier):
@@ -36,7 +36,7 @@ class ProprietaryPropertyIdentifier(PropertyIdentifier):
     types or are used in custom properties of standard types.
     """
 
-    custom = 512
+    custom_property = 512
 
 
 # create a VendorInfo object for this custom application before registering
@@ -77,7 +77,7 @@ class ProprietaryObject(Object):
     objectIdentifier: custom_vendor_info.object_identifier
 
     # all objects get the object-type property to be this value
-    objectType = ProprietaryObjectType("custom")
+    objectType = ProprietaryObjectType("custom_object")
 
     # all objects have an object-name property, provided by the parent class
     # with special hooks if an instance of this class is bound to an application
@@ -88,4 +88,4 @@ class ProprietaryObject(Object):
     # propertyList: ArrayOf(PropertyIdentifier)
 
     # this is a custom property using a standard datatype
-    custom: Integer
+    custom_property: Integer

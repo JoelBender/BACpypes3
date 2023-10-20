@@ -10,6 +10,7 @@ import struct
 import time
 
 from typing import (
+    Union,
     cast,
     Any as _Any,
     Optional,

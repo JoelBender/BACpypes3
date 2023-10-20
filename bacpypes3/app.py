@@ -71,6 +71,7 @@ from .netservice import (
 # basic services
 from .service.device import WhoIsIAmServices, WhoHasIHaveServices
 from .service.object import (
+    ReadRangeServices,
     ReadWritePropertyServices,
     ReadWritePropertyMultipleServices,
 )
@@ -286,6 +287,7 @@ class Application(
     WhoHasIHaveServices,
     ReadWritePropertyServices,
     ReadWritePropertyMultipleServices,
+    ReadRangeServices,
     ChangeOfValueServices,
 ):
     _debug: Callable[..., None]

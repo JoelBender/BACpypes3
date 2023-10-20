@@ -5,43 +5,30 @@ Constructed Data
 
 from __future__ import annotations
 
-import sys
-import inspect
-
 # import traceback
 import copy
+import inspect
+import sys
 from functools import partial
+from typing import Any as _Any
+from typing import Callable, Dict, FrozenSet
+from typing import List as _List
+from typing import Optional, Set, TextIO, Tuple, Union, cast, get_type_hints
 
-from typing import (
-    get_type_hints,
-    Any as _Any,
-    List as _List,
-    Callable,
-    TextIO,
-    Tuple,
-    Dict,
-    Set,
-    FrozenSet,
-    Optional,
-    Union,
-    cast,
-)
-
-
-from .debugging import ModuleLogger, DebugContents, bacpypes_debugging
-from .errors import InvalidTag, EncodingError, PropertyError
+from .debugging import DebugContents, ModuleLogger, bacpypes_debugging
+from .errors import EncodingError, InvalidTag, PropertyError
 from .primitivedata import (
-    Tag,
-    TagClass,
-    TagList,
-    TagNumber,
     Atomic,
     ClosingTag,
     Element,
     ElementInterface,
     ElementMetaclass,
-    OpeningTag,
     Null,
+    OpeningTag,
+    Tag,
+    TagClass,
+    TagList,
+    TagNumber,
     Unsigned,
 )
 
@@ -602,6 +589,9 @@ class Sequence(Element, DebugContents, metaclass=SequenceMetaclass):
 
     def __ne__(self, other: _Any) -> bool:
         return not self.__eq__(other)
+
+    def __hash__(self):
+        return id(self)
 
 
 @bacpypes_debugging

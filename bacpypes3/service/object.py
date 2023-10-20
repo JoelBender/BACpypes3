@@ -5,49 +5,41 @@ Application Module
 from __future__ import annotations
 
 import inspect
+from typing import Any as _Any
+from typing import Callable, Optional, Tuple, Union
 
-from typing import (
-    Any as _Any,
-    Callable,
-    Optional,
-    Tuple,
-    Union,
+from ..apdu import (
+    ErrorRejectAbortNack,
+    ReadPropertyACK,
+    ReadPropertyMultipleACK,
+    ReadPropertyMultipleRequest,
+    ReadPropertyRequest,
+    ReadRangeACK,
+    ReadRangeRequest,
+    SimpleAckPDU,
+    WritePropertyRequest,
 )
-
-from ..debugging import bacpypes_debugging, ModuleLogger
-
-from ..pdu import Address
-from ..errors import (
-    ExecutionError,
-    ObjectError,
-    PropertyError,
-)
-from ..primitivedata import (
-    Null,
-    Unsigned,
-    ObjectIdentifier,
-)
-from ..constructeddata import Any, SequenceOf, Array, List
 from ..basetypes import (
+    DateTime,
     ErrorType,
     PropertyIdentifier,
     PropertyReference,
+    Range,
+    RangeByPosition,
+    RangeBySequenceNumber,
+    RangeByTime,
     ReadAccessResult,
     ReadAccessResultElement,
     ReadAccessResultElementChoice,
     ReadAccessSpecification,
 )
+from ..constructeddata import Any, Array, List, SequenceOf
+from ..debugging import ModuleLogger, bacpypes_debugging
+from ..errors import ExecutionError, ObjectError, PropertyError
 from ..object import DeviceObject
+from ..pdu import Address
+from ..primitivedata import Date, Null, ObjectIdentifier, Time, Unsigned
 from ..vendor import VendorInfo, get_vendor_info
-from ..apdu import (
-    SimpleAckPDU,
-    ErrorRejectAbortNack,
-    ReadPropertyRequest,
-    ReadPropertyACK,
-    ReadPropertyMultipleRequest,
-    ReadPropertyMultipleACK,
-    WritePropertyRequest,
-)
 
 # some debugging
 _debug = 0
@@ -846,3 +838,139 @@ class ReadWritePropertyMultipleServices:
             )
 
         raise NotImplementedError()
+
+
+@bacpypes_debugging
+class ReadRangeServices:
+    _debug: Callable[..., None]
+
+    device_object: Optional[DeviceObject]
+    device_info_cache: "DeviceInfoCache"  # noqa: F821
+
+    async def read_range(
+        self,
+        address: Address,
+        objid: ObjectIdentifier,
+        prop: PropertyIdentifier,
+        arr_index: Optional[int] = None,
+        range_params: tuple = None,
+    ) -> _Any:
+        """
+        Send a Read Range Request to an address and decode the response,
+        returning the sequence, or the error, reject, or abort if that
+        was received.
+
+        :param args: String with <addr> <type> <inst> <prop> [ <indx> ]
+        :param range_params: parameters defining how to query the range, a list of five elements
+        :returns: data read from device (list of LogRecords)
+
+        range_params: a list of five elements: (range_type: str, first: int, date: str, time: str, count: int)
+            range_type: one of ['p', 's', 't']
+                        p - RangeByPosition:
+                                uses (first, count)
+                        s - RangeBySequenceNumber:
+                                uses (first, count)
+                        t - RangeByTime: Filter by the given time
+                                uses (date, time, count)
+            first: int, first element when querying by Position or Sequence Number
+            date: str, "YYYY-mm-DD" passed to bacpypes.primitivedata.Date constructor
+            time: str, "HH:MM:SS" passed to bacpypes.primitivedata.Time constructor
+            count: int, number of elements to return, negative numbers reverse direction of search
+        """
+        if _debug:
+            ReadRangeServices._debug(
+                "read_range %r %r %r %r", address, objid, prop, range
+            )
+
+        # create a request
+        read_range_request = ReadRangeRequest(
+            objectIdentifier=objid,
+            propertyIdentifier=prop,
+            destination=address,
+        )
+
+        read_range_request.pduDestination = address
+        if read_range_request is not None:
+            range_type, first, date, time, count = range_params
+            if range_type == "p":
+                rbp = RangeByPosition(referenceIndex=int(first), count=int(count))
+                read_range_request.range = Range(byPosition=rbp)
+            elif range_type == "s":
+                rbs = RangeBySequenceNumber(
+                    referenceSequenceNumber=int(first), count=int(count)
+                )
+                read_range_request.range = Range(bySequenceNumber=rbs)
+            elif range_type == "t":
+                rbt = RangeByTime(
+                    referenceTime=DateTime(date=Date(date), time=Time(time)),
+                    count=int(count),
+                )
+                read_range_request.range = Range(byTime=rbt)
+            elif range_type == "x":
+                # should be missing required parameter
+                read_range_request.range = Range()
+            else:
+                raise ValueError(f"unknown range type: {range_type!r}")
+
+        if arr_index is not None:
+            read_range_request.propertyArrayIndex = arr_index
+
+        if _debug:
+            ReadRangeServices._debug("    - read_range_request: %r", read_range_request)
+
+        # send the request, wait for the response
+        response = await self.request(read_range_request)
+        if _debug:
+            ReadRangeServices._debug("    - response: %r", response)
+        if isinstance(response, ErrorRejectAbortNack):
+            if _debug:
+                ReadRangeServices._debug("    - error/reject/abort: %r", response)
+            return response
+        if not isinstance(response, ReadRangeACK):
+            if _debug:
+                ReadRangeServices._debug("    - invalid response: %r", response)
+            return None
+
+        # get information about the device from the cache
+        device_info = await self.device_info_cache.get_device_info(address)
+        if _debug:
+            ReadWritePropertyServices._debug("    - device_info: %r", device_info)
+
+        # using the device info, look up the vendor information
+        if device_info:
+            vendor_info = get_vendor_info(device_info.vendor_identifier)
+        else:
+            vendor_info = get_vendor_info(0)
+
+        if _debug:
+            ReadWritePropertyServices._debug(
+                "    - vendor_info (%d): %r", vendor_info.vendor_identifier, vendor_info
+            )
+
+        # using the vendor information, look up the class
+        object_class = vendor_info.get_object_class(response.objectIdentifier[0])
+        if not object_class:
+            return "-no object class-"
+
+        # now get the property type from the class
+        property_type = object_class.get_property_type(response.propertyIdentifier)
+        if _debug:
+            ReadRangeServices._debug("    - property_type: %r", property_type)
+        if not property_type:
+            return "-no property type-"
+
+        # cast it out of the Any
+        property_value = response.itemData.cast_out(property_type)
+        if _debug:
+            ReadRangeServices._debug(
+                "    - property_value: %r %r", property_value, property_type.__class__
+            )
+
+        return property_value
+
+    async def do_ReadRangeRequest(self, apdu: ReadRangeRequest) -> None:
+        """Return the value of some property of one of our objects."""
+        if _debug:
+            ReadRangeServices._debug("do_ReadRangeRequest %r", apdu)
+
+        raise NotImplementedError

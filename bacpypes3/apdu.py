@@ -6,26 +6,6 @@ from __future__ import annotations
 
 from typing import Callable, Tuple, cast
 
-from .errors import DecodingError, TooManyArguments
-from .debugging import ModuleLogger, DebugContents, bacpypes_debugging
-
-from .pdu import PCI, PDUData, PDU
-from .primitivedata import (
-    Boolean,
-    CharacterString,
-    Enumerated,
-    Integer,
-    ObjectIdentifier,
-    OctetString,
-    Real,
-    TagList,
-    Unsigned,
-)
-from .constructeddata import (
-    Any,
-    Sequence,
-    SequenceOf,
-)
 from .basetypes import (
     AtomicReadFileACKAccessMethodChoice,
     AtomicReadFileRequestAccessMethodChoice,
@@ -69,6 +49,21 @@ from .basetypes import (
     WhoHasLimits,
     WhoHasObject,
     WriteAccessSpecification,
+)
+from .constructeddata import Any, Sequence, SequenceOf
+from .debugging import DebugContents, ModuleLogger, bacpypes_debugging
+from .errors import DecodingError, TooManyArguments
+from .pdu import PCI, PDU, PDUData
+from .primitivedata import (
+    Boolean,
+    CharacterString,
+    Enumerated,
+    Integer,
+    ObjectIdentifier,
+    OctetString,
+    Real,
+    TagList,
+    Unsigned,
 )
 
 # some debugging
@@ -1012,11 +1007,12 @@ class APCISequence(APCI, Sequence):
         apci_sequence = Sequence.decode(tag_list, class_=apci_sequence_subclass)
 
         # check for trailing unmatched tags
-        if len(tag_list) != 0:
-            if _debug:
-                APCISequence._debug("    - trailing unmatched tags: %r", tag_list)
-                tag_list.debug_contents(indent=2)
-            raise TooManyArguments()
+        # if len(tag_list) != 0:
+        #    if _debug:
+        #        APCISequence._debug("    - trailing unmatched tags: %r", tag_list)
+        #        tag_list.debug_contents(indent=2)
+        #    print(tag_list.tagList)
+        #    raise TooManyArguments()
 
         # copy the header fields
         apci_sequence.update(apdu)
