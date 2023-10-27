@@ -8,7 +8,8 @@ from bacpypes3.debugging import ModuleLogger
 from bacpypes3.argparse import SimpleArgumentParser
 from bacpypes3.ipv4.app import Application
 
-from bacpypes3.object import AnalogValueObject as _AnalogValueObject, VendorInfo
+from bacpypes3.object import AnalogValueObject as _AnalogValueObject
+from bacpypes3.vendor import VendorInfo
 
 from bacpypes3.local.object import Object as _Object
 from bacpypes3.local.device import DeviceObject as _DeviceObject
