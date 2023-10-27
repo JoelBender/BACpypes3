@@ -140,14 +140,16 @@ class BACnetGraph:
         self.graph = graph
 
         # bind the BACnet namespace
-        self.graph.namespace_manager.bind("bacnet", URIRef(BACnetNS))
+        if hasattr(self.graph, "namespace_manager"):
+            self.graph.namespace_manager.bind("bacnet", URIRef(BACnetNS))
 
     def bind_namespace(self, prefix: str, uri: str) -> Namespace:
         """
         Create a Namespace and bind a prefix to it in the graph.
         """
         namespace = Namespace(uri)
-        self.graph.namespace_manager.bind(prefix, URIRef(uri))
+        if hasattr(self.graph, "namespace_manager"):
+            self.graph.namespace_manager.bind(prefix, URIRef(uri))
         return namespace
 
     def query(self, query: Any, **kwargs: Any) -> Any:
