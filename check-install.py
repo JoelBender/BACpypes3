@@ -3,8 +3,6 @@ Check to see what versions of modules are installed.
 """
 import sys
 
-print(f"{sys.path = }")
-
 try:
     import bacpypes3
 
