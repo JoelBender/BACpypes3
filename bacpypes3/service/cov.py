@@ -583,7 +583,14 @@ class ChangeOfValueServices:
         if _debug:
             ChangeOfValueServices._debug("    - object: %r", obj)
         if not obj:
-            raise ExecutionError(errorClass="object", errorCode="unknownObject")
+            if cancel_subscription:
+                # always return a Result(+), the subscription may have been
+                # previously successful and the object deleted, then this
+                # cancelation would have been successful
+                await self.response(SimpleAckPDU(context=apdu))
+                return
+            else:
+                raise ExecutionError(errorClass="object", errorCode="unknownObject")
 
         # look for an algorithm already associated with this object
         cov_detection = self._cov_detections.get(obj_id, None)
