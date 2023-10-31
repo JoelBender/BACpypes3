@@ -1602,12 +1602,15 @@ class ApplicationServiceAccessPoint(Client[PDU], ServiceAccessPoint):
                     ApplicationServiceAccessPoint._debug(
                         "    - continue with reinitialize device"
                     )
+            elif (pdu.apduType == 1) and (pdu.apduService == 7):
+                if _debug:
+                    ApplicationServiceAccessPoint._debug("    - continue with Who-Has")
             elif (pdu.apduType == 1) and (pdu.apduService == 8):
                 if _debug:
                     ApplicationServiceAccessPoint._debug("    - continue with Who-Is")
             else:
                 if _debug:
-                    ApplicationServiceAccessPoint._debug("    - not a Who-Is, dropped")
+                    ApplicationServiceAccessPoint._debug("    - not a Who-Has or Who-Is, dropped")
                 return
         elif self.dccEnableDisable == "disableInitiation":
             if _debug:
