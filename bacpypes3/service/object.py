@@ -421,21 +421,23 @@ async def read_property_to_result_element(
     # save the result in the property value
     read_result = ReadAccessResultElementChoice()
 
-    try:
-        if not obj:
-            raise ExecutionError(errorClass="object", errorCode="unknownObject")
-
-        read_result.propertyValue = await read_property_to_any(
-            obj, propertyIdentifier, propertyArrayIndex
-        )
-        if _debug:
-            read_property_to_result_element._debug("    - success")
-    except ExecutionError as error:
-        if _debug:
-            read_property_to_result_element._debug("    - error: %r", error)
+    if not obj:
         read_result.propertyAccessError = ErrorType(
-            errorClass=error.errorClass, errorCode=error.errorCode
+            errorClass="object", errorCode="unknownObject"
         )
+    else:
+        try:
+            read_result.propertyValue = await read_property_to_any(
+                obj, propertyIdentifier, propertyArrayIndex
+            )
+            if _debug:
+                read_property_to_result_element._debug("    - success")
+        except ExecutionError as error:
+            if _debug:
+                read_property_to_result_element._debug("    - error: %r", error)
+            read_result.propertyAccessError = ErrorType(
+                errorClass=error.errorClass, errorCode=error.errorCode
+            )
 
     # make an element for this value
     read_access_result_element = ReadAccessResultElement(
@@ -648,6 +650,7 @@ class ReadWritePropertyMultipleServices:
             )
 
         # first pass - make sure all of the objects exist
+        object_reference_exists = False
         for read_access_spec in apdu.listOfReadAccessSpecs:
             # get the object identifier
             object_identifier = read_access_spec.objectIdentifier
@@ -671,8 +674,11 @@ class ReadWritePropertyMultipleServices:
             if _debug:
                 ReadWritePropertyMultipleServices._debug("    - object: %r", obj)
 
-            if not obj:
-                raise ObjectError("unknown-object")
+            if obj:
+                object_reference_exists = True
+
+        if not object_reference_exists:
+            raise ObjectError("unknown-object")
         if _debug:
             ReadWritePropertyMultipleServices._debug("    - all objects exist")
 

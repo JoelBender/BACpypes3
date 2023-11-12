@@ -119,6 +119,7 @@ class DeviceInfo(DebugContents):
         "vendor_identifier",
         "max_npdu_length",
         "max_segments_accepted",
+        "protocol_services_supported",
     )
 
     device_instance: int
@@ -128,6 +129,7 @@ class DeviceInfo(DebugContents):
     vendor_identifier: Optional[int] = None
     max_segments_accepted: Optional[int] = None
     max_npdu_length: Optional[int] = None  # See Clause 19.4
+    protocol_services_supported: Optional[ServicesSupported] = None
 
 
 #
@@ -224,6 +226,8 @@ class DeviceInfoCache(DebugContents):
         device_info.max_apdu_length_accepted = apdu.maxAPDULengthAccepted
         device_info.segmentation_supported = apdu.segmentationSupported
         device_info.vendor_identifier = apdu.vendorID
+
+        return device_info
 
     def update_device_info(self, device_info: DeviceInfo):
         """

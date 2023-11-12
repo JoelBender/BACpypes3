@@ -1696,7 +1696,7 @@ class PropertyReference(Sequence):
         **kwargs,
     ) -> None:
         if _debug:
-            DeviceAddress._debug("PropertyReference.__init__ %r %r", arg, kwargs)
+            PropertyReference._debug("PropertyReference.__init__ %r %r", arg, kwargs)
 
         # nothing provided
         if arg is None:
@@ -1720,11 +1720,11 @@ class PropertyReference(Sequence):
             if property_identifier.isdigit():
                 property_identifier = PropertyIdentifier(int(property_identifier))
             else:
-                # look for vendor information
+                # look for vendor information, defaults to ASHRAE
                 if not vendor_info:
                     vendor_info = get_vendor_info(vendor_identifier)
                 if _debug:
-                    DeviceAddress._debug("    - vendor_info: %r", vendor_info)
+                    PropertyReference._debug("    - vendor_info: %r", vendor_info)
 
                 # translate the string
                 property_identifier = vendor_info.property_identifier(
@@ -1740,11 +1740,11 @@ class PropertyReference(Sequence):
 
             # look up the name ('some-property', 2)
             if isinstance(property_identifier, str):
-                # look for vendor information
+                # look for vendor information, defaults to ASHRAE
                 if not vendor_info:
                     vendor_info = get_vendor_info(vendor_identifier)
                 if _debug:
-                    DeviceAddress._debug("    - vendor_info: %r", vendor_info)
+                    PropertyReference._debug("    - vendor_info: %r", vendor_info)
 
                 # translate the string
                 property_identifier = vendor_info.property_identifier(

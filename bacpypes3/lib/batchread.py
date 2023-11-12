@@ -14,8 +14,14 @@ from typing import Any, Callable, Dict, DefaultDict, List, Optional, Union
 from ..debugging import bacpypes_debugging, ModuleLogger
 
 from ..pdu import Address
-from ..primitivedata import Unsigned, ObjectIdentifier
-from ..basetypes import PropertyIdentifier
+from ..primitivedata import ObjectIdentifier
+from ..basetypes import (
+    ObjectType,
+    PropertyIdentifier,
+    PropertyReference,
+    ServicesSupported,
+)
+from ..apdu import ErrorRejectAbortNack
 from ..app import Application
 
 
@@ -35,16 +41,14 @@ class DeviceAddressObjectPropertyReference:
     key: Any
     deviceAddress: Address
     objectIdentifier: ObjectIdentifier
-    propertyIdentifier: PropertyIdentifier
-    propertyArrayIndex: Optional[Unsigned] = None
+    propertyReference: PropertyReference
 
     def __init__(
         self,
         key: Any,
         device_address: Any,
         object_identifier: Any,
-        property_identifier: Any,
-        property_array_index: Any = None,
+        property_reference: Any,
     ) -> None:
         object.__setattr__(
             self,
@@ -67,25 +71,20 @@ class DeviceAddressObjectPropertyReference:
         )
         object.__setattr__(
             self,
-            "propertyIdentifier",
-            property_identifier
-            if isinstance(property_identifier, PropertyIdentifier)
-            else PropertyIdentifier(property_identifier),
+            "propertyReference",
+            property_reference
+            if isinstance(property_reference, PropertyReference)
+            else PropertyReference(property_reference),
         )
-        if property_array_index is not None:
-            object.__setattr__(
-                self,
-                "propertyArrayIndex",
-                property_array_index
-                if isinstance(device_address, Unsigned)
-                else Unsigned(property_array_index),
-            )
 
     def __repr__(self) -> str:
-        s = f"<DeviceAddressObjectPropertyReference {self.key}: {self.deviceAddress}/{self.objectIdentifier}/{self.propertyIdentifier}"
-        if self.propertyArrayIndex is not None:
-            s += f"[{self.propertyArrayIndex}]"
-        return s + ">"
+        s = (
+            "<"
+            f"DeviceAddressObjectPropertyReference {self.key}: "
+            f"{self.deviceAddress}/{self.objectIdentifier}/{self.propertyReference}"
+            ">"
+        )
+        return s
 
 
 DeviceAddressObjectPropertyReferenceList = List[DeviceAddressObjectPropertyReference]
@@ -157,6 +156,59 @@ class AddressGroupWorker:
         if _debug:
             AddressGroupWorker._debug("run(%s)", self.address)
 
+        # get the device information from the cache
+        device_info = await batch.app.device_info_cache.get_device_info(self.address)
+        if _debug:
+            AddressGroupWorker._debug("    - device_info: %r", device_info)
+
+        if not device_info:
+            # send it a Who-Is and see if anything comes back
+            i_ams = await batch.app.who_is(address=self.address)
+            if _debug:
+                AddressGroupWorker._debug("    - i_ams: %r", i_ams)
+            if not i_ams:
+                if batch.callback:
+                    for daopr in self.daopr_list:
+                        batch.callback(daopr.key, RuntimeError("no response"))
+                return
+            if len(i_ams) > 1:
+                if _debug:
+                    AddressGroupWorker._debug("    - yikes!")
+
+            # stuff this in the cache
+            device_info = await batch.app.device_info_cache.set_device_info(i_ams[0])
+
+        # see if protocol-services-supported is cached
+        if device_info.protocol_services_supported is None:
+            try:
+                pss = await batch.app.read_property(
+                    self.address,
+                    (ObjectType.device, device_info.device_instance),
+                    "protocol-services-supported",
+                )
+                if _debug:
+                    AddressGroupWorker._debug("    - pss: %r", pss)
+
+                # ### needs to push updated device_info back into cache
+                device_info.protocol_services_supported = pss
+            except ErrorRejectAbortNack as err:
+                if _debug:
+                    AddressGroupWorker._debug("    - err: %r", err)
+                device_info.protocol_services_supported = ServicesSupported([])
+
+        if _debug:
+            AddressGroupWorker._debug("    - device_info: %r", device_info)
+
+        # try to use RPM if its available
+        if device_info.protocol_services_supported["read-property-multiple"]:
+            await self.read_property_multiple(batch)
+        else:
+            await self.read_property(batch)
+
+    async def read_property(self, batch: BatchRead) -> None:
+        if _debug:
+            AddressGroupWorker._debug("read_property(%s)", self.address)
+
         # get the running loop to create tasks
         loop = asyncio.get_running_loop()
 
@@ -171,12 +223,14 @@ class AddressGroupWorker:
                 batch.app.read_property(  # type: ignore[union-attr]
                     daopr.deviceAddress,
                     daopr.objectIdentifier,
-                    daopr.propertyIdentifier,
-                    daopr.propertyArrayIndex,
+                    daopr.propertyReference.propertyIdentifier,
+                    daopr.propertyReference.propertyArrayIndex,
                 ),
                 name=f"reading {daopr.key}",
             )
-            read_task.add_done_callback(partial(batch._callback, daopr.key))
+            read_task.add_done_callback(
+                partial(batch._read_property_callback, daopr.key)
+            )
 
             # task for the batch being stopped
             stop_wait = loop.create_task(batch._stop.wait(), name="stop wait")
@@ -191,6 +245,64 @@ class AddressGroupWorker:
                 task.cancel()
             if _debug:
                 AddressGroupWorker._debug("    - %r finished", daopr)
+        if _debug:
+            AddressGroupWorker._debug("    - finished(%s)", self.address)
+
+    async def read_property_multiple(self, batch: BatchRead) -> None:
+        if _debug:
+            AddressGroupWorker._debug("read_property_multiple(%s)", self.address)
+
+        # get the running loop to create tasks
+        loop = asyncio.get_running_loop()
+
+        ### calc based on device_info.max_apdu_length_accepted // 10
+        chunk_size = 10
+
+        i = 0
+        while i < len(self.daopr_list):
+            chunk = self.daopr_list[i:chunk_size]
+            i += len(chunk)
+
+            objid = None
+            key_list = []
+            parameter_list = []
+            for daopr in chunk:
+                if daopr.objectIdentifier != objid:
+                    objid = daopr.objectIdentifier
+                    property_reference_list = []
+                    parameter_list.extend([objid, property_reference_list])
+
+                key_list.append(daopr.key)
+                property_reference_list.append(daopr.propertyReference)
+
+            if _debug:
+                AddressGroupWorker._debug("    - parameter_list: %r", parameter_list)
+
+            # task to read the values
+            read_task = loop.create_task(
+                batch.app.read_property_multiple(  # type: ignore[union-attr]
+                    self.address,
+                    parameter_list,
+                ),
+                name=f"reading {key_list}",
+            )
+            read_task.add_done_callback(
+                partial(batch._read_property_multiple_callback, key_list)
+            )
+
+            # task for the batch being stopped
+            stop_wait = loop.create_task(batch._stop.wait(), name="stop wait")
+
+            # wait for one of them to complete
+            done, pending = await asyncio.wait(
+                {read_task, stop_wait}, return_when=asyncio.FIRST_COMPLETED
+            )
+
+            # cancel the pending task(s)
+            for task in pending:
+                task.cancel()
+            if _debug:
+                AddressGroupWorker._debug("    - finished")
         if _debug:
             AddressGroupWorker._debug("    - finished(%s)", self.address)
 
@@ -255,17 +367,25 @@ class BatchRead:
 
         # filter the samples into buckets
         self.network_group = NetworkGroup()
-        for sample in daopr_list:
-            self.network_group[sample.deviceAddress.addrNet][
-                sample.deviceAddress
-            ].append(sample)
+        for daopr in daopr_list:
+            if daopr.propertyReference.propertyIdentifier in (
+                PropertyIdentifier.all,
+                PropertyIdentifier.required,
+                PropertyIdentifier.optional,
+            ):
+                raise ValueError(f"simple property references only, key={daopr.key}")
+            self.network_group[daopr.deviceAddress.addrNet][daopr.deviceAddress].append(
+                daopr
+            )
 
         # no application or done event until we run
         self.app = None
         self.fini = None
         self.callback = None
 
-    async def run(self, app: Application, callback: CallbackFn) -> None:
+    async def run(
+        self, app: Application, callback: Optional[CallbackFn] = None
+    ) -> None:
         """
         Read the contents of the buckets.
         """
@@ -300,10 +420,11 @@ class BatchRead:
         # set the event we are done
         self.fini.set()
 
-    def _callback(self, key: Any, task: Any) -> None:
+    def _read_property_callback(self, key: Any, task: Any) -> None:
         if _debug:
-            BatchRead._debug("_callback %r %r", key, task)
-        assert self.callback
+            BatchRead._debug("_read_property_callback %r %r", key, task)
+        if not self.callback:
+            return
 
         # if the task is canceled use None
         if task.cancelled():
@@ -312,9 +433,45 @@ class BatchRead:
 
         # get the exception or result from the task
         value = task.exception() or task.result()
+        if _debug:
+            BatchRead._debug("    - key, value: %r, %r", key, value)
 
         # pass the value back to the run() caller
         self.callback(key, value)
+
+    def _read_property_multiple_callback(self, key_list: List[Any], task: Any) -> None:
+        if _debug:
+            BatchRead._debug("_read_property_multiple_callback %r %r", key_list, task)
+        if not self.callback:
+            return
+
+        # if the task is canceled use None
+        if task.cancelled():
+            for key in key_list:
+                self.callback(key, None)
+            return
+
+        exception = task.exception()
+        if exception:
+            if _debug:
+                BatchRead._debug("    - exception: %r", exception)
+            for key in key_list:
+                self.callback(key, exception)
+        else:
+            result = task.result()
+            if _debug:
+                BatchRead._debug("    - result: %r", result)
+
+            # dump out the results
+            for key, (
+                object_identifier,
+                property_identifier,
+                property_array_index,
+                property_value,
+            ) in zip(key_list, result):
+                if _debug:
+                    BatchRead._debug("    - key, value: %r, %r", key, property_value)
+                self.callback(key, property_value)
 
     def stop(self):
         """

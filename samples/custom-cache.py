@@ -16,6 +16,7 @@ from bacpypes3.pdu import Address
 from bacpypes3.apdu import IAmRequest
 from bacpypes3.basetypes import (
     Segmentation,
+    ServicesSupported,
 )
 from bacpypes3.app import Application, DeviceInfo, DeviceInfoCache
 from bacpypes3.netservice import (
@@ -36,7 +37,8 @@ _log = ModuleLogger(globals())
 
 
 # settings
-DEVICE_INFO_CACHE_EXPIRE = 30  # seconds
+DEVICE_INFO_CACHE_EXPIRE = 120  # seconds
+ROUTER_INFO_CACHE_EXPIRE = 120  # seconds
 
 # globals
 app: Application
@@ -58,6 +60,7 @@ class CustomDeviceInfo(DeviceInfo):
                     self.max_apdu_length_accepted,
                     self.segmentation_supported,
                     self.vendor_identifier,
+                    self.protocol_services_supported,
                 )
             ]
         )
@@ -82,6 +85,12 @@ class CustomDeviceInfo(DeviceInfo):
         device_info.max_apdu_length_accepted = int(contents[2])
         device_info.segmentation_supported = Segmentation(contents[3])
         device_info.vendor_identifier = int(contents[4])
+
+        if contents[5] == "None":
+            services_supported = ServicesSupported()
+        else:
+            services_supported = ServicesSupported(contents[5])
+        device_info.protocol_services_supported = services_supported
 
         return device_info
 
@@ -178,46 +187,7 @@ class CustomDeviceInfoCache(DeviceInfoCache):
         p.set(device_instance_key, device_info_blob, ex=DEVICE_INFO_CACHE_EXPIRE)
         await p.execute()
 
-
-@bacpypes_debugging
-class CustomRouterInfoCache(RouterInfoCache):
-    _debug: Callable[..., None]
-
-    def get_router_info(self, snet: Optional[int], dnet: int) -> Optional[RouterInfo]:
-        if _debug:
-            CustomRouterInfoCache._debug("get_router_info ...")
-        return None
-
-    def update_router_info(
-        self,
-        snet: Optional[int],
-        address: Address,
-        dnets: List[int],
-        status: int = ROUTER_AVAILABLE,
-    ) -> None:
-        if _debug:
-            CustomRouterInfoCache._debug("update_router_info ...")
-        return
-
-    def update_router_status(self, snet: int, address: Address, status: int) -> None:
-        if _debug:
-            CustomRouterInfoCache._debug("update_router_status ...")
-        return
-
-    def delete_router_info(
-        self,
-        snet: int,
-        address: Optional[Address] = None,
-        dnets: Optional[List[int]] = None,
-    ) -> None:
-        if _debug:
-            CustomRouterInfoCache._debug("delete_router_info ...")
-        return
-
-    def update_source_network(self, old_snet: int, new_snet: int) -> None:
-        if _debug:
-            CustomRouterInfoCache._debug("update_source_network ...")
-        return
+        return device_info
 
 
 @bacpypes_debugging
@@ -337,7 +307,6 @@ async def main() -> None:
         app = Application.from_args(
             args,
             device_info_cache=CustomDeviceInfoCache(),
-            # router_info_cache=CustomRouterInfoCache(),
         )
         if _debug:
             _log.debug("app: %r", app)
