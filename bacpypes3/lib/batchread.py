@@ -260,8 +260,10 @@ class AddressGroupWorker:
 
         i = 0
         while i < len(self.daopr_list):
-            chunk = self.daopr_list[i:chunk_size]
-            i += len(chunk)
+            chunk = self.daopr_list[i:i+chunk_size]
+            if _debug:
+                AddressGroupWorker._debug("    - chunk: %r", chunk)
+            i += chunk_size
 
             objid = None
             key_list = []
@@ -274,7 +276,6 @@ class AddressGroupWorker:
 
                 key_list.append(daopr.key)
                 property_reference_list.append(daopr.propertyReference)
-
             if _debug:
                 AddressGroupWorker._debug("    - parameter_list: %r", parameter_list)
 
