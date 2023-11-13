@@ -198,7 +198,7 @@ async def main() -> None:
                 setattr(
                     object_proxy,
                     "property-list",
-                    ";".join(str(p) for p in property_list),
+                    property_list,
                 )
             except ErrorRejectAbortNack as err:
                 if show_warnings:
