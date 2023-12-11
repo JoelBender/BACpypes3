@@ -7,7 +7,7 @@ from bacpypes3.primitivedata import Integer, ObjectType
 from bacpypes3.basetypes import PropertyIdentifier
 from bacpypes3.vendor import VendorInfo
 
-from bacpypes3.local.object import Object
+from bacpypes3.local.object import _Object
 from bacpypes3.local.device import DeviceObject as _DeviceObject
 from bacpypes3.local.networkport import NetworkPortObject as _NetworkPortObject
 
@@ -66,7 +66,7 @@ class NetworkPortObject(_NetworkPortObject):
     pass
 
 
-class ProprietaryObject(Object):
+class ProprietaryObject(_Object):
     """
     This is a proprietary object type.
     """

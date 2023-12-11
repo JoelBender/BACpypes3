@@ -42,7 +42,7 @@ _log = ModuleLogger(globals())
 
 
 # note: defined in both core.py and util.py
-BACnetNS = Namespace("http://data.ashrae.org/bacnet/2016#")
+BACnetNS = Namespace("http://data.ashrae.org/bacnet/2020#")
 
 # enumeration names are analog-value rather that analogValue
 _unupper_re = re.compile("[A-Z]{2,}(?:(?=[A-Z][a-z])|$)")
