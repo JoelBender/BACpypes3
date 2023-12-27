@@ -4,7 +4,6 @@ Simple example that has a device object and an additional custom object.
 
 import asyncio
 import re
-import json
 from copy import copy
 
 from typing import Callable, Optional
@@ -14,33 +13,24 @@ from bacpypes3.argparse import SimpleArgumentParser
 from bacpypes3.console import Console
 from bacpypes3.cmd import Cmd
 
-from bacpypes3.argparse import create_log_handler
-
 from bacpypes3.comm import bind
+from bacpypes3.pdu import Address
 from bacpypes3.primitivedata import ObjectIdentifier
 from bacpypes3.basetypes import (
     Destination,
-    DeviceObjectPropertyReference,
     EngineeringUnits,
-    EventParameter,
-    EventParameterOutOfRange,
     EventState,
-    EventType,
-    FaultType,
+    LimitEnable,
     NotifyType,
     PropertyIdentifier,
     Recipient,
-    Reliability,
     TimeStamp,
 )
 from bacpypes3.object import (
-    AnalogValueObject as _AnalogValueObject,
     NotificationClassObject,
-    VendorInfo,
 )
 
 from bacpypes3.app import Application
-from bacpypes3.local.object import Object as _Object
 from bacpypes3.local.analog import AnalogValueObjectIR
 
 # some debugging
@@ -106,7 +96,7 @@ class SampleCmd(Cmd):
             SampleCmd._debug(
                 "do_write %r %r %r %r",
                 object_identifier,
-                attribute_name,
+                property_identifier,
                 value,
                 priority,
             )
@@ -184,6 +174,29 @@ class SampleCmd(Cmd):
         limit_enable = copy(obj.limitEnable)
         limit_enable[LimitEnable.highLimitEnable] = value
         obj.limitEnable = limit_enable
+
+    async def do_whois(
+        self,
+        address: Optional[Address] = None,
+        low_limit: Optional[int] = None,
+        high_limit: Optional[int] = None,
+    ) -> None:
+        """
+        Send a Who-Is request and wait for the response(s).
+
+        usage: whois [ address [ low_limit high_limit ] ]
+        """
+        if _debug:
+            SampleCmd._debug("do_whois %r %r %r", address, low_limit, high_limit)
+
+        i_ams = await app.who_is(low_limit, high_limit, address)
+        if not i_ams:
+            await self.response("No response(s)")
+        else:
+            for i_am in i_ams:
+                if _debug:
+                    SampleCmd._debug("    - i_am: %r", i_am)
+                await self.response(f"{i_am.iAmDeviceIdentifier[1]} {i_am.pduSource}")
 
     def do_debug(
         self,
@@ -266,9 +279,9 @@ async def main() -> None:
                     validDays=[1, 1, 1, 1, 1, 1, 1],
                     fromTime=(0, 0, 0, 0),
                     toTime=(23, 59, 59, 99),
-                    recipient=Recipient(device="device,999"),
+                    recipient=Recipient(device="device,990"),
                     processIdentifier=0,
-                    issueConfirmedNotifications=False,
+                    issueConfirmedNotifications=True,
                     transitions=[1, 1, 1],  # toOffNormal, toFault, toNormal
                 )
             ],

@@ -13,6 +13,7 @@ from bacpypes3.console import Console
 from bacpypes3.cmd import Cmd
 
 from bacpypes3.comm import bind
+from bacpypes3.pdu import Address
 from bacpypes3.primitivedata import ObjectIdentifier
 from bacpypes3.basetypes import (
     Destination,
@@ -129,6 +130,29 @@ class SampleCmd(Cmd):
             setattr(obj, prop.attr, value)
         else:
             print("not implemented")
+
+    async def do_whois(
+        self,
+        address: Optional[Address] = None,
+        low_limit: Optional[int] = None,
+        high_limit: Optional[int] = None,
+    ) -> None:
+        """
+        Send a Who-Is request and wait for the response(s).
+
+        usage: whois [ address [ low_limit high_limit ] ]
+        """
+        if _debug:
+            SampleCmd._debug("do_whois %r %r %r", address, low_limit, high_limit)
+
+        i_ams = await app.who_is(low_limit, high_limit, address)
+        if not i_ams:
+            await self.response("No response(s)")
+        else:
+            for i_am in i_ams:
+                if _debug:
+                    SampleCmd._debug("    - i_am: %r", i_am)
+                await self.response(f"{i_am.iAmDeviceIdentifier[1]} {i_am.pduSource}")
 
     def do_debug(
         self,

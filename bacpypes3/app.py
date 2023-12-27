@@ -503,7 +503,7 @@ class Application(
 
         # get the vendor info for the provided identifier
         vendor_info = get_vendor_info(args.vendoridentifier)
-        if not vendor_info:
+        if vendor_info.vendor_identifier == 0:
             raise RuntimeError(f"missing vendor info: {args.vendoridentifier}")
 
         # get the device object class and make an instance

@@ -553,7 +553,7 @@ class EventAlgorithm(Algorithm, DebugContents):
 
         # make the transition
         self.pCurrentState = new_state
-        self._current_state = new_state
+        # self._current_state = new_state
 
         # turn property change notifications back on
         self._execute_enabled = True
@@ -696,7 +696,9 @@ class EventAlgorithm(Algorithm, DebugContents):
                     recipient.device[1]
                 )
                 if not device_info:
-                    raise NotImplementedError("missing device info")
+                    if _debug:
+                        EventAlgorithm._debug("    - no device info")
+                    continue
                 pdu_destination = device_info.address
             elif recipient.address:
                 network_number = recipient.address.networkNumber
@@ -1587,6 +1589,9 @@ class OutOfRangeEventAlgorithm(EventAlgorithm, DebugContents):
                 new_status_flags,
             )
 
+        # nothing yet
+        event_values: Optional[NotificationParameters] = None
+
         if (self._current_state == EventState.normal) and (
             new_state == EventState.highLimit
         ):
@@ -1682,6 +1687,13 @@ class OutOfRangeEventAlgorithm(EventAlgorithm, DebugContents):
                     exceededLimit=self.pLowLimit,
                 ),
             )
+
+        if _debug:
+            OutOfRangeEventAlgorithm._debug(
+                "    - event_values: %r",
+                event_values,
+            )
+        assert event_values
 
         return event_values
 
