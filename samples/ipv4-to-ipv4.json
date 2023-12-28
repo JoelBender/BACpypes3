@@ -1,0 +1,69 @@
+{
+    "BACpypes": {
+        "backup_count": 5,
+        "color": false,
+        "config": {},
+        "cov_lifetime": 60,
+        "debug": [],
+        "debug_file": "",
+        "max_bytes": 1048576,
+        "route_aware": false
+    },
+    "router": [
+        {
+            "apdu-segment-timeout": 1000,
+            "apdu-timeout": 3000,
+            "application-software-version": "1.0",
+            "database-revision": 1,
+            "firmware-revision": "N/A",
+            "max-apdu-length-accepted": 1024,
+            "model-name": "N/A",
+            "number-of-apdu-retries": 3,
+            "object-identifier": "device,998",
+            "object-name": "Exeter",
+            "object-type": "device",
+            "protocol-revision": 22,
+            "protocol-version": 1,
+            "segmentation-supported": "segmented-both",
+            "system-status": "operational",
+            "vendor-identifier": 999,
+            "vendor-name": "BACpypes"
+        },
+        {
+            "bacnet-ip-mode": "normal",
+            "bacnet-ip-udp-port": 47808,
+            "changes-pending": false,
+            "ip-address": "10.0.1.90",
+            "ip-subnet-mask": "255.255.255.0",
+            "link-speed": 0.0,
+            "mac-address": "10.0.1.90:47808",
+            "network-number": 100,
+            "network-number-quality": "configured",
+            "network-type": "ipv4",
+            "object-identifier": "network-port,1",
+            "object-name": "NetworkPort-1",
+            "object-type": "network-port",
+            "out-of-service": false,
+            "protocol-level": "bacnet-application",
+            "reliability": "no-fault-detected"
+        },
+        {
+            "bacnet-ip-mode": "normal",
+            "bacnet-ip-udp-port": 47809,
+            "changes-pending": false,
+            "ip-address": "10.0.1.90",
+            "ip-subnet-mask": "255.255.255.0",
+            "link-speed": 0.0,
+            "mac-address": "10.0.1.90:47809",
+            "network-number": 200,
+            "network-number-quality": "configured",
+            "network-type": "ipv4",
+            "object-identifier": "network-port,2",
+            "object-name": "NetworkPort-2",
+            "object-type": "network-port",
+            "out-of-service": false,
+            "protocol-level": "bacnet-application",
+            "reliability": "no-fault-detected"
+        }
+    ]
+}
