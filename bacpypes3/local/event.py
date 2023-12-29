@@ -93,7 +93,10 @@ from ..apdu import (
     ConfirmedEventNotificationRequest,
     UnconfirmedEventNotificationRequest,
 )
-from .object import Algorithm, Object
+from .object import (
+    Algorithm,
+    Object,
+)
 from .fault import FaultAlgorithm, OutOfRangeFaultAlgorithm
 
 # some debugging
@@ -2405,11 +2408,13 @@ class EventEnrollmentObject(Object, _EventEnrollmentObject):
         """
         This function is called after all of the objects are added to the
         application so that the objectPropertyReference property can
-        find the correct object.
+        find the correct object and the algorithms can be set.
         """
         if _debug:
             EventEnrollmentObject._debug("_post_init")
-        super()._post_init()
+
+        # checks for notification class reference
+        await super()._post_init()
 
         # look up the object being monitored
         dopr: DeviceObjectPropertyReference = self.objectPropertyReference
@@ -2463,7 +2468,7 @@ class EventEnrollmentObject(Object, _EventEnrollmentObject):
         evaluated_reliability = self.__reliability
         if self.__reliability == Reliability.noFaultDetected:
             if self._monitored_object.reliability != Reliability.noFaultDetected:
-                evaluated_reliability = Reliability.monitoredObjectFault
+                evaluated_reliability = Reliability("monitored-object-fault")
             elif self._fault_algorithm:
                 evaluated_reliability = self._fault_algorithm.evaluated_reliability
 

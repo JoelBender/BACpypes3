@@ -1,5 +1,7 @@
 """
-Simple example that has a device object and an additional custom object.
+Simple example that has a device object and an additional Analog Value Object
+that supports intrinsic event reporting and a Notification Class Object to
+describe where to send notifications.
 """
 
 import asyncio

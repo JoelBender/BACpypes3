@@ -1,10 +1,11 @@
 """
-Simple example that has a device object and an additional custom object.
+Simple example that has a device object, an Analog Value Object with no
+intrinsic fault detection, an Event Enrollment Object to monitor for changes,
+and a Notification Class Object to describe where to send notifications.
 """
 
 import asyncio
 import re
-from copy import copy
 
 from typing import Callable, Optional
 
@@ -24,7 +25,6 @@ from bacpypes3.basetypes import (
     EventParameterOutOfRange,
     EventState,
     EventType,
-    LimitEnable,
     NotifyType,
     PropertyIdentifier,
     Recipient,
@@ -141,46 +141,6 @@ class SampleCmd(Cmd):
         else:
             print("not implemented")
 
-    def do_lowLimitEnable(
-        self,
-        object_name: str,
-        value: int,
-    ) -> None:
-        """
-        usage: do_lowLimitEnable object_name (1 | 0)
-        """
-        if _debug:
-            SampleCmd._debug(
-                "lowLimitEnable %r %r",
-                object_name,
-                value,
-            )
-
-        obj = eval(object_name)
-        limit_enable = copy(obj.limitEnable)
-        limit_enable[LimitEnable.lowLimitEnable] = value
-        obj.limitEnable = limit_enable
-
-    def do_highLimitEnable(
-        self,
-        object_name: str,
-        value: int,
-    ) -> None:
-        """
-        usage: do_highLimitEnable object_name (1 | 0)
-        """
-        if _debug:
-            SampleCmd._debug(
-                "highLimitEnable %r %r",
-                object_name,
-                value,
-            )
-
-        obj = eval(object_name)
-        limit_enable = copy(obj.limitEnable)
-        limit_enable[LimitEnable.highLimitEnable] = value
-        obj.limitEnable = limit_enable
-
     async def do_whois(
         self,
         address: Optional[Address] = None,
@@ -285,6 +245,7 @@ async def main() -> None:
             # eventAlgorithmInhibit=False,
             # statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
             reliability=Reliability.noFaultDetected,
+            # reliabilityEvaluationInhibit=False,
             # faultType=
             # faultParameters=
         )
@@ -306,7 +267,7 @@ async def main() -> None:
                     validDays=[1, 1, 1, 1, 1, 1, 1],
                     fromTime=(0, 0, 0, 0),
                     toTime=(23, 59, 59, 99),
-                    recipient=Recipient(device="device,999"),
+                    recipient=Recipient(device="device,990"),
                     processIdentifier=0,
                     issueConfirmedNotifications=False,
                     transitions=[1, 1, 1],  # toOffNormal, toFault, toNormal

@@ -49,7 +49,7 @@ class AnalogInputObject(_Object, _AnalogInputObject):
 @bacpypes_debugging
 class AnalogInputObjectIR(AnalogInputObject):
     """
-    A local analog input object with intrinsic reporting.
+    A local analog input object with intrinsic event reporting.
     """
 
     _debug: Callable[..., None]

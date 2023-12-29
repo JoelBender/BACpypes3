@@ -24,7 +24,6 @@ from bacpypes3.basetypes import (
     EventParameterOutOfRange,
     EventState,
     EventType,
-    FaultType,
     LimitEnable,
     NotifyType,
     PropertyIdentifier,
@@ -33,15 +32,12 @@ from bacpypes3.basetypes import (
     TimeStamp,
 )
 from bacpypes3.object import (
-    AnalogValueObject as _AnalogValueObject,
-    EventEnrollmentObject as _EventEnrollmentObject,
     NotificationClassObject,
 )
 
 from bacpypes3.app import Application
-from bacpypes3.local.object import Object as _Object
-from bacpypes3.local.event import OutOfRangeEventAlgorithm
-from bacpypes3.local.fault import OutOfRangeFaultAlgorithm
+from bacpypes3.local.analog import AnalogValueObjectFD
+from bacpypes3.local.event import EventEnrollmentObject
 
 # some debugging
 _debug = 0
@@ -52,134 +48,6 @@ app = None
 
 # 'property[index]' matching
 property_index_re = re.compile(r"^([A-Za-z-]+)(?:\[([0-9]+)\])?$")
-
-
-@bacpypes_debugging
-class AnalogValueObject(_Object, _AnalogValueObject):
-    """
-    Vanilla Analog Value Object
-    """
-
-    pass
-
-
-@bacpypes_debugging
-class AnalogValueObjectIR(AnalogValueObject):
-    """
-    Analog Value Object with Intrinsic Reporting
-    """
-
-    _debug: Callable[..., None]
-    _event_algorithm: OutOfRangeEventAlgorithm
-
-    def __init__(self, **kwargs):
-        if _debug:
-            AnalogValueObjectIR._debug("__init__ ...")
-        super().__init__(**kwargs)
-
-        # intrinsic event algorithm
-        self._event_algorithm = OutOfRangeEventAlgorithm(None, self)
-
-
-@bacpypes_debugging
-class AnalogValueObjectFD(AnalogValueObject):
-    """
-    Analog Value Object with Fault Detection
-    """
-
-    _debug: Callable[..., None]
-    _fault_algorithm: OutOfRangeFaultAlgorithm
-
-    def __init__(self, **kwargs):
-        if _debug:
-            AnalogValueObjectFD._debug("__init__ ...")
-        super().__init__(**kwargs)
-
-        # intrinsic fault detection
-        self._fault_algorithm = OutOfRangeFaultAlgorithm(None, self)
-
-
-@bacpypes_debugging
-class EventEnrollmentObject(_Object, _EventEnrollmentObject):
-    """ """
-
-    _debug: Callable[..., None]
-    _event_algorithm: OutOfRangeEventAlgorithm
-    _fault_algorithm: OutOfRangeFaultAlgorithm
-    _monitored_object: _Object
-    _notification_class_object: NotificationClassObject
-
-    def __init__(self, **kwargs):
-        if _debug:
-            EventEnrollmentObject._debug("__init__ ...")
-        super().__init__(**kwargs)
-
-        # finish the initialization by following the object property reference
-        asyncio.ensure_future(self.post_init())
-
-    async def post_init(self):
-        """
-        This function is called after all of the objects are added to the
-        application so that the objectPropertyReference property can
-        find the correct object.
-        """
-        if _debug:
-            EventEnrollmentObject._debug("post_init")
-
-        # look up the object being monitored
-        dopr: DeviceObjectPropertyReference = self.objectPropertyReference
-        if dopr.propertyArrayIndex is not None:
-            raise NotImplementedError()
-        if dopr.deviceIdentifier is not None:
-            raise NotImplementedError()
-
-        self._monitored_object: _Object = self._app.get_object_id(dopr.objectIdentifier)
-        if not self._monitored_object:
-            raise RuntimeError("object not found")
-
-        # the type of fault algorithm is based on the faultType property
-        fault_type: FaultType = self.faultType
-        if fault_type == FaultType.faultOutOfRange:
-            self._fault_algorithm = OutOfRangeFaultAlgorithm(
-                self, self._monitored_object
-            )
-        else:
-            self._fault_algorithm = None
-        if _debug:
-            EventEnrollmentObject._debug(
-                "    - _fault_algorithm: %r",
-                self._fault_algorithm,
-            )
-
-        # the type of event algorithm is based on the eventType property
-        event_type: EventType = self.eventType
-        if event_type == EventType.outOfRange:
-            self._event_algorithm = OutOfRangeEventAlgorithm(
-                self, self._monitored_object
-            )
-        else:
-            raise NotImplementedError(f"event type not implemented: {event_type}")
-        if _debug:
-            EventEnrollmentObject._debug(
-                "    - _event_algorithm: %r",
-                self._event_algorithm,
-            )
-
-        # find the notification class
-        for objid, obj in self._app.objectIdentifier.items():
-            if isinstance(obj, NotificationClassObject):
-                if obj.notificationClass == self.notificationClass:
-                    self._notification_class_object = obj
-                    break
-        else:
-            raise RuntimeError(
-                f"notification class object {self.notificationClass} not found"
-            )
-        if _debug:
-            EventEnrollmentObject._debug(
-                "    - notification class object: %r",
-                self._notification_class_object.objectIdentifier,
-            )
 
 
 @bacpypes_debugging
@@ -372,7 +240,7 @@ async def main() -> None:
             eventState=EventState.normal,
             outOfService=False,
             units=EngineeringUnits.degreesFahrenheit,
-            # reliability=Reliability.noFaultDetected,
+            reliability=Reliability.noFaultDetected,
             # reliabilityEvaluationInhibit=False,
             faultHighLimit=110.0,
             faultLowLimit=-10.0,
@@ -421,6 +289,7 @@ async def main() -> None:
             # eventAlgorithmInhibit=False,
             # statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
             reliability=Reliability.noFaultDetected,
+            # reliabilityEvaluationInhibit=False,
             # faultType=
             # faultParameters=
         )
@@ -442,7 +311,7 @@ async def main() -> None:
                     validDays=[1, 1, 1, 1, 1, 1, 1],
                     fromTime=(0, 0, 0, 0),
                     toTime=(23, 59, 59, 99),
-                    recipient=Recipient(device="device,999"),
+                    recipient=Recipient(device="device,990"),
                     processIdentifier=0,
                     issueConfirmedNotifications=False,
                     transitions=[1, 1, 1],  # toOffNormal, toFault, toNormal
