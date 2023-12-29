@@ -1,7 +1,7 @@
 """
 Simple example that has a device object and an additional Binary Value Object
-with intrinsic event reporting and a Notifiaction Class Object to describe
-where to send notifications.
+with no intrinsic reporting, an Event Enrollment Object to watch for changes,
+and a Notification Class Object to describe where to send notifications.
 """
 
 import asyncio
@@ -20,10 +20,16 @@ from bacpypes3.primitivedata import ObjectIdentifier
 from bacpypes3.basetypes import (
     BinaryPV,
     Destination,
+    DeviceObjectPropertyReference,
+    EventParameter,
+    EventParameterChangeOfState,
     EventState,
+    EventType,
     NotifyType,
     PropertyIdentifier,
+    PropertyStates,
     Recipient,
+    Reliability,
     TimeStamp,
 )
 from bacpypes3.object import (
@@ -31,7 +37,8 @@ from bacpypes3.object import (
 )
 
 from bacpypes3.app import Application
-from bacpypes3.local.binary import BinaryValueObjectIR
+from bacpypes3.local.binary import BinaryValueObject
+from bacpypes3.local.event import EventEnrollmentObject
 
 # some debugging
 _debug = 0
@@ -72,13 +79,15 @@ class SampleCmd(Cmd):
         # split the property identifier and its index
         property_index_match = property_index_re.match(property_identifier)
         if not property_index_match:
-            raise ValueError("property specification incorrect")
+            await self.response("property specification incorrect")
+            return
         property_name, property_array_index = property_index_match.groups()
-        if property_array_index is not None:
-            raise NotImplementedError("property array index")
         attribute_name = PropertyIdentifier(property_name).attr
 
-        await self.response(repr(getattr(obj, attribute_name)))
+        if property_array_index is None:
+            await self.response(repr(getattr(obj, attribute_name)))
+        else:
+            print("not implemented")
 
     async def do_write(
         self,
@@ -111,15 +120,12 @@ class SampleCmd(Cmd):
         # split the property identifier and its index
         property_index_match = property_index_re.match(property_identifier)
         if not property_index_match:
-            raise ValueError("property specification incorrect")
+            await self.response("property specification incorrect")
+            return
         property_name, property_array_index = property_index_match.groups()
         if property_array_index is not None:
-            raise NotImplementedError("property array index")
+            property_array_index = int(property_array_index)
         prop = PropertyIdentifier(property_name)
-
-        # no priority :-(
-        if priority:
-            raise NotImplementedError("priority")
 
         # now get the property type from the class
         property_type = object_class.get_property_type(prop)
@@ -131,45 +137,10 @@ class SampleCmd(Cmd):
         if _debug:
             SampleCmd._debug("    - value: %r", value)
 
-        setattr(obj, prop.attr, value)
-
-    async def do_enable(
-        self,
-        object_identifier: ObjectIdentifier,
-    ) -> None:
-        """
-        usage: enable objid
-        """
-        if _debug:
-            SampleCmd._debug("do_enable %r", object_identifier)
-        assert app
-
-        # get the object
-        obj = app.get_object_id(object_identifier)
-        if not obj:
-            raise RuntimeError("object not found")
-
-        # enable event detection
-        obj.eventAlgorithmInhibit = False
-
-    async def do_disable(
-        self,
-        object_identifier: ObjectIdentifier,
-    ) -> None:
-        """
-        usage: disable objid
-        """
-        if _debug:
-            SampleCmd._debug("do_disable %r", object_identifier)
-        assert app
-
-        # get the object
-        obj = app.get_object_id(object_identifier)
-        if not obj:
-            raise RuntimeError("object not found")
-
-        # disable event detection
-        obj.eventAlgorithmInhibit = True
+        if property_array_index is None:
+            setattr(obj, prop.attr, value)
+        else:
+            print("not implemented")
 
     async def do_whois(
         self,
@@ -205,7 +176,7 @@ class SampleCmd(Cmd):
 
 
 async def main() -> None:
-    global app, bvo1, nc1
+    global app, bvo2, nc2
 
     try:
         app = None
@@ -220,49 +191,74 @@ async def main() -> None:
         if _debug:
             _log.debug("app: %r", app)
 
-        # make an object with intrinsic reporting
-        bvo1 = BinaryValueObjectIR(
-            objectIdentifier="binary-value,1",
-            objectName="bvo1",
-            description="test binary value",
+        # make a binary value object with required parameters
+        bvo2 = BinaryValueObject(
+            objectIdentifier="binary-value,2",
+            objectName="bvo2",
             presentValue=BinaryPV.inactive,
-            eventState=EventState.normal,
+            description="test binary value",
             # statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
+            eventState=EventState.normal,
             outOfService=False,
-            # CHANGE_OF_STATE Event Algorithm
-            timeDelay=1,
-            notificationClass=1,
-            alarmValue=BinaryPV.active,
+        )
+        if _debug:
+            _log.debug("bvo2: %r", bvo2)
+
+        app.add_object(bvo2)
+
+        # make an event enrollment object with only the required parameters
+        eeo2 = EventEnrollmentObject(
+            objectIdentifier="event-enrollment,2",
+            objectName="eeo2",
+            description="test event enrollment",
+            eventType=EventType.changeOfState,
+            notifyType=NotifyType.alarm,  # event, ackNotification
+            eventParameters=EventParameter(
+                changeOfState=EventParameterChangeOfState(
+                    timeDelay=1,
+                    listOfValues=[
+                        PropertyStates(binaryValue="active"),
+                    ],
+                ),
+            ),
+            objectPropertyReference=DeviceObjectPropertyReference(
+                objectIdentifier="binary-value,2",
+                propertyIdentifier=PropertyIdentifier.presentValue,
+            ),
+            eventState=EventState.normal,
             eventEnable=[1, 1, 1],  # toOffNormal, toFault, toNormal
             ackedTransitions=[0, 0, 0],  # toOffNormal, toFault, toNormal
-            notifyType=NotifyType.alarm,  # event, ackNotification
+            notificationClass=2,
             eventTimeStamps=[
                 TimeStamp(time=(255, 255, 255, 255)),
                 TimeStamp(time=(255, 255, 255, 255)),
                 TimeStamp(time=(255, 255, 255, 255)),
             ],
-            eventMessageTexts=["", "", ""],
-            eventDetectionEnable=True,
+            # eventMessageTexts=["to off normal", "to fault", "to normal"],
             # eventMessageTextsConfig=[
-            #     "to off normal - {pCurrentState}",
-            #     "to fault",
-            #     "to normal",
+            #     "to off normal config",
+            #     "to fault config",
+            #     "to normal config",
             # ],
+            eventDetectionEnable=True,
             # eventAlgorithmInhibitReference=ObjectPropertyReference
-            eventAlgorithmInhibit=False,
-            timeDelayNormal=1,
+            # eventAlgorithmInhibit=False,
+            # statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
+            reliability=Reliability.noFaultDetected,
+            # faultType=
+            # faultParameters=
         )
         if _debug:
-            _log.debug("bvo1: %r", bvo1)
+            _log.debug("eeo2: %r", eeo2)
 
-        app.add_object(bvo1)
+        app.add_object(eeo2)
 
         # notification class object
-        nc1 = NotificationClassObject(
-            objectIdentifier="notification-class,1",
-            objectName="nc1",
+        nc2 = NotificationClassObject(
+            objectIdentifier="notification-class,2",
+            objectName="nc2",
             description="test notification class",
-            notificationClass=1,
+            notificationClass=2,
             priority=[9, 9, 9],  # toOffNormal, toFault, toNormal priority
             ackRequired=[0, 0, 0],  # toOffNormal, toFault, toNormal
             recipientList=[
@@ -272,15 +268,15 @@ async def main() -> None:
                     toTime=(23, 59, 59, 99),
                     recipient=Recipient(device="device,990"),
                     processIdentifier=0,
-                    issueConfirmedNotifications=True,
+                    issueConfirmedNotifications=False,
                     transitions=[1, 1, 1],  # toOffNormal, toFault, toNormal
                 )
             ],
         )
         if _debug:
-            _log.debug("nc1: %r", nc1)
+            _log.debug("nc2: %r", nc2)
 
-        app.add_object(nc1)
+        app.add_object(nc2)
 
         # build a very small stack
         console = Console()

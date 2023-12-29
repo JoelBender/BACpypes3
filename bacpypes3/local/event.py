@@ -2451,6 +2451,10 @@ class EventEnrollmentObject(Object, _EventEnrollmentObject):
             self._event_algorithm = OutOfRangeEventAlgorithm(
                 self, self._monitored_object
             )
+        elif event_type == EventType.changeOfState:
+            self._event_algorithm = ChangeOfStateEventAlgorithm(
+                self, self._monitored_object
+            )
         else:
             raise NotImplementedError(f"event type not implemented: {event_type}")
         if _debug:
