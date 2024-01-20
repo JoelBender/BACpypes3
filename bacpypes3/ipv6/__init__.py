@@ -18,10 +18,12 @@ from ..pdu import LocalBroadcast, IPv6Address, IPv6LinkLocalMulticastAddress, PD
 _debug = 0
 _log = ModuleLogger(globals())
 
+# move this to settings sometime
+BACPYPES_ENDPOINT_RETRY_INTERVAL = 1.0
+
 
 @bacpypes_debugging
 class IPv6DatagramProtocol(asyncio.DatagramProtocol):
-
     _debug: Callable[..., None]
 
     server: "IPv6DatagramServer"
@@ -48,7 +50,6 @@ class IPv6DatagramProtocol(asyncio.DatagramProtocol):
 
 @bacpypes_debugging
 class IPv6DatagramServer(Server[PDU]):
-
     _debug: Callable[..., None]
     _exception: Callable[..., None]
     _transport_tasks: List[Any]
@@ -101,10 +102,7 @@ class IPv6DatagramServer(Server[PDU]):
 
         # easy call to create a local endpoint
         local_endpoint_task = loop.create_task(
-            loop.create_datagram_endpoint(
-                IPv6DatagramProtocol,
-                sock=local_socket,
-            )
+            self.retrying_create_datagram_endpoint(loop, local_socket)
         )
         if _debug:
             IPv6DatagramServer._debug(
@@ -116,6 +114,22 @@ class IPv6DatagramServer(Server[PDU]):
 
         # keep a list of things that need to complete before sending stuff
         self._transport_tasks = [local_endpoint_task]
+
+    async def retrying_create_datagram_endpoint(
+        self, loop: asyncio.events.AbstractEventLoop, local_socket: socket.socket
+    ):
+        while True:
+            try:
+                return await loop.create_datagram_endpoint(
+                    IPv6DatagramProtocol,
+                    sock=local_socket,
+                )
+            except OSError:
+                if _debug:
+                    IPv6DatagramServer._debug(
+                        "    - Could not create datagram endpoint, retrying..."
+                    )
+                await asyncio.sleep(BACPYPES_ENDPOINT_RETRY_INTERVAL)
 
     def set_local_transport_protocol(self, address, task):
         if _debug:

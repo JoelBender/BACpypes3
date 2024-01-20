@@ -18,10 +18,12 @@ from ..pdu import LocalStation, LocalBroadcast, IPv4Address, PDU
 _debug = 0
 _log = ModuleLogger(globals())
 
+# move this to settings sometime
+BACPYPES_ENDPOINT_RETRY_INTERVAL = 1.0
+
 
 @bacpypes_debugging
 class IPv4DatagramProtocol(asyncio.DatagramProtocol):
-
     _debug: Callable[..., None]
 
     server: "IPv4DatagramServer"
@@ -62,7 +64,6 @@ class IPv4DatagramProtocol(asyncio.DatagramProtocol):
 
 @bacpypes_debugging
 class IPv4DatagramServer(Server[PDU]):
-
     _debug: Callable[..., None]
     _exception: Callable[..., None]
     _transport_tasks: List[Any]
@@ -98,11 +99,7 @@ class IPv4DatagramServer(Server[PDU]):
 
         # easy call to create a local endpoint
         local_endpoint_task = loop.create_task(
-            loop.create_datagram_endpoint(
-                IPv4DatagramProtocol,
-                local_addr=address.addrTuple,
-                allow_broadcast=True,
-            )
+            self.retrying_create_datagram_endpoint(loop, address.addrTuple)
         )
         if _debug:
             IPv4DatagramServer._debug(
@@ -130,10 +127,8 @@ class IPv4DatagramServer(Server[PDU]):
             # Windows takes care of the broadcast, but Linux needs a broadcast endpoint
             if "nt" not in os.name:
                 broadcast_endpoint_task = loop.create_task(
-                    loop.create_datagram_endpoint(
-                        IPv4DatagramProtocol,
-                        local_addr=address.addrBroadcastTuple,
-                        allow_broadcast=True,
+                    self.retrying_create_datagram_endpoint(
+                        loop, address.addrBroadcastTuple
                     )
                 )
                 if _debug:
@@ -144,6 +139,25 @@ class IPv4DatagramServer(Server[PDU]):
                     functools.partial(self.set_broadcast_transport_protocol, address)
                 )
                 self._transport_tasks.append(broadcast_endpoint_task)
+
+    async def retrying_create_datagram_endpoint(
+        self, loop: asyncio.events.AbstractEventLoop, addrTuple: Tuple[str, int]
+    ):
+        """
+        Repeat attempts to create datagram endpoint, sometimes during boot
+        the interface isn't ready.  Contributed by PretentiousPotatoPeeler.
+        """
+        while True:
+            try:
+                return await loop.create_datagram_endpoint(
+                    IPv4DatagramProtocol, local_addr=addrTuple, allow_broadcast=True
+                )
+            except OSError:
+                if _debug:
+                    IPv4DatagramServer._debug(
+                        "    - Could not create datagram endpoint, retrying..."
+                    )
+                await asyncio.sleep(BACPYPES_ENDPOINT_RETRY_INTERVAL)
 
     def set_local_transport_protocol(self, address, task):
         if _debug:
