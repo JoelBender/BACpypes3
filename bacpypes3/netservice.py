@@ -14,6 +14,7 @@ from typing import (
     Dict,
     List,
     Optional,
+    Set,
     Tuple,
     Union,
     cast,
@@ -69,34 +70,6 @@ ROUTER_DISCONNECTED = 2  # could make a connection, but hasn't
 ROUTER_UNREACHABLE = 3  # temporarily unreachable
 
 #
-#   RouterInfo
-#
-
-
-class RouterInfo(DebugContents):
-    """
-    These objects are routing information records that map router
-    addresses with destination networks.
-    """
-
-    _debug_contents: Tuple[str, ...] = ("snet", "address", "dnets")
-
-    snet: Optional[int]
-    address: Address
-    dnets: Dict[int, int]
-
-    def __init__(self, snet: Optional[int], address: Address) -> None:
-        self.snet = snet  # source network
-        self.address = address  # address of the router
-        self.dnets = {}  # {dnet: status}
-
-    def set_status(self, dnets, status) -> None:
-        """Change the status of each of the DNETS."""
-        for dnet in dnets:
-            self.dnets[dnet] = status
-
-
-#
 #   RouterInfoCache
 #
 
@@ -104,195 +77,203 @@ class RouterInfo(DebugContents):
 @bacpypes_debugging
 class RouterInfoCache(DebugContents):
     """
-    This class provides an in-memory implementation of a database of RouterInfo
-    objects.
+    This class provides an in-memory implementation of the network topology.
     """
 
     _debug_contents = (
-        "routers+",
         "path_info+",
+        "router_dnets+",
     )
     _debug: Callable[..., None]
 
-    routers: Dict[Optional[int], Dict[Address, RouterInfo]]
-    path_info: Dict[Tuple[Optional[int], int], RouterInfo]
+    # (snet, Address) -> [ dnet ]
+    router_dnets: Dict[Tuple[Optional[int], Address], List[int]]
+
+    # (snet, dnet) -> (Address, status)
+    path_info: Dict[Tuple[Optional[int], int], Tuple[Address, int]]
 
     def __init__(self):
         if _debug:
             RouterInfoCache._debug("__init__")
 
-        self.routers = {}  # snet -> {Address: RouterInfo}
-        self.path_info = {}  # (snet, dnet) -> RouterInfo
+        self.path_info = {}
+        self.router_dnets = {}
 
-    def get_router_info(self, snet: Optional[int], dnet: int) -> Optional[RouterInfo]:
+    async def get_path_info(
+        self, snet: Optional[int], dnet: int
+    ) -> Optional[Tuple[Address, int]]:
+        """
+        Given a source network and a destination network, return a tuple of
+        the router address and the status of the router to the destination
+        network.
+        """
         if _debug:
-            RouterInfoCache._debug("get_router_info %r %r", snet, dnet)
+            RouterInfoCache._debug("get_path_info %r %r", snet, dnet)
 
         # return the network and address
-        router_info = self.path_info.get((snet, dnet), None)
+        path_info = self.path_info.get((snet, dnet), None)
         if _debug:
-            RouterInfoCache._debug("   - router_info: %r", router_info)
+            RouterInfoCache._debug("   - path_info: %r", path_info)
 
-        return router_info
+        return path_info
 
-    def update_router_info(
+    async def update_path_info(
         self,
         snet: Optional[int],
         address: Address,
         dnets: List[int],
-        status: int = ROUTER_AVAILABLE,
     ) -> None:
         if _debug:
-            RouterInfoCache._debug("update_router_info %r %r %r", snet, address, dnets)
+            RouterInfoCache._debug("update_path_info %r %r %r", snet, address, dnets)
 
-        existing_router_info = self.routers.get(snet, {}).get(address, None)
+        # create/update the list of dnets for this router
+        router_dnets = self.router_dnets.get((snet, address), None)
+        new_dnets: Set[int] = set(dnets)
 
-        other_routers = set()
-        for dnet in dnets:
-            other_router = self.path_info.get((snet, dnet), None)
-            if other_router and (other_router is not existing_router_info):
-                other_routers.add(other_router)
+        if router_dnets is None:
+            if _debug:
+                RouterInfoCache._debug("    - new router: %r", address)
+            router_dnets = list()
+        else:
+            # just look for new dnets related to this router
+            new_dnets -= set(router_dnets)
+            if not new_dnets:
+                # if there are no new dnets then the router_address is already
+                # correct and there are no others that need updating
+                if _debug:
+                    RouterInfoCache._debug("    - no changes")
+                return
+        if _debug:
+            RouterInfoCache._debug("    - router_dnets: %r", router_dnets)
+            RouterInfoCache._debug("    - new_dnets: %r", new_dnets)
 
-        # remove the dnets from other router(s) and paths
-        if other_routers:
-            for router_info in other_routers:
-                for dnet in dnets:
-                    if dnet in router_info.dnets:
-                        del router_info.dnets[dnet]
-                        del self.path_info[(snet, dnet)]
-                        if _debug:
-                            RouterInfoCache._debug(
-                                "    - del path: %r -> %r via %r",
-                                snet,
-                                dnet,
-                                router_info.address,
-                            )
-                if not router_info.dnets:
-                    del self.routers[snet][router_info.address]
-                    if _debug:
-                        RouterInfoCache._debug(
-                            "    - no dnets: %r via %r", snet, router_info.address
-                        )
+        # get the addresses of the routers that used to be the router to
+        # any of the dnets
+        for dnet in new_dnets:
+            path_info = self.path_info.get((snet, dnet), None)
+            if not path_info:
+                continue
+            if _debug:
+                RouterInfoCache._debug("    - old path: %r", path_info)
 
-        # update current router info if there is one
-        if not existing_router_info:
-            router_info = RouterInfo(snet, address)
-            if snet not in self.routers:
-                self.routers[snet] = {address: router_info}
-            else:
-                self.routers[snet][address] = router_info
+            old_router_address = path_info[0]
+            old_router_dnets = self.router_dnets.get((snet, old_router_address), None)
+            if old_router_dnets is None:
+                raise RuntimeError(f"routing cache: no router {old_router_address}")
+            if dnet not in old_router_dnets:
+                raise RuntimeError(
+                    f"routing cache: dnet {dnet} not in {old_router_dnets}"
+                )
 
-            for dnet in dnets:
-                self.path_info[(snet, dnet)] = router_info
+            # no longer a path through old router
+            old_router_dnets.remove(dnet)
+
+            # if there are no more dnets remove the router reference
+            if not old_router_dnets:
                 if _debug:
                     RouterInfoCache._debug(
-                        "    - add path: %r -> %r via %r",
-                        snet,
-                        dnet,
-                        router_info.address,
+                        "    - router abandoned: %r", old_router_address
                     )
-                router_info.dnets[dnet] = status
-        else:
-            for dnet in dnets:
-                if dnet not in existing_router_info.dnets:
-                    self.path_info[(snet, dnet)] = existing_router_info
-                    if _debug:
-                        RouterInfoCache._debug("    - add path: %r -> %r", snet, dnet)
-                existing_router_info.dnets[dnet] = status
+                del self.router_dnets[(snet, old_router_address)]
 
-    def update_router_status(self, snet: int, address: Address, status: int) -> None:
-        if _debug:
-            RouterInfoCache._debug(
-                "update_router_status %r %r %r", snet, address, status
-            )
+        # extend the existing list with the new ones and set the path
+        router_dnets.extend(list(new_dnets))
+        self.router_dnets[(snet, address)] = router_dnets
+        for dnet in new_dnets:
+            self.path_info[(snet, dnet)] = (address, ROUTER_AVAILABLE)
 
-        existing_router_info = self.routers.get(snet, {}).get(address, None)
-        if not existing_router_info:
-            if _debug:
-                RouterInfoCache._debug("    - not a router we know about")
-            return
-
-        ###TODO
-        # existing_router_info.status = status
-        # if _debug:
-        #     RouterInfoCache._debug("    - status updated")
-
-    def delete_router_info(
+    async def delete_path_info(
         self,
         snet: int,
         address: Optional[Address] = None,
         dnets: Optional[List[int]] = None,
     ) -> None:
         if _debug:
-            RouterInfoCache._debug("delete_router_info %r %r %r", dnets)
+            RouterInfoCache._debug("delete_path_info %r %r %r", snet, address, dnets)
 
-        if (address is None) and (dnets is None):
-            raise RuntimeError("inconsistent parameters")
-
-        # remove the dnets from a router or the whole router
         if address is not None:
-            router_info = self.routers.get(snet, {}).get(address, None)
-            if not router_info:
+            # get the list of dnets for this router
+            router_dnets = self.router_dnets.get((snet, address), None)
+            if router_dnets is None:
                 if _debug:
-                    RouterInfoCache._debug("    - no route info")
-            else:
-                for dnet in dnets or router_info.dnets:
-                    del self.path_info[(snet, dnet)]
+                    RouterInfoCache._debug("    - no known dnets")
+                return
+
+            # remove the path info and the dnet from the router dnets
+            for dnet in dnets or router_dnets:
+                del self.path_info[(snet, dnet)]
+                router_dnets.remove(dnet)
+
+            # if there are no more dnets remove the router reference
+            if not router_dnets:
+                if _debug:
+                    RouterInfoCache._debug("    - router abandoned: %r", address)
+                del self.router_dnets[(snet, address)]
+        else:
+            if dnets is None:
+                raise RuntimeError("inconsistent parameters")
+
+            for dnet in dnets:
+                path_info = self.path_info.get((snet, dnet), None)
+                if not path_info:
+                    continue
+
+                router_address, _ = path_info
+
+                # get the list of dnets for this router
+                router_dnets = self.router_dnets.get((snet, router_address), None)
+                if router_dnets is None:
+                    raise RuntimeError("routing cache conflict")
+                if dnet not in router_dnets:
+                    raise RuntimeError("routing cache conflict")
+
+                del self.path_info[(snet, dnet)]
+                router_dnets.remove(dnet)
+
+                # if there are no more dnets remove the router reference
+                if not router_dnets:
                     if _debug:
-                        RouterInfoCache._debug(
-                            "    - del path: %r -> %r via %r",
-                            snet,
-                            dnet,
-                            router_info.address,
-                        )
-                del self.routers[snet][address]
+                        RouterInfoCache._debug("    - router abandoned: %r", address)
+                    del self.router_dnets[(snet, address)]
+
+    async def update_router_status(
+        self, snet: int, address: Address, status: int
+    ) -> None:
+        if _debug:
+            RouterInfoCache._debug(
+                "update_router_status %r %r %r", snet, address, status
+            )
+
+        # get the list of dnets for this router
+        router_dnets = self.router_dnets.get((snet, address), None)
+        if router_dnets is None:
+            if _debug:
+                RouterInfoCache._debug("    - no known dnets")
             return
 
-        # look for routers to the dnets
-        other_routers = set()
-        for dnet in dnets:  # type: ignore[union-attr]
-            other_router = self.path_info.get((snet, dnet), None)
-            if other_router:  ###TODO: and (other_router is not existing_router_info):
-                other_routers.add(other_router)
+        # save the status
+        for dnet in router_dnets:
+            self.path_info[(snet, dnet)] = (address, status)
 
-        # remove the dnets from other router(s) and paths
-        for router_info in other_routers:
-            for dnet in dnets:  # type: ignore[union-attr]
-                if dnet in router_info.dnets:
-                    del router_info.dnets[dnet]
-                    del self.path_info[(snet, dnet)]
-                    if _debug:
-                        RouterInfoCache._debug(
-                            "    - del path: %r -> %r via %r",
-                            snet,
-                            dnet,
-                            router_info.address,
-                        )
-            if not router_info.dnets:
-                del self.routers[snet][router_info.address]
-                if _debug:
-                    RouterInfoCache._debug(
-                        "    - no dnets: %r via %r", snet, router_info.address
-                    )
-
-    def update_source_network(self, old_snet: int, new_snet: int) -> None:
+    async def update_source_network(self, old_snet: int, new_snet: int) -> None:
+        """
+        This method is called when the network number for an adapter becomes
+        known, the Network-Number-Is service.
+        """
         if _debug:
             RouterInfoCache._debug("update_source_network %r %r", old_snet, new_snet)
 
-        if old_snet not in self.routers:
-            if _debug:
-                RouterInfoCache._debug(
-                    "    - no router references: %r", list(self.routers.keys())
-                )
-            return
+        router_dnets_items = list(self.router_dnets.items())
+        for (snet, router_address), router_dnets in router_dnets_items:
+            if snet == old_snet:
+                # out with the old, in with the new
+                del self.router_dnets[(old_snet, router_address)]
+                self.router_dnets[(new_snet, router_address)] = router_dnets
 
-        # move the router info records to the new net
-        snet_routers = self.routers[new_snet] = self.routers.pop(old_snet)
-
-        # update the paths
-        for address, router_info in snet_routers.items():
-            for dnet in router_info.dnets:
-                self.path_info[(new_snet, dnet)] = self.path_info.pop((old_snet, dnet))
+                for dnet in router_dnets:
+                    path_info = self.path_info[(old_snet, dnet)]
+                    del self.path_info[(old_snet, dnet)]
+                    self.path_info[(new_snet, dnet)] = path_info
 
 
 #
@@ -491,10 +472,14 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server[PDU], DebugContents):
 
     # -----
 
-    def update_router_references(
+    async def update_router_references(
         self, snet: int, address: Address, dnets: List[int]
     ) -> None:
-        """Update references to routers."""
+        """
+        Update references to routers, called when I-Am-Router-To-Network is
+        received.  Also called to load the router info cache during application
+        startup if necessary.
+        """
         if _debug:
             NetworkServiceAccessPoint._debug(
                 "update_router_references %r %r %r", snet, address, dnets
@@ -505,15 +490,17 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server[PDU], DebugContents):
             raise RuntimeError("no adapter for network: %d" % (snet,))
 
         # pass this along to the cache
-        self.router_info_cache.update_router_info(snet, address, dnets)
+        await self.router_info_cache.update_path_info(snet, address, dnets)
 
-    def delete_router_references(
+    async def delete_router_references(
         self,
         snet: int,
         address: Optional[Address] = None,
         dnets: Optional[List[int]] = None,
     ) -> None:
-        """Delete references to routers/networks."""
+        """
+        Delete references to routers/networks.
+        """
         if _debug:
             NetworkServiceAccessPoint._debug(
                 "delete_router_references %r %r %r", snet, address, dnets
@@ -524,7 +511,7 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server[PDU], DebugContents):
             raise RuntimeError("no adapter for network: %d" % (snet,))
 
         # pass this along to the cache
-        self.router_info_cache.delete_router_info(snet, address, dnets)
+        await self.router_info_cache.delete_router_info(snet, address, dnets)
 
     # -----
 
@@ -681,7 +668,7 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server[PDU], DebugContents):
         # adapters to the destination network
         router_info = None
         for snet, snet_adapter in self.adapters.items():
-            router_info = self.router_info_cache.get_router_info(snet, dnet)
+            router_info = await self.router_info_cache.get_path_info(snet, dnet)
             if router_info:
                 break
 
@@ -692,13 +679,14 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server[PDU], DebugContents):
                     "    - router_info found: %r", router_info
                 )
 
-            # check the path status
-            dnet_status = router_info.dnets[dnet]
+            router_address, router_status = router_info
             if _debug:
-                NetworkServiceAccessPoint._debug("    - dnet_status: %r", dnet_status)
+                NetworkServiceAccessPoint._debug(
+                    "    - router_status: %r", router_status
+                )
 
             # fix the destination and send it
-            npdu.pduDestination = router_info.address
+            npdu.pduDestination = router_address
             await snet_adapter.process_npdu(npdu)
 
         else:
@@ -756,7 +744,7 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server[PDU], DebugContents):
                 return
 
             # pass this new path along to the cache
-            self.router_info_cache.update_router_info(
+            await self.router_info_cache.update_path_info(
                 adapter.adapterNet,
                 cast(Address, npdu.pduSource),
                 [snet],  # type: ignore[list-item]
@@ -991,10 +979,14 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server[PDU], DebugContents):
             # adapters to the destination network
             router_info = None
             for snet, snet_adapter in self.adapters.items():
-                router_info = self.router_info_cache.get_router_info(snet, dnet)
+                router_info = await self.router_info_cache.get_path_info(snet, dnet)
                 if router_info:
+                    if _debug:
+                        NetworkServiceAccessPoint._debug(
+                            "    - router_info found: %r", router_info
+                        )
                     router_adapter = snet_adapter
-                    router_address = router_info.address
+                    router_address, router_status = router_info
                     break
 
             # no path, look for one
@@ -1360,9 +1352,6 @@ class NetworkServiceElement(ApplicationServiceElement, DebugContents):
                 if _debug:
                     NetworkServiceElement._debug("    - skipping, no netlist")
                 continue
-
-            # pass this along to the cache -- on hold #213
-            # sap.router_info_cache.update_router_info(adapter.adapterNet, adapter.adapterAddr, netlist)
 
             # send an announcement
             self.i_am_router_to_network(adapter=adapter, network=netlist)
@@ -1869,7 +1858,7 @@ class NetworkServiceElement(ApplicationServiceElement, DebugContents):
             # adapters to the destination network
             router_info = None
             for snet, snet_adapter in sap.adapters.items():
-                router_info = sap.router_info_cache.get_router_info(snet, dnet)
+                router_info = await sap.router_info_cache.get_path_info(snet, dnet)
                 if router_info:
                     break
 
@@ -1927,7 +1916,7 @@ class NetworkServiceElement(ApplicationServiceElement, DebugContents):
             NetworkServiceElement._debug("    - sap: %r", sap)
 
         # pass along to the service access point
-        sap.update_router_references(
+        await sap.update_router_references(
             adapter.adapterNet, npdu.pduSource, npdu.iartnNetworkList
         )
 
