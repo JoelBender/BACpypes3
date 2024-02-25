@@ -2291,6 +2291,7 @@ class MultiStateValueObject(Object):
     eventAlgorithmInhibit: Boolean
     timeDelayNormal: Unsigned
     reliabilityEvaluationInhibit: Boolean
+    currentCommandPriority: OptionalUnsigned
     valueSource: ValueSource
     valueSourceArray: ArrayOf(ValueSource, _length=16)
     lastCommandTime: TimeStamp
