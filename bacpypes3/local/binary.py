@@ -38,9 +38,12 @@ class BinaryInputObject(_Object, _BinaryInputObject):
 
     _debug: Callable[..., None]
     _cov_criteria = GenericCriteria
-    _required = (  # criteria Table 13-1
+    _required = (
         "presentValue",
         "statusFlags",
+        "eventState",
+        "outOfService",
+        "polarity",
     )
 
 
@@ -87,9 +90,15 @@ class BinaryOutputObject(Commandable, _Object, _BinaryOutputObject):
 
     _debug: Callable[..., None]
     _cov_criteria = GenericCriteria
-    _required = (  # criteria Table 13-1
+    _required = (
         "presentValue",
         "statusFlags",
+        "eventState",
+        "outOfService",
+        "polarity",
+        "priorityArray",
+        "relinquishDefault",
+        "currentCommandPriority",
     )
 
 
@@ -136,19 +145,22 @@ class BinaryValueObject(_Object, _BinaryValueObject):
 
     _debug: Callable[..., None]
     _cov_criteria = GenericCriteria
-    _required = (  # criteria Table 13-1
+    _required = (
         "presentValue",
+        "priorityArray",
         "statusFlags",
+        "eventState",
+        "outOfService",
     )
 
 
 @bacpypes_debugging
-class BinaryValueObjectCmd(Commandable, BinaryValueObject):
+class BinaryValueObjectCmd(Commandable, _BinaryValueObject):
     """
     Commandable Binary Value Object
     """
 
-    pass
+    _required = "priorityArray"
 
 
 @bacpypes_debugging
