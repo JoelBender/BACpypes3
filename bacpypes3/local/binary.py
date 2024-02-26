@@ -160,7 +160,7 @@ class BinaryValueObjectCmd(Commandable, _BinaryValueObject):
     Commandable Binary Value Object
     """
 
-    _required = "priorityArray"
+    _required = ("priorityArray",)
 
 
 @bacpypes_debugging
