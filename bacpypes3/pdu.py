@@ -98,7 +98,7 @@ combined_pattern = re.compile(
 )
 
 ethernet_re = re.compile(r"^([0-9A-Fa-f][0-9A-Fa-f][:]){5}([0-9A-Fa-f][0-9A-Fa-f])$")
-interface_port_re = re.compile(r"^(?:([\w.]+))(?::(\d+))?$")
+interface_port_re = re.compile(r"^(?:([A-Za-z][\w.-]+))(?::(\d+))?$")
 host_port_re = re.compile(r"^(?:([\w.]+))(?::(\d+))?$")
 
 network_types: Dict[str, type]

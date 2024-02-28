@@ -1,5 +1,5 @@
 """
-Simple example that has a device object and an additional Binary Value Object
+Simple example that has a device object and an additional Binary Input Object
 with intrinsic event reporting and a Notifiaction Class Object to describe
 where to send notifications.
 """
