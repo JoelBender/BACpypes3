@@ -175,7 +175,7 @@ class CustomRouterInfoCache(DebugContents):
         address and the status of the router to the destination network.
         """
         if _debug:
-            CustomRouterInfoCache._debug("get_path_info %r %r", snet, dnet)
+            CustomRouterInfoCache._debug("set_path_info %r %r", snet, dnet)
 
         # encode the key and value
         path_info_key = f"bacnet:path:{snet}:{dnet}"
@@ -206,7 +206,7 @@ class CustomRouterInfoCache(DebugContents):
         if not router_dnets_blob:
             return None
 
-        return list(int(dnet) for dnet in router_dnets_blob.decode.split(","))
+        return list(int(dnet) for dnet in router_dnets_blob.decode().split(","))
 
     async def set_router_dnets(
         self,
@@ -264,7 +264,7 @@ class CustomRouterInfoCache(DebugContents):
         # get the addresses of the routers that used to be the router to
         # any of the dnets
         for dnet in new_dnets:
-            path_info = self.get_path_info(snet, dnet)
+            path_info = await self.get_path_info(snet, dnet)
             if not path_info:
                 continue
             if _debug:
