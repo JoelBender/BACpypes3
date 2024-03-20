@@ -20,6 +20,7 @@ from bacpypes3.basetypes import PropertyReference
 from bacpypes3.constructeddata import AnyAtomic
 from bacpypes3.netservice import (
     ROUTER_AVAILABLE,
+    RouterInfoCache,
     NetworkAdapter,
 )
 from bacpypes3.apdu import ErrorRejectAbortNack
@@ -45,77 +46,12 @@ redis: Redis
 
 
 #
-#   CustomRouterInfo
-#
-
-
-class CustomRouterInfo(DebugContents):
-    """
-    These objects are routing information records that map router
-    addresses with destination networks.
-    """
-
-    _debug_contents: Tuple[str, ...] = ("snet", "address", "dnets")
-
-    snet: Optional[int]
-    address: Address
-    dnets: Dict[int, int]
-
-    def __init__(self, snet: Optional[int], address: Address) -> None:
-        self.snet = snet  # source network
-        self.address = address  # address of the router
-        self.dnets = {}  # {dnet: status}
-
-    def set_status(self, dnets, status) -> None:
-        """Change the status of each of the DNETS."""
-        for dnet in dnets:
-            self.dnets[dnet] = status
-
-    def encode(self) -> bytes:
-        if _debug:
-            CustomRouterInfo._debug("encode")
-
-        contents = ",".join(
-            [
-                str(self.snet),
-                str(self.address),
-                ".".join(f"{k}:{v}" for k, v in self.dnets.items()),
-            ]
-        )
-        if _debug:
-            CustomRouterInfo._debug("    - contents: %r", contents)
-
-        return contents.encode()
-
-    @classmethod
-    def decode(cls, blob: bytes) -> "CustomRouterInfo":
-        if _debug:
-            CustomRouterInfo._debug("decode %r", blob)
-
-        contents = blob.decode().split(",", 2)
-        if _debug:
-            CustomRouterInfo._debug("    - contents: %r", contents)
-
-        snet = int(contents[0])
-        address = Address(contents[1])
-        dnets = {}
-        for kv in contents[2].split(","):
-            k, v = kv.split(":")
-            dnets[int(k)] = int(v)
-
-        router_info = cls(snet, address)
-        router_info.dnets = dnets
-
-        return router_info
-
-
-#
 #   CustomRouterInfoCache
 #
 
 
 @bacpypes_debugging
-class CustomRouterInfoCache(DebugContents):
+class CustomRouterInfoCache(RouterInfoCache):
     """
     This class provides a Redis implementation of the network topology.
     """
@@ -128,9 +64,15 @@ class CustomRouterInfoCache(DebugContents):
     # (snet, dnet) -> (Address, status)
     # path_info: Dict[Tuple[Optional[int], int], Tuple[Address, int]]
 
-    def __init__(self):
-        if _debug:
-            CustomRouterInfoCache._debug("__init__")
+    async def cache_update_reader(self, channel: aioredis.client.PubSub) -> None:
+        """
+        This task gets cache update messages by listening for keyspace
+        notifications.
+        """
+        while True:
+            message = await channel.get_message(ignore_subscribe_messages=True)
+            if message is not None:
+                print(f"(Reader) Message Received: {message}")
 
     async def get_path_info(
         self, snet: Optional[int], dnet: int
@@ -142,6 +84,13 @@ class CustomRouterInfoCache(DebugContents):
         """
         if _debug:
             CustomRouterInfoCache._debug("get_path_info %r %r", snet, dnet)
+
+        # see if it's in the process cache
+        path_info = await super().get_path_info(snet, dnet)
+        if path_info:
+            if _debug:
+                CustomRouterInfoCache._debug("    - cache hit")
+            return path_info
 
         # encode the key
         path_info_key = f"bacnet:path:{snet}:{dnet}"
@@ -157,6 +106,8 @@ class CustomRouterInfoCache(DebugContents):
                 "    - path_info_blob: %r, %r", path_info_blob, cache_expire
             )
         if not path_info_blob:
+            if _debug:
+                CustomRouterInfoCache._debug("    - redis cache miss")
             return None
 
         # decode the blob
@@ -164,12 +115,15 @@ class CustomRouterInfoCache(DebugContents):
         router_address = Address(path_info[0])
         router_status = int(path_info[1])
 
+        # update in-process cache
+        await super().set_path_info(snet, dnet, router_address, router_status)
+
         # return the tuple
         return (router_address, router_status)
 
     async def set_path_info(
         self, snet: Optional[int], dnet: int, address: Address, status: int
-    ) -> None:
+    ) -> bool:
         """
         Given a source network and a destination network, set the router
         address and the status of the router to the destination network.
@@ -177,18 +131,52 @@ class CustomRouterInfoCache(DebugContents):
         if _debug:
             CustomRouterInfoCache._debug("set_path_info %r %r", snet, dnet)
 
+        # check with the in-process cache
+        if not await super().set_path_info(snet, dnet, address, status):
+            return False
+
         # encode the key and value
         path_info_key = f"bacnet:path:{snet}:{dnet}"
         path_info_blob = f"{address},{status}".encode()
 
         # tell redis
         await redis.set(path_info_key, path_info_blob, ex=ROUTER_INFO_CACHE_EXPIRE)
+        return True
+
+    async def delete_path_info(self, snet: Optional[int], dnet: int) -> bool:
+        """
+        Given a source network and a destination network, delete the cache
+        info.  Return false if the cache has not changed.
+        """
+        if _debug:
+            RouterInfoCache._debug("delete_path_info %r %r", snet, dnet)
+
+        # check with the in-process cache
+        if not await super().delete_path_info(snet, dnet):
+            return False
+
+        # encode the key
+        path_info_key = f"bacnet:path:{snet}:{dnet}"
+
+        # tell redis
+        await redis.delete(path_info_key)
+        return True
 
     async def get_router_dnets(
         self,
         snet: Optional[int],
         address: Address,
-    ) -> Optional[List[int]]:
+    ) -> Optional[Set[int]]:
+        if _debug:
+            CustomRouterInfoCache._debug("get_router_dnets %r %r", snet, address)
+
+        # check in-process cache
+        router_dnets = await super().get_router_dnets(snet, address)
+        if router_dnets is not None:
+            if _debug:
+                CustomRouterInfoCache._debug("    - cache hit")
+            return router_dnets
+
         # encode the key
         router_dnets_key = f"bacnet:dnets:{snet}:{address}"
 
@@ -197,23 +185,39 @@ class CustomRouterInfoCache(DebugContents):
         p.get(router_dnets_key)
         p.expire(router_dnets_key, ROUTER_INFO_CACHE_EXPIRE)
         router_dnets_blob, cache_expire = await p.execute()
-
         if _debug:
             CustomRouterInfoCache._debug(
                 "    - router_dnets_blob: %r, %r", router_dnets_blob, cache_expire
             )
 
         if not router_dnets_blob:
+            if _debug:
+                CustomRouterInfoCache._debug("    - redis cache miss")
             return None
 
-        return list(int(dnet) for dnet in router_dnets_blob.decode().split(","))
+        # encode the dnets
+        router_dnets = set(int(dnet) for dnet in router_dnets_blob.decode().split(","))
+
+        # update in-process cache
+        await super().set_router_dnets(snet, address, router_dnets)
+
+        return router_dnets
 
     async def set_router_dnets(
         self,
         snet: Optional[int],
         address: Address,
-        dnets: List[int],
-    ) -> Optional[List[int]]:
+        dnets: Set[int],
+    ) -> bool:
+        if _debug:
+            CustomRouterInfoCache._debug(
+                "set_router_dnets %r %r %r", snet, address, dnets
+            )
+
+        # check in in-process cache
+        if not await super().set_router_dnets(snet, address, dnets):
+            return False
+
         # encode the key
         router_dnets_key = f"bacnet:dnets:{snet}:{address}"
         router_dnets_blob = (",".join(str(dnet) for dnet in dnets)).encode()
@@ -222,204 +226,30 @@ class CustomRouterInfoCache(DebugContents):
         await redis.set(
             router_dnets_key, router_dnets_blob, ex=ROUTER_INFO_CACHE_EXPIRE
         )
+        return True
 
-    async def update_path_info(
+    async def delete_router_dnets(
         self,
         snet: Optional[int],
         address: Address,
-        dnets: List[int],
-    ) -> None:
-        if _debug:
-            CustomRouterInfoCache._debug(
-                "update_path_info %r %r %r", snet, address, dnets
-            )
-
-        # ask redis for list of dnets
-        router_dnets = await self.get_router_dnets(snet, address)
-        if _debug:
-            CustomRouterInfoCache._debug("    - router_dnets: %r", router_dnets)
-
-        # create/update the list of dnets for this router
-        new_dnets: Set[int] = set(dnets)
-        if not router_dnets:
-            if _debug:
-                CustomRouterInfoCache._debug("    - new router: %r", address)
-            router_dnets = list()
-        else:
-            # just look for new dnets related to this router
-            new_dnets -= set(router_dnets)
-            if not new_dnets:
-                # if there are no new dnets then the router_address is already
-                # correct and there are no others that need updating
-                if _debug:
-                    CustomRouterInfoCache._debug("    - no changes")
-                return
-        if _debug:
-            CustomRouterInfoCache._debug("    - router_dnets: %r", router_dnets)
-            CustomRouterInfoCache._debug("    - new_dnets: %r", new_dnets)
-
-        # start a pipeline
-        # p: redis.client.Pipeline = redis.pipeline()
-
-        # get the addresses of the routers that used to be the router to
-        # any of the dnets
-        for dnet in new_dnets:
-            path_info = await self.get_path_info(snet, dnet)
-            if not path_info:
-                continue
-            if _debug:
-                CustomRouterInfoCache._debug("    - old path: %r", path_info)
-
-            old_router_address = path_info[0]
-            old_router_dnets = await self.get_router_dnets(snet, old_router_address)
-            if old_router_dnets is None:
-                raise RuntimeError(f"routing cache: no router {old_router_address}")
-            if dnet not in old_router_dnets:
-                raise RuntimeError(
-                    f"routing cache: dnet {dnet} not in {old_router_dnets}"
-                )
-
-            # no longer a path through old router
-            old_router_dnets.remove(dnet)
-            await self.set_router_dnets(snet, old_router_address, old_router_dnets)
-
-            # if there are no more dnets remove the router reference
-            if not old_router_dnets:
-                if _debug:
-                    CustomRouterInfoCache._debug(
-                        "    - router abandoned: %r", old_router_address
-                    )
-                old_router_dnets_key = f"bacnet:dnets:{snet}:{old_router_address}"
-                await redis.delete(old_router_dnets_key)
-
-        # extend the existing list with the new ones and set the path
-        router_dnets.extend(list(new_dnets))
-
-        await self.set_router_dnets(snet, address, router_dnets)
-        for dnet in new_dnets:
-            await self.set_path_info(snet, dnet, address, ROUTER_AVAILABLE)
-
-        # run the pipeline
-        # await p.execute()
-
-    async def delete_path_info(
-        self,
-        snet: int,
-        address: Optional[Address] = None,
-        dnets: Optional[List[int]] = None,
-    ) -> None:
-        if _debug:
-            CustomRouterInfoCache._debug(
-                "delete_path_info %r %r %r", snet, address, dnets
-            )
-
-        if address is not None:
-            # get the list of dnets for this router
-            router_dnets = await self.get_router_dnets(snet, address)
-            if router_dnets is None:
-                if _debug:
-                    CustomRouterInfoCache._debug("    - no known dnets")
-                return
-
-            # remove the path info and the dnet from the router dnets
-            for dnet in dnets or router_dnets:
-                path_info_key = f"bacnet:path:{snet}:{dnet}"
-                await redis.delete(path_info_key)
-                router_dnets.remove(dnet)
-
-            # if there are no more dnets remove the router reference
-            if not router_dnets:
-                if _debug:
-                    CustomRouterInfoCache._debug("    - router abandoned: %r", address)
-
-                router_dnets_key = f"bacnet:dnets:{snet}:{address}"
-                await redis.delete(router_dnets_key)
-            else:
-                await self.set_router_dnets(snet, address, router_dnets)
-
-        else:
-            if dnets is None:
-                raise RuntimeError("inconsistent parameters")
-
-            # start a pipeline
-            # p = redis.pipeline()
-            # router_dnets_cache: Dict[Address, List[int]] = {}
-
-            for dnet in dnets:
-                path_info = await self.get_path_info(snet, dnet)
-                if not path_info:
-                    continue
-
-                router_address, _ = path_info
-
-                # get the list of dnets for this router
-                router_dnets = await self.get_router_dnets(snet, router_address)
-                if router_dnets is None:
-                    raise RuntimeError("routing cache conflict")
-                if dnet not in router_dnets:
-                    raise RuntimeError("routing cache conflict")
-
-                # delete the path information
-                path_info_key = f"bacnet:path:{snet}:{dnet}"
-                await redis.delete(path_info_key)
-                router_dnets.remove(dnet)
-
-                # if there are no more dnets remove the router reference
-                if not router_dnets:
-                    if _debug:
-                        CustomRouterInfoCache._debug(
-                            "    - router abandoned: %r", address
-                        )
-                    router_dnets_key = f"bacnet:dnets:{snet}:{address}"
-                    await redis.delete(router_dnets_key)
-                else:
-                    await self.set_router_dnets(snet, router_address, router_dnets)
-
-            # flush the cache and execute the pipeline
-            # await p.execute()
-
-    async def update_router_status(
-        self, snet: int, address: Address, status: int
-    ) -> None:
-        if _debug:
-            CustomRouterInfoCache._debug(
-                "update_router_status %r %r %r", snet, address, status
-            )
-
-        # get the list of dnets for this router
-        router_dnets = await self.get_router_dnets(snet, address)
-        if router_dnets is None:
-            if _debug:
-                CustomRouterInfoCache._debug("    - no known dnets")
-            return
-
-        # save the status
-        for dnet in router_dnets:
-            await self.set_path_info(snet, dnet, address, status)
-
-    async def update_source_network(
-        self, old_snet: Optional[int], new_snet: int
-    ) -> None:
+    ) -> bool:
         """
-        This method is called when the network number for an adapter becomes
-        known, the Network-Number-Is service.
+        Given a source network and router address delete the cache entry.
+        Return False if the cache value has not changed.
         """
         if _debug:
-            CustomRouterInfoCache._debug(
-                "update_source_network %r %r", old_snet, new_snet
-            )
+            CustomRouterInfoCache._debug("delete_router_dnets %r %r", snet, address)
 
-        router_dnets_items = list(self.router_dnets.items())
-        for (snet, router_address), router_dnets in router_dnets_items:
-            if snet == old_snet:
-                # out with the old, in with the new
-                del self.router_dnets[(old_snet, router_address)]
-                self.router_dnets[(new_snet, router_address)] = router_dnets
+        # check in in-process cache
+        if not await super().delete_router_dnets(snet, address):
+            return False
 
-                for dnet in router_dnets:
-                    path_info = self.path_info[(old_snet, dnet)]
-                    del self.path_info[(old_snet, dnet)]
-                    self.path_info[(new_snet, dnet)] = path_info
+        # encode the key
+        router_dnets_key = f"bacnet:dnets:{snet}:{address}"
+
+        # tell redis
+        await redis.delete(router_dnets_key)
+        return True
 
 
 @bacpypes_debugging
@@ -562,6 +392,15 @@ class CmdShell(Cmd):
 
         await self.response("\n".join(report))
 
+    def do_debug(
+        self,
+        expr: str,
+    ) -> None:
+        value = eval(expr)  # , globals())
+        print(value)
+        if hasattr(value, "debug_contents"):
+            value.debug_contents()
+
 
 async def main() -> None:
     global app, redis
@@ -576,6 +415,13 @@ async def main() -> None:
         redis = aioredis.from_url("redis://localhost:6379/0")
         await redis.ping()
 
+        # check for keyspace events
+        notify_keyspace_events = (await redis.config_get("notify-keyspace-events"))[
+            "notify-keyspace-events"
+        ]
+        if not all(ch in notify_keyspace_events for ch in "$sK"):
+            raise RuntimeError("notify-keyspace-events")
+
         # build a very small stack
         console = Console()
         cmd = CmdShell()
@@ -589,8 +435,24 @@ async def main() -> None:
         if _debug:
             _log.debug("app: %r", app)
 
-        # run until the console is done, canceled or EOF
-        await console.fini.wait()
+        async with redis.pubsub() as pubsub:
+            if _debug:
+                _log.debug("pubsub: %r", pubsub)
+
+            await pubsub.psubscribe(
+                "__keyspace@0__:bacnet:path:*", "__keyspace@0__:bacnet:dnets:*"
+            )
+
+            # task for updates
+            cache_update_task = asyncio.create_task(
+                app.nsap.router_info_cache.cache_update_reader(pubsub)
+            )
+
+            # run until the console is done, canceled or EOF
+            await console.fini.wait()
+
+            # all done
+            cache_update_task.cancel()
 
     finally:
         if app:
