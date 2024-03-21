@@ -979,6 +979,10 @@ class ReadRangeServices:
         if _debug:
             ReadRangeServices._debug("do_ReadRangeRequest %r", apdu)
 
+        raise NotImplementedError()
+
+    """
+    TODO : Make that better
         # extract the object identifier
         objId = apdu.objectIdentifier
 
@@ -1071,3 +1075,4 @@ class ReadRangeServices:
 
         # return the result
         await self.response(resp)
+"""
