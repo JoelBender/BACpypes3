@@ -1,7 +1,12 @@
 """
-This application is given a JSON configuration file and presents a Cmd
-prompt with the CmdDebugging mixin class to provide support for
-additional debugging commands.
+This application is given a JSON configuration file which contains an array
+of applications, each of which is an array of objects.  All of the applications
+run simultaneously.  The sample JSON file `multiple-stacks.json` has IPv4
+network port objects with the same address but different ports.
+
+It also presents a Cmd prompt with the CmdDebugging mixin class to provide
+support for additional debugging commands that will be "attached" to the
+first application in the array.
 """
 
 import sys

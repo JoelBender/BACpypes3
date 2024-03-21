@@ -4,93 +4,74 @@ Application Module
 
 from __future__ import annotations
 
-import asyncio
 import argparse
+import asyncio
 import dataclasses
-
 from functools import partial
-
-from typing import (
-    TYPE_CHECKING,
-    cast,
-    Any as _Any,
-    Callable,
-    Dict,
-    List,
-    Optional,
-    Tuple,
-    Set,
-    Union,
-)
-
-from .debugging import bacpypes_debugging, DebugContents, ModuleLogger
-
-from .comm import ApplicationServiceElement, bind
-from .pdu import Address
-
-from .apdu import (
-    APDU,
-    UnconfirmedRequestPDU,
-    ConfirmedRequestPDU,
-    SimpleAckPDU,
-    ComplexAckPDU,
-    ErrorPDU,
-    RejectPDU,
-    AbortPDU,
-    Error,
-)
-
-from .errors import ExecutionError, UnrecognizedService, AbortException, RejectException
+from typing import TYPE_CHECKING
+from typing import Any as _Any
+from typing import Callable, Dict, List, Optional, Set, Tuple, Union, cast
 
 # for computing protocol services supported
 from .apdu import (
+    APDU,
+    AbortPDU,
+    ComplexAckPDU,
+    ConfirmedRequestPDU,
+    ConfirmedServiceChoice,
+    Error,
+    ErrorPDU,
+    IAmRequest,
+    RejectPDU,
+    SimpleAckPDU,
+    UnconfirmedRequestPDU,
     confirmed_request_types,
     unconfirmed_request_types,
-    IAmRequest,
 )
-from .primitivedata import ObjectType, ObjectIdentifier
+from .appservice import ApplicationServiceAccessPoint
 from .basetypes import (
+    BDTEntry,
+    HostNPort,
+    IPMode,
+    NetworkType,
+    ProtocolLevel,
     Segmentation,
     ServicesSupported,
-    ProtocolLevel,
-    NetworkType,
-    IPMode,
-    HostNPort,
-    BDTEntry,
 )
-from .object import Object, DeviceObject
-from .vendor import get_vendor_info
+from .comm import ApplicationServiceElement, bind
+from .debugging import DebugContents, ModuleLogger, bacpypes_debugging
+from .errors import AbortException, ExecutionError, RejectException, UnrecognizedService
+from .ipv4.link import BBMDLinkLayer as BBMDLinkLayer_ipv4
+from .ipv4.link import ForeignLinkLayer as ForeignLinkLayer_ipv4
+from .ipv4.link import NormalLinkLayer as NormalLinkLayer_ipv4
 
-from .appservice import ApplicationServiceAccessPoint
+# for serialized parameter initialization
+from .json import json_to_sequence
+
+# network port interpretation
+from .local.networkport import NetworkPortObject
+
+# objects with specialized interpreters
+from .local.schedule import ScheduleObject
 from .netservice import (
     NetworkServiceAccessPoint,
     NetworkServiceElement,
     RouterInfoCache,
 )
-
-# basic services
-from .service.device import WhoIsIAmServices, WhoHasIHaveServices
-from .service.object import (
-    ReadRangeServices,
-    ReadWritePropertyServices,
-    ReadWritePropertyMultipleServices,
-)
+from .object import DeviceObject, Object
+from .pdu import Address
+from .primitivedata import ObjectIdentifier, ObjectType
 from .service.cov import ChangeOfValueServices
 
-# network port interpretation
-from .local.networkport import NetworkPortObject
-from .ipv4.link import (
-    NormalLinkLayer as NormalLinkLayer_ipv4,
-    ForeignLinkLayer as ForeignLinkLayer_ipv4,
-    BBMDLinkLayer as BBMDLinkLayer_ipv4,
+# basic services
+from .service.device import WhoHasIHaveServices, WhoIsIAmServices
+from .service.object import (
+    ReadRangeServices,
+    ReadWritePropertyMultipleServices,
+    ReadWritePropertyServices,
 )
+from .vendor import get_vendor_info
 from .vlan.link import VirtualLinkLayer
-
-# objects with specialized interpreters
-from .local.schedule import ScheduleObject
-
-# for serialized parameter initialization
-from .json import json_to_sequence
 
 if TYPE_CHECKING:
     # class is declared as generic in stubs but not at runtime
@@ -758,13 +739,17 @@ class Application(
         for service_choice, service_request_class in confirmed_request_types.items():
             service_helper = "do_" + service_request_class.__name__
             if hasattr(self, service_helper):
-                services_supported[service_choice] = 1
+                _key = ConfirmedServiceChoice(service_choice).attr
+                choice = getattr(services_supported, _key)
+                services_supported[choice] = 1
 
         # look through the unconfirmed services
         for service_choice, service_request_class in unconfirmed_request_types.items():
             service_helper = "do_" + service_request_class.__name__
             if hasattr(self, service_helper):
-                services_supported[service_choice] = 1
+                _key = ConfirmedServiceChoice(service_choice).attr
+                choice = getattr(services_supported, _key)
+                services_supported[choice] = 1
 
         # return the bit list
         return services_supported

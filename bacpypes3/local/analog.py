@@ -178,7 +178,7 @@ class AnalogValueObjectCmd(Commandable, AnalogValueObject):
     Commandable Analog Value Object
     """
 
-    pass
+    _required = ("priorityArray",)
 
 
 @bacpypes_debugging

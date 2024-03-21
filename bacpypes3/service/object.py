@@ -35,7 +35,7 @@ from ..basetypes import (
 )
 from ..constructeddata import Any, Array, List, SequenceOf
 from ..debugging import ModuleLogger, bacpypes_debugging
-from ..errors import ExecutionError, ObjectError, PropertyError
+from ..errors import ExecutionError, ObjectError, PropertyError, RejectException
 from ..object import DeviceObject
 from ..pdu import Address
 from ..primitivedata import Date, Null, ObjectIdentifier, Time, Unsigned
@@ -979,4 +979,100 @@ class ReadRangeServices:
         if _debug:
             ReadRangeServices._debug("do_ReadRangeRequest %r", apdu)
 
-        raise NotImplementedError
+        raise NotImplementedError()
+
+    """
+    TODO : Make that better
+        # extract the object identifier
+        objId = apdu.objectIdentifier
+
+        # get the object
+        obj = self.get_object_id(objId)
+        if not obj:
+            raise ExecutionError(errorClass="object", errorCode="unknownObject")
+
+        if _debug:
+            ReadRangeServices._debug("    - object: %r", obj)
+
+        # get the datatype
+        datatype = obj.get_property_type(apdu.propertyIdentifier)
+        if _debug:
+            ReadRangeServices._debug("    - datatype: %r", datatype)
+
+        # must be a list, or an array of lists
+        if issubclass(datatype, List):
+            pass
+        elif (
+            (apdu.propertyArrayIndex is not None)
+            and issubclass(datatype, Array)
+            and issubclass(datatype.subtype, List)
+        ):
+            pass
+        else:
+            raise ExecutionError(errorClass="property", errorCode="propertyIsNotAList")
+
+        # get the value
+        if _debug:
+            ReadRangeServices._debug(apdu.__dict__)
+        try:
+            value = await obj.read_property(
+                apdu.propertyIdentifier, apdu.propertyArrayIndex
+            )
+
+            if _debug:
+                ReadRangeServices._debug(
+                    f"    - value: {value.__repr__()} | of type {type(value)}"
+                )
+            if value is None:
+                raise PropertyError(errorCode="unknownProperty")
+            if isinstance(value, List):
+                ReadRangeServices._debug(
+                    "    - value is a list of: %r", datatype.subtype
+                )
+                # datatype = datatype.subtype
+
+            if apdu.range.byPosition:
+                range_by_position = apdu.range.byPosition
+                if _debug:
+                    ReadRangeServices._debug(
+                        "    - range_by_position: %r", range_by_position
+                    )
+
+            elif apdu.range.bySequenceNumber:
+                range_by_sequence_number = apdu.range.bySequenceNumber
+                if _debug:
+                    ReadRangeServices._debug(
+                        "    - range_by_sequence_number: %r", range_by_sequence_number
+                    )
+
+            elif apdu.range.byTime:
+                range_by_time = apdu.range.byTime
+                if _debug:
+                    ReadRangeServices._debug("    - range_by_time: %r", range_by_time)
+
+            else:
+                raise RejectException("missingRequiredParameter")
+        except AttributeError:
+            # exception if this is not a defined property
+            raise PropertyError(errorCode="unknownProperty")
+        # this is an ack
+        resp = ReadRangeACK(context=apdu)
+        resp.objectIdentifier = objId
+        resp.propertyIdentifier = apdu.propertyIdentifier
+        resp.propertyArrayIndex = apdu.propertyArrayIndex
+
+        resp.resultFlags = [1, 1, 0]
+        resp.itemCount = len(value)
+
+        # save the result in the item data
+        item_data = SequenceOf(Any)()
+        item_data.cast_in(value)
+        resp.itemData = item_data
+        if _debug:
+            ReadRangeServices._debug("    - itemData : %r", resp.itemData)
+            ReadRangeServices._debug("    - resp: %r", resp)
+        self.response(resp)
+
+        # return the result
+        await self.response(resp)
+"""
