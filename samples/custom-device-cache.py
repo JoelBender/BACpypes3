@@ -33,6 +33,9 @@ _log = ModuleLogger(globals())
 
 # settings
 DEVICE_INFO_CACHE_EXPIRE = 120  # seconds
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+REDIS_DB = int(os.getenv("REDIS_DB", 0))
 
 # globals
 app: Application
@@ -243,7 +246,7 @@ async def main() -> None:
             _log.debug("args: %r", args)
 
         # connect to Redis
-        redis = aioredis.from_url("redis://localhost:6379/0")
+        redis = aioredis.from_url(f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}")
         await redis.ping()
 
         # build a very small stack

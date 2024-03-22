@@ -3,8 +3,13 @@ This sample application provides a customized RouterInfoCache which is used for
 resolving Who-Is-Router-To-Network queries without polling the network.  If the
 cache entry is not found, the normal fallback of polling the network is used and
 the response is cached.
+
+This version used a Redis key/value store for an 'external' cache that is
+shared amongst multiple BACpypes applications.  This is can be combined with
+the custom device information cache.
 """
 
+import os
 import asyncio
 
 from typing import Callable, Dict, List, Optional, Set, Tuple, Union
@@ -39,6 +44,9 @@ _log = ModuleLogger(globals())
 
 # settings
 ROUTER_INFO_CACHE_EXPIRE = 120  # seconds
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+REDIS_DB = int(os.getenv("REDIS_DB", 0))
 
 # globals
 app: Application
@@ -64,15 +72,100 @@ class CustomRouterInfoCache(RouterInfoCache):
     # (snet, dnet) -> (Address, status)
     # path_info: Dict[Tuple[Optional[int], int], Tuple[Address, int]]
 
+    stop: asyncio.Event
+    fini: asyncio.Event
+
     async def cache_update_reader(self, channel: aioredis.client.PubSub) -> None:
         """
         This task gets cache update messages by listening for keyspace
         notifications.
         """
-        while True:
-            message = await channel.get_message(ignore_subscribe_messages=True)
-            if message is not None:
-                print(f"(Reader) Message Received: {message}")
+        # set when process must stop, fini when it's done
+        self.stop = asyncio.Event()
+        self.fini = asyncio.Event()
+
+        stop_wait = asyncio.create_task(self.stop.wait(), name="stop wait")
+        while not self.stop.is_set():
+            # create a task to get messages
+            get_message_task = asyncio.ensure_future(
+                channel.get_message(ignore_subscribe_messages=True, timeout=10.0)
+            )
+
+            # wait for something to complete
+            done, pending = await asyncio.wait(
+                {stop_wait, get_message_task}, return_when=asyncio.FIRST_COMPLETED
+            )
+            if _debug:
+                CustomRouterInfoCache._debug("    - done: %r", done)
+                CustomRouterInfoCache._debug("    - pending: %r", pending)
+
+            if stop_wait in done:
+                get_message_task.cancel()
+                try:
+                    await get_message_task
+                except asyncio.CancelledError:
+                    pass
+                break
+
+            # get the message, check for a timeout
+            message = get_message_task.result()
+            if message is None:
+                continue
+
+            # changing a key value
+            if message["data"] != b"set":
+                continue
+
+            # channel is the key name
+            channel_name = message["channel"]
+            if channel_name.startswith(b"__keyspace@0__:bacnet:path:"):
+                path_info_key = channel_name.decode()[15:]
+                if _debug:
+                    CustomRouterInfoCache._debug(
+                        "    - path_info_key: %r", path_info_key
+                    )
+                path_info_blob = await redis.get(path_info_key)
+
+                snet, dnet = path_info_key.split(":")[2:4]
+                snet = None if snet == "None" else int(snet)
+                dnet = int(dnet)
+                if _debug:
+                    CustomRouterInfoCache._debug("    - snet, dnet: %r, %r", snet, dnet)
+
+                # decode the blob
+                path_info = path_info_blob.decode().split(",")
+                router_address = Address(path_info[0])
+                router_status = int(path_info[1])
+
+                # update in-process cache
+                await super().set_path_info(snet, dnet, router_address, router_status)
+
+            elif channel_name.startswith(b"__keyspace@0__:bacnet:dnets:"):
+                router_dnets_key = channel_name.decode()[15:]
+                if _debug:
+                    CustomRouterInfoCache._debug(
+                        "    - router_dnets_key: %r", router_dnets_key
+                    )
+                router_dnets_blob = await redis.get(router_dnets_key)
+
+                snet, address = router_dnets_key.split(":")[2:4]
+                snet = None if snet == "None" else int(snet)
+                address = Address(address)
+                if _debug:
+                    CustomRouterInfoCache._debug(
+                        "    - snet, address: %r, %r", snet, address
+                    )
+
+                # decode the dnets
+                router_dnets = set(
+                    int(dnet) for dnet in router_dnets_blob.decode().split(",")
+                )
+
+                # update in-process cache
+                await super().set_router_dnets(snet, address, router_dnets)
+
+        # set the event we are done
+        self.fini.set()
 
     async def get_path_info(
         self, snet: Optional[int], dnet: int
@@ -195,7 +288,7 @@ class CustomRouterInfoCache(RouterInfoCache):
                 CustomRouterInfoCache._debug("    - redis cache miss")
             return None
 
-        # encode the dnets
+        # decode the dnets
         router_dnets = set(int(dnet) for dnet in router_dnets_blob.decode().split(","))
 
         # update in-process cache
@@ -412,7 +505,7 @@ async def main() -> None:
             _log.debug("args: %r", args)
 
         # connect to Redis
-        redis = aioredis.from_url("redis://localhost:6379/0")
+        redis = aioredis.from_url(f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}")
         await redis.ping()
 
         # check for keyspace events
@@ -427,10 +520,13 @@ async def main() -> None:
         cmd = CmdShell()
         bind(console, cmd)
 
+        # create a cache object
+        router_info_cache = CustomRouterInfoCache()
+
         # build an application
         app = Application.from_args(
             args,
-            router_info_cache=CustomRouterInfoCache(),
+            router_info_cache=router_info_cache,
         )
         if _debug:
             _log.debug("app: %r", app)
@@ -445,14 +541,15 @@ async def main() -> None:
 
             # task for updates
             cache_update_task = asyncio.create_task(
-                app.nsap.router_info_cache.cache_update_reader(pubsub)
+                router_info_cache.cache_update_reader(pubsub)
             )
 
             # run until the console is done, canceled or EOF
             await console.fini.wait()
 
-            # all done
-            cache_update_task.cancel()
+            # all done, wait for the update reader to complete
+            router_info_cache.stop.set()
+            await cache_update_task
 
     finally:
         if app:
