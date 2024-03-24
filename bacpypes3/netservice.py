@@ -2221,7 +2221,7 @@ class NetworkServiceElement(ApplicationServiceElement, DebugContents):
                 )
 
             # update the routing information
-            sap.router_info_cache.update_source_network(None, npdu.nniNet)
+            asyncio.create_task(sap.router_info_cache.update_source_network(None, npdu.nniNet))
 
             # delete the reference from an unknown network
             del sap.adapters[None]
