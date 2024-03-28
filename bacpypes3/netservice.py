@@ -47,7 +47,7 @@ from .npdu import (
     InitializeRoutingTable,
     InitializeRoutingTableAck,
 )
-from .basetypes import NetworkNumberQuality
+from .basetypes import NetworkNumberQuality, RouterEntryStatus
 
 if TYPE_CHECKING:
     # class is declared as generic in stubs but not at runtime
@@ -64,10 +64,9 @@ WHO_IS_ROUTER_TO_NETWORK_TIMEOUT = 2.0
 INITIALIZE_ROUTING_TABLE_TIMEOUT = 3.0
 
 # router status values
-ROUTER_AVAILABLE = 0  # normal
-ROUTER_BUSY = 1  # router is busy
-ROUTER_DISCONNECTED = 2  # could make a connection, but hasn't
-ROUTER_UNREACHABLE = 3  # temporarily unreachable
+ROUTER_AVAILABLE = RouterEntryStatus("available")
+ROUTER_BUSY = RouterEntryStatus("busy")
+ROUTER_DISCONNECTED = RouterEntryStatus("disconnected")
 
 #
 #   RouterInfoCache
@@ -90,7 +89,7 @@ class RouterInfoCache(DebugContents):
     router_dnets: Dict[Tuple[Optional[int], Address], Set[int]]
 
     # (snet, dnet) -> (Address, status)
-    path_info: Dict[Tuple[Optional[int], int], Tuple[Address, int]]
+    path_info: Dict[Tuple[Optional[int], int], Tuple[Address, RouterEntryStatus]]
 
     def __init__(self):
         if _debug:
@@ -119,7 +118,11 @@ class RouterInfoCache(DebugContents):
         return path_info
 
     async def set_path_info(
-        self, snet: Optional[int], dnet: int, address: Address, status: int
+        self,
+        snet: Optional[int],
+        dnet: int,
+        address: Address,
+        status: RouterEntryStatus,
     ) -> bool:
         """
         Given a source network and a destination network, set the router
@@ -127,7 +130,9 @@ class RouterInfoCache(DebugContents):
         Return false if the cached value has not changed.
         """
         if _debug:
-            RouterInfoCache._debug("set_path_info %r %r %r %r", snet, dnet, address, status)
+            RouterInfoCache._debug(
+                "set_path_info %r %r %r %r", snet, dnet, address, status
+            )
 
         path_info_key = (snet, dnet)
         if path_info := self.path_info.get(path_info_key, None):
@@ -237,7 +242,7 @@ class RouterInfoCache(DebugContents):
             RouterInfoCache._debug("update_path_info %r %r %r", snet, address, dnets)
 
         # create/update the list of dnets for this router
-        router_dnets_key = (snet, address)  
+        router_dnets_key = (snet, address)
         router_dnets = await self.get_router_dnets(*router_dnets_key)
         new_dnets = _copy(dnets)
 
@@ -369,7 +374,7 @@ class RouterInfoCache(DebugContents):
                     await self.delete_router_dnets(snet, address)
 
     async def update_router_status(
-        self, snet: int, address: Address, status: int
+        self, snet: int, address: Address, status: RouterEntryStatus
     ) -> None:
         if _debug:
             RouterInfoCache._debug(
@@ -2221,7 +2226,9 @@ class NetworkServiceElement(ApplicationServiceElement, DebugContents):
                 )
 
             # update the routing information
-            asyncio.create_task(sap.router_info_cache.update_source_network(None, npdu.nniNet))
+            asyncio.create_task(
+                sap.router_info_cache.update_source_network(None, npdu.nniNet)
+            )
 
             # delete the reference from an unknown network
             del sap.adapters[None]

@@ -21,7 +21,7 @@ from bacpypes3.cmd import Cmd
 from bacpypes3.comm import bind
 
 from bacpypes3.pdu import Address
-from bacpypes3.basetypes import PropertyReference
+from bacpypes3.basetypes import PropertyReference, RouterEntryStatus
 from bacpypes3.constructeddata import AnyAtomic
 from bacpypes3.netservice import (
     ROUTER_AVAILABLE,
@@ -135,7 +135,7 @@ class CustomRouterInfoCache(RouterInfoCache):
                 # decode the blob
                 path_info = path_info_blob.decode().split(",")
                 router_address = Address(path_info[0])
-                router_status = int(path_info[1])
+                router_status = RouterEntryStatus(path_info[1])
 
                 # update in-process cache
                 await super().set_path_info(snet, dnet, router_address, router_status)
@@ -206,7 +206,7 @@ class CustomRouterInfoCache(RouterInfoCache):
         # decode the blob
         path_info = path_info_blob.decode().split(",")
         router_address = Address(path_info[0])
-        router_status = int(path_info[1])
+        router_status = RouterEntryStatus(path_info[1])
 
         # update in-process cache
         await super().set_path_info(snet, dnet, router_address, router_status)
@@ -215,7 +215,11 @@ class CustomRouterInfoCache(RouterInfoCache):
         return (router_address, router_status)
 
     async def set_path_info(
-        self, snet: Optional[int], dnet: int, address: Address, status: int
+        self,
+        snet: Optional[int],
+        dnet: int,
+        address: Address,
+        status: RouterEntryStatus,
     ) -> bool:
         """
         Given a source network and a destination network, set the router
