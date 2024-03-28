@@ -98,7 +98,7 @@ combined_pattern = re.compile(
 )
 
 ethernet_re = re.compile(r"^([0-9A-Fa-f][0-9A-Fa-f][:]){5}([0-9A-Fa-f][0-9A-Fa-f])$")
-interface_port_re = re.compile(r"^(?:([\w.]+))(?::(\d+))?$")
+interface_port_re = re.compile(r"^(?:([A-Za-z][\w.-]+))(?::(\d+))?$")
 host_port_re = re.compile(r"^(?:([\w.]+))(?::(\d+))?$")
 
 network_types: Dict[str, type]
@@ -266,6 +266,8 @@ class AddressMetaclass(type):
                         local_ipv4_port = "47808"
 
                     address = super(AddressMetaclass, IPv4Address).__call__(f"{local_ipv4_addr}/{local_ipv4_net}", port=int(local_ipv4_port), **kwargs)  # type: ignore[misc]
+                    if net_addr > 0:
+                        address = super(AddressMetaclass, RemoteStation).__call__(net_addr, address.addrAddr, **kwargs)  # type: ignore[misc]
 
                 if local_ipv6_addr:
                     if _debug:
@@ -274,6 +276,8 @@ class AddressMetaclass(type):
                         local_ipv6_port = "47808"
 
                     address = super(AddressMetaclass, IPv6Address).__call__(local_ipv6_addr, port=int(local_ipv6_port), **kwargs)  # type: ignore[misc]
+                    if net_addr > 0:
+                        address = super(AddressMetaclass, RemoteStation).__call__(net_addr, address.addrAddr, **kwargs)  # type: ignore[misc]
 
                 # if this is a remote address, add the network
                 if net and (not global_broadcast) and (not local_broadcast):

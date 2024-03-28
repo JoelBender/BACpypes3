@@ -1,12 +1,11 @@
 """
-Simple example that has a device object and an additional Analog Value Object
-that supports intrinsic event reporting and a Notification Class Object to
-describe where to send notifications.
+Simple example that has a device object and an additional Binary Input Object
+with intrinsic event reporting and a Notifiaction Class Object to describe
+where to send notifications.
 """
 
 import asyncio
 import re
-from copy import copy
 
 from typing import Callable, Optional
 
@@ -19,10 +18,9 @@ from bacpypes3.comm import bind
 from bacpypes3.pdu import Address
 from bacpypes3.primitivedata import ObjectIdentifier
 from bacpypes3.basetypes import (
+    BinaryPV,
     Destination,
-    EngineeringUnits,
     EventState,
-    LimitEnable,
     NotifyType,
     PropertyIdentifier,
     Recipient,
@@ -33,7 +31,7 @@ from bacpypes3.object import (
 )
 
 from bacpypes3.app import Application
-from bacpypes3.local.analog import AnalogValueObjectIR
+from bacpypes3.local.binary import BinaryInputObjectIR
 
 # some debugging
 _debug = 0
@@ -74,15 +72,13 @@ class SampleCmd(Cmd):
         # split the property identifier and its index
         property_index_match = property_index_re.match(property_identifier)
         if not property_index_match:
-            await self.response("property specification incorrect")
-            return
+            raise ValueError("property specification incorrect")
         property_name, property_array_index = property_index_match.groups()
+        if property_array_index is not None:
+            raise NotImplementedError("property array index")
         attribute_name = PropertyIdentifier(property_name).attr
 
-        if property_array_index is None:
-            await self.response(repr(getattr(obj, attribute_name)))
-        else:
-            print("not implemented")
+        await self.response(repr(getattr(obj, attribute_name)))
 
     async def do_write(
         self,
@@ -115,12 +111,15 @@ class SampleCmd(Cmd):
         # split the property identifier and its index
         property_index_match = property_index_re.match(property_identifier)
         if not property_index_match:
-            await self.response("property specification incorrect")
-            return
+            raise ValueError("property specification incorrect")
         property_name, property_array_index = property_index_match.groups()
         if property_array_index is not None:
-            property_array_index = int(property_array_index)
+            raise NotImplementedError("property array index")
         prop = PropertyIdentifier(property_name)
+
+        # no priority :-(
+        if priority:
+            raise NotImplementedError("priority")
 
         # now get the property type from the class
         property_type = object_class.get_property_type(prop)
@@ -132,50 +131,45 @@ class SampleCmd(Cmd):
         if _debug:
             SampleCmd._debug("    - value: %r", value)
 
-        if property_array_index is None:
-            setattr(obj, prop.attr, value)
-        else:
-            print("not implemented")
+        setattr(obj, prop.attr, value)
 
-    def do_lowLimitEnable(
+    async def do_enable(
         self,
-        object_name: str,
-        value: int,
+        object_identifier: ObjectIdentifier,
     ) -> None:
         """
-        usage: do_lowLimitEnable object_name (1 | 0)
+        usage: enable objid
         """
         if _debug:
-            SampleCmd._debug(
-                "lowLimitEnable %r %r",
-                object_name,
-                value,
-            )
+            SampleCmd._debug("do_enable %r", object_identifier)
+        assert app
 
-        obj = eval(object_name)
-        limit_enable = copy(obj.limitEnable)
-        limit_enable[LimitEnable.lowLimitEnable] = value
-        obj.limitEnable = limit_enable
+        # get the object
+        obj = app.get_object_id(object_identifier)
+        if not obj:
+            raise RuntimeError("object not found")
 
-    def do_highLimitEnable(
+        # enable event detection
+        obj.eventAlgorithmInhibit = False
+
+    async def do_disable(
         self,
-        object_name: str,
-        value: int,
+        object_identifier: ObjectIdentifier,
     ) -> None:
         """
-        usage: do_highLimitEnable object_name (1 | 0)
+        usage: disable objid
         """
         if _debug:
-            SampleCmd._debug(
-                "highLimitEnable %r %r",
-                object_name,
-                value,
-            )
+            SampleCmd._debug("do_disable %r", object_identifier)
+        assert app
 
-        obj = eval(object_name)
-        limit_enable = copy(obj.limitEnable)
-        limit_enable[LimitEnable.highLimitEnable] = value
-        obj.limitEnable = limit_enable
+        # get the object
+        obj = app.get_object_id(object_identifier)
+        if not obj:
+            raise RuntimeError("object not found")
+
+        # disable event detection
+        obj.eventAlgorithmInhibit = True
 
     async def do_whois(
         self,
@@ -211,7 +205,7 @@ class SampleCmd(Cmd):
 
 
 async def main() -> None:
-    global app, avo1, nc1
+    global app, bio1, nc1
 
     try:
         app = None
@@ -234,23 +228,18 @@ async def main() -> None:
             _log.debug("app: %r", app)
 
         # make an object with intrinsic reporting
-        avo1 = AnalogValueObjectIR(
-            objectIdentifier="analog-value,1",
-            objectName="avo1",
-            description="test analog value",
-            presentValue=50.0,
+        bio1 = BinaryInputObjectIR(
+            objectIdentifier="binary-input,1",
+            objectName="bio1",
+            description="test binary value",
+            presentValue=BinaryPV.inactive,
             eventState=EventState.normal,
             # statusFlags=[0, 0, 0, 0],  # inAlarm, fault, overridden, outOfService
             outOfService=False,
-            units=EngineeringUnits.degreesFahrenheit,
-            # OUT_OF_RANGE Event Algorithm
-            # eventType=EventType.outOfRange,
-            timeDelay=10,
+            # CHANGE_OF_STATE Event Algorithm
+            timeDelay=1,
             notificationClass=1,
-            highLimit=100.0,
-            lowLimit=0.0,
-            deadband=5.0,
-            limitEnable=[1, 1],  # lowLimitEnable, highLimitEnable
+            alarmValue=BinaryPV.active,
             eventEnable=[1, 1, 1],  # toOffNormal, toFault, toNormal
             ackedTransitions=[0, 0, 0],  # toOffNormal, toFault, toNormal
             notifyType=NotifyType.alarm,  # event, ackNotification
@@ -260,22 +249,22 @@ async def main() -> None:
                 TimeStamp(time=(255, 255, 255, 255)),
             ],
             eventMessageTexts=["", "", ""],
+            eventDetectionEnable=True,
             # eventMessageTextsConfig=[
             #     "to off normal - {pCurrentState}",
             #     "to fault",
             #     "to normal",
             # ],
-            eventDetectionEnable=True,
             # eventAlgorithmInhibitReference=ObjectPropertyReference
             eventAlgorithmInhibit=False,
-            timeDelayNormal=2,
+            timeDelayNormal=1,
         )
         if _debug:
-            _log.debug("avo1: %r", avo1)
+            _log.debug("bio1: %r", bio1)
 
-        app.add_object(avo1)
+        app.add_object(bio1)
 
-        # notification class
+        # notification class object
         nc1 = NotificationClassObject(
             objectIdentifier="notification-class,1",
             objectName="nc1",

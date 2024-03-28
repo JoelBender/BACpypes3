@@ -213,6 +213,7 @@ class TestAddress(unittest.TestCase, MatchAddressMixin):
         with pytest.raises(ValueError):
             Address("65536:0x02")
 
+        # test hex string
         test_addr = Address("1:0x0203")
         self.match_address(test_addr, 4, 1, 2, "0203")
         assert str(test_addr) == "1:0x0203"
@@ -230,6 +231,16 @@ class TestAddress(unittest.TestCase, MatchAddressMixin):
             # test bad network
             with pytest.raises(ValueError):
                 Address("65536:X'02'")
+
+        # test IPv4 remote station address
+        test_addr = Address("1:2.3.4.5")
+        self.match_address(test_addr, 4, 1, 6, "02030405BAC0")
+        assert str(test_addr) == "1:2.3.4.5"
+
+        # test IPv4 remote station address with non-standard port
+        test_addr = Address("1:2.3.4.5:47809")
+        self.match_address(test_addr, 4, 1, 6, "02030405BAC1")
+        assert str(test_addr) == "1:2.3.4.5:47809"
 
     def test_address_global_broadcast_str(self):
         if _debug:
