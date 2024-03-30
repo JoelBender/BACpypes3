@@ -1882,6 +1882,12 @@ class DeviceAddress(Sequence):
 
         if arg is None:
             pass
+        elif isinstance(arg, DeviceAddress):
+            if "networkNumber" not in kwargs:
+                kwargs["networkNumber"] = arg.networkNumber
+            kwargs["macAddress"] = arg.macAddress
+        elif isinstance(arg, (bytes, bytearray)):
+            kwargs["macAddress"] = arg
         else:
             if isinstance(arg, str):
                 arg = _Address(arg)
@@ -1906,7 +1912,9 @@ class DeviceAddress(Sequence):
         if _debug:
             HostAddress._debug("DeviceAddress.cast %r", arg)
 
-        if isinstance(arg, (bytes, bytearray, str, dict, IPv4Address, IPv6Address)):
+        if isinstance(
+            arg, (bytes, bytearray, str, dict, IPv4Address, IPv6Address, DeviceAddress)
+        ):
             return arg
         else:
             raise TypeError(type(arg))
