@@ -2144,8 +2144,7 @@ class Date(Atomic, tuple):
                 pass
             else:
                 try:
-                    today = time.mktime((year + 1900, month, day, 0, 0, 0, 0, 0, -1))
-                    day_of_week = time.gmtime(today)[6] + 1
+                    day_of_week = datetime(year + 1900, month, day).weekday() + 1
                 except OverflowError:
                     pass
 
