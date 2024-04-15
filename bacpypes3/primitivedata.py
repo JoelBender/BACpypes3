@@ -2074,7 +2074,6 @@ class Date(Atomic, tuple):
                 for a, b in zip(matches[:-1], matches[1:]):
                     if a != b:
                         raise ValueError("ambiguous")
-                        break
                 else:
                     match = matches[0]
 
@@ -2125,26 +2124,26 @@ class Date(Atomic, tuple):
                 day_of_week = int(day_of_week)
                 if day_of_week == 255:
                     pass
-                elif day_of_week > 7:
+                elif (day_of_week == 0) or (day_of_week > 7):
                     raise ValueError("invalid day of week")
 
             # year becomes the correct octet
             if year != 255:
                 year -= 1900
 
-            # assume the worst
-            day_of_week = 255
-
             # check for special values
             if year == 255:
-                pass
+                if not day_of_week:
+                    day_of_week = 255
             elif month in _special_mon_inv:
-                pass
+                if not day_of_week:
+                    day_of_week = 255
             elif day in _special_day_inv:
-                pass
-            else:
+                if not day_of_week:
+                    day_of_week = 255
+            elif not day_of_week:
                 try:
-                    day_of_week = datetime(year + 1900, month, day).weekday() + 1
+                    day_of_week = datetime.datetime(year + 1900, month, day).weekday() + 1
                 except OverflowError:
                     pass
 
