@@ -286,15 +286,14 @@ def enumerated_decode(graph: Graph, value, class_):
 
 def date_encode(graph: Graph, value):
     if value.is_special:
-        return Literal(str(value), datatype=BACnetNS.Date)
+        return Literal(str(value), datatype=BACnetNS.datePattern)
     else:
-        date_string = "{:04d}-{:02d}-{:02d}".format(value[0] + 1900, value[1], value[2])
-        return Literal(date_string, datatype=XSD.date, normalize=False)
+        return Literal(value.date)
 
 
 def date_decode(graph: Graph, value):
     assert isinstance(value, Literal)
-    if value.datatype == BACnetNS.Date:
+    if value.datatype == BACnetNS.datePattern:
         return Date(str(value))
     elif value.datatype == XSD.date:
         return Date(value.value)
@@ -303,16 +302,15 @@ def date_decode(graph: Graph, value):
 
 
 def time_encode(graph: Graph, value):
-    time_string = str(value)
     if value.is_special:
-        return Literal(time_string, datatype=BACnetNS.Time)
+        return Literal(str(value), datatype=BACnetNS.timePattern)
     else:
-        return Literal(time_string, datatype=XSD.time, normalize=False)
+        return Literal(value.time)  # normalize=False?
 
 
 def time_decode(graph: Graph, value):
     assert isinstance(value, Literal)
-    if value.datatype == BACnetNS.Time:
+    if value.datatype == BACnetNS.timePattern:
         return Time(str(value))
     elif value.datatype == XSD.time:
         return Time(value.value)
@@ -331,6 +329,23 @@ def objectidentifier_decode(graph: Graph, value):
     # alternate (value.datatype == BACnetNS.ObjectIdentifier)
     assert isinstance(value, Literal) and (value.datatype is None)
     return ObjectIdentifier(str(value))
+
+
+def datetime_encode(graph: Graph, value):
+    if value.is_special:
+        return Literal(str(value), datatype=BACnetNS.dateTimePattern)
+    else:
+        return Literal(value.datetime)  # normalize=False?
+
+
+def datetime_decode(graph: Graph, value):
+    assert isinstance(value, Literal)
+    if value.datatype == BACnetNS.dateTimePattern:
+        return DateTime(str(value))
+    elif value.datatype == XSD.dateTime:
+        return DateTime(value.value)
+    else:
+        raise TypeError(value.datatype)
 
 
 #
@@ -365,6 +380,8 @@ def atomic_encode(graph: Graph, value) -> Literal:
         literal = time_encode(graph, value)
     elif isinstance(value, ObjectIdentifier):
         literal = objectidentifier_encode(graph, value)
+    elif isinstance(value, DateTime):
+        literal = datetime_encode(graph, value)
     else:
         raise TypeError("atomic element expected: " + str(type(value)))
 
@@ -398,6 +415,8 @@ def atomic_decode(graph: Graph, literal, class_) -> Atomic:
         value = time_decode(graph, literal)
     elif issubclass(class_, ObjectIdentifier):
         value = objectidentifier_decode(graph, literal)
+    elif issubclass(class_, DateTime):
+        value = datetime_decode(graph, literal)
     else:
         raise TypeError("not an atomic element")
 
@@ -433,6 +452,8 @@ def sequence_to_graph(
 
         if isinstance(value, Atomic):
             literal = atomic_encode(graph, value)
+        elif isinstance(value, DateTime):
+            literal = datetime_encode(graph, value)
         elif isinstance(value, Sequence):
             literal = BNode()
             sequence_to_graph(value, literal, graph)
@@ -443,9 +464,6 @@ def sequence_to_graph(
             value = value.get_value()
             if isinstance(value, Atomic):
                 literal = atomic_encode(graph, value)
-            elif isinstance(value, DateTime):
-                literal = BNode()
-                sequence_to_graph(value, literal, graph)
         else:
             raise TypeError(value)
 
@@ -476,6 +494,8 @@ def graph_to_sequence(graph: Graph, node: URIRef, seq_class: type) -> Sequence:
 
         if issubclass(element, Atomic):
             value = atomic_decode(graph, literal, element)
+        elif issubclass(element, DateTime):
+            value = datetime_decode(graph, literal)
         elif issubclass(element, Sequence):
             value = graph_to_sequence(graph, literal, element)
         elif issubclass(element, ExtendedList):
@@ -483,18 +503,6 @@ def graph_to_sequence(graph: Graph, node: URIRef, seq_class: type) -> Sequence:
         elif issubclass(element, (AnyAtomic, AnyAtomicExtended)):
             if literal == BACnetNS.Null:
                 value = Null(())
-
-            elif isinstance(literal, (BNode, URIRef)):
-                date_literal = graph.value(subject=literal, predicate=BACnetNS["date"])
-                time_literal = graph.value(subject=literal, predicate=BACnetNS["time"])
-                if (date_literal is not None) and (time_literal is not None):
-                    value = DateTime(
-                        date=date_decode(graph, date_literal),
-                        time=time_decode(graph, time_literal),
-                    )
-                else:
-                    raise ValueError("DateTime expected")
-
             elif isinstance(literal, Literal):
                 if literal.datatype == XSD.boolean:
                     value = boolean_decode(graph, literal)
@@ -514,9 +522,9 @@ def graph_to_sequence(graph: Graph, node: URIRef, seq_class: type) -> Sequence:
                     value = characterstring_decode(graph, literal)
                 elif literal.datatype == BACnetNS.BitString:
                     value = bitstring_decode(graph, literal)
-                elif literal.datatype in (BACnetNS.Date, XSD.date):
+                elif literal.datatype in (BACnetNS.datePattern, XSD.date):
                     value = date_decode(graph, literal)
-                elif literal.datatype in (BACnetNS.Time, XSD.time):
+                elif literal.datatype in (BACnetNS.timePattern, XSD.time):
                     value = time_decode(graph, literal)
                 elif literal.datatype == BACnetNS.ObjectIdentifier:
                     value = objectidentifier_decode(graph, literal)

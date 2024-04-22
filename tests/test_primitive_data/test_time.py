@@ -11,6 +11,10 @@ import pytest
 
 from bacpypes3.debugging import bacpypes_debugging, ModuleLogger, xtob
 from bacpypes3.primitivedata import Tag, TagClass, TagNumber, TagList, Time
+from bacpypes3.rdf.util import (
+    time_encode as rdf_time_encode,
+    time_decode as rdf_time_decode,
+)
 
 # some debugging
 _debug = 0
@@ -112,3 +116,37 @@ class TestTime(unittest.TestCase):
             TestTime._debug("test_time_endec")
 
         time_endec((1, 2, 3, 4), "01020304")
+
+    def test_time_isoformat(self):
+        if _debug:
+            TestTime._debug("test_time_isoformat")
+
+        obj1 = Time("01:02:03.04")
+        obj1_string = obj1.isoformat()
+        if _debug:
+            TestTime._debug("    - obj1_string: %r", obj1_string)
+
+        obj2 = Time.fromisoformat(obj1_string)
+        assert obj1 == obj2
+
+    def test_time_literal(self):
+        if _debug:
+            TestTime._debug("test_time_literal")
+
+        # specific time
+        obj1 = Time("01:02:03.04")
+        obj1_literal = rdf_time_encode(None, obj1)
+        if _debug:
+            TestTime._debug("    - obj1_literal: %r", obj1_literal)
+
+        obj2 = rdf_time_decode(None, obj1_literal)
+        assert obj1 == obj2
+
+        # time pattern
+        obj3 = Time("01:02:*")
+        obj3_literal = rdf_time_encode(None, obj3)
+        if _debug:
+            TestTime._debug("    - obj3_literal: %r", obj3_literal)
+
+        obj4 = rdf_time_decode(None, obj3_literal)
+        assert obj3 == obj4

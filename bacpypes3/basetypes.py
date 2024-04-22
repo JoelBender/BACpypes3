@@ -8,6 +8,7 @@ from __future__ import annotations
 import re
 import struct
 import time
+import datetime
 
 from typing import (
     Union,
@@ -1845,6 +1846,35 @@ class DateTime(Sequence):
     date = Date
     time = Time
 
+    def __init__(
+        self,
+        arg: Optional[datetime.datetime] = None,
+        **kwargs,
+    ) -> None:
+        if arg is None:
+            pass
+        elif isinstance(arg, DateTime):
+            kwargs["date"] = arg.date
+            kwargs["time"] = arg.time
+        elif isinstance(arg, datetime.datetime):
+            date_value = (
+                arg.year - 1900,
+                arg.month,
+                arg.day,
+                arg.weekday() + 1,
+            )
+            time_value = (
+                arg.hour,
+                arg.minute,
+                arg.second,
+                arg.microsecond // 10000,
+            )
+
+            kwargs["date"] = date_value
+            kwargs["time"] = time_value
+
+        super().__init__(**kwargs)
+
     @classmethod
     def now(cls: type, when: Optional[float] = None) -> DateTime:
         """
@@ -1855,6 +1885,55 @@ class DateTime(Sequence):
 
         # return an instance
         return cast(DateTime, cls(date=Date.now(when), time=Time.now(when)))
+
+    @property
+    def is_special(self) -> bool:
+        return self.date.is_special or self.time.is_special
+
+    @property
+    def datetime(self) -> datetime.datetime:
+        """Return the value as a datetime.datetime object."""
+        if self.is_special:
+            raise ValueError("datetime contains special values")
+
+        year, month, day, day_of_week = self.date
+        hour, minute, second, hundredth = self.time
+        return datetime.datetime(
+            year + 1900, month, day, hour, minute, second, hundredth * 10000
+        )
+
+    def isoformat(self) -> str:
+        return self.datetime.isoformat()
+
+    @classmethod
+    def fromisoformat(cls: type, datetime_string: str) -> Date:
+        datetime_value = datetime.datetime.fromisoformat(datetime_string)
+
+        date_value = (
+            datetime_value.year - 1900,
+            datetime_value.month,
+            datetime_value.day,
+            datetime_value.weekday() + 1,
+        )
+        time_value = (
+            datetime_value.hour,
+            datetime_value.minute,
+            datetime_value.second,
+            datetime_value.microsecond // 10000,
+        )
+
+        # return an instance
+        return cast(Date, cls(date=date_value, time=time_value))
+
+    @classmethod
+    def cast(cls, arg):
+        if _debug:
+            HostAddress._debug("DeviceAddress.cast %r", arg)
+
+        if isinstance(arg, (DateTime, datetime.datetime)):
+            return arg
+        else:
+            raise TypeError(type(arg))
 
     def __str__(self) -> str:
         return f"{self.date} {self.time}"
