@@ -1,10 +1,12 @@
 """
-Simple example.
+This sample application provides a customized DeviceInfoCache implementation
+that uses redis.  The "key" is the string form of the device instance number
+or address with a prefix.
 """
 
 import asyncio
 
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, Optional, Union
 
 from bacpypes3.debugging import ModuleLogger, bacpypes_debugging
 from bacpypes3.argparse import SimpleArgumentParser
@@ -19,13 +21,6 @@ from bacpypes3.basetypes import (
     ServicesSupported,
 )
 from bacpypes3.app import Application, DeviceInfo, DeviceInfoCache
-from bacpypes3.netservice import (
-    ROUTER_AVAILABLE,
-    RouterInfo,
-    RouterInfoCache,
-    NetworkAdapter,
-)
-from bacpypes3.npdu import IAmRouterToNetwork
 
 from redis import asyncio as aioredis
 from redis.asyncio import Redis
@@ -38,7 +33,9 @@ _log = ModuleLogger(globals())
 
 # settings
 DEVICE_INFO_CACHE_EXPIRE = 120  # seconds
-ROUTER_INFO_CACHE_EXPIRE = 120  # seconds
+REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
+REDIS_PORT = int(os.getenv("REDIS_PORT", 6379))
+REDIS_DB = int(os.getenv("REDIS_DB", 0))
 
 # globals
 app: Application
@@ -221,52 +218,6 @@ class CmdShell(Cmd):
                     CmdShell._debug("    - i_am: %r", i_am)
                 await self.response(f"{i_am.iAmDeviceIdentifier[1]} {i_am.pduSource}")
 
-    async def do_wirtn(self, address: Address = None, network: int = None) -> None:
-        """
-        Who Is Router To Network
-
-        usage: wirtn [ address [ network ] ]
-        """
-        if _debug:
-            CmdShell._debug("do_wirtn %r %r", address, network)
-        assert app.nse
-
-        result_list: List[
-            Tuple[NetworkAdapter, IAmRouterToNetwork]
-        ] = await app.nse.who_is_router_to_network(destination=address, network=network)
-        if _debug:
-            CmdShell._debug("    - result_list: %r", result_list)
-        if not result_list:
-            raise RuntimeError("no response")
-
-        report = []
-        previous_source = None
-        for adapter, i_am_router_to_network in result_list:
-            if _debug:
-                CmdShell._debug("    - adapter: %r", adapter)
-                CmdShell._debug(
-                    "    - i_am_router_to_network: %r", i_am_router_to_network
-                )
-
-            if i_am_router_to_network.npduSADR:
-                npdu_source = i_am_router_to_network.npduSADR
-                npdu_source.addrRoute = i_am_router_to_network.pduSource
-            else:
-                npdu_source = i_am_router_to_network.pduSource
-
-            if (not previous_source) or (npdu_source != previous_source):
-                report.append(str(npdu_source))
-                previous_source = npdu_source
-
-            report.append(
-                "    "
-                + ", ".join(
-                    str(dnet) for dnet in i_am_router_to_network.iartnNetworkList
-                )
-            )
-
-        await self.response("\n".join(report))
-
     async def do_info(self, addr: str) -> None:
         """
         Get device info from the cache
@@ -295,7 +246,7 @@ async def main() -> None:
             _log.debug("args: %r", args)
 
         # connect to Redis
-        redis = aioredis.from_url("redis://localhost:6379/0")
+        redis = aioredis.from_url(f"redis://{REDIS_HOST}:{REDIS_PORT}/{REDIS_DB}")
         await redis.ping()
 
         # build a very small stack

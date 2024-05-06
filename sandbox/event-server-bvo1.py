@@ -209,9 +209,16 @@ async def main() -> None:
 
     try:
         app = None
-        args = SimpleArgumentParser().parse_args()
-
-        # make sure the vendor identifier is the custom one
+        parser = SimpleArgumentParser()
+        parser.add_argument(
+            "recipient",
+            help="notification recipient address",
+        )
+        parser.add_argument(
+            "--confirmed",
+            action="store_true",
+        )
+        args = parser.parse_args()
         if _debug:
             _log.debug("args: %r", args)
 
@@ -270,9 +277,9 @@ async def main() -> None:
                     validDays=[1, 1, 1, 1, 1, 1, 1],
                     fromTime=(0, 0, 0, 0),
                     toTime=(23, 59, 59, 99),
-                    recipient=Recipient(device="device,990"),
+                    recipient=Recipient(address=args.recipient),
                     processIdentifier=0,
-                    issueConfirmedNotifications=True,
+                    issueConfirmedNotifications=args.confirmed,
                     transitions=[1, 1, 1],  # toOffNormal, toFault, toNormal
                 )
             ],

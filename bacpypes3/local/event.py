@@ -953,6 +953,7 @@ class ChangeOfBitstringEventAlgorithm(EventAlgorithm):
     def execute(self):
         if _debug:
             ChangeOfBitstringEventAlgorithm._debug("execute")
+        raise NotImplementedError("CHANGE_OF_BITSTRING not implemented")
 
 
 #
@@ -1166,6 +1167,7 @@ class ChangeOfValueEventAlgorithm(EventAlgorithm):
     def execute(self):
         if _debug:
             ChangeOfValueEventAlgorithm._debug("execute")
+        raise NotImplementedError("CHANGE_OF_VALUE not implemented")
 
 
 #
@@ -1235,6 +1237,7 @@ class CommandFailureEventAlgorithm(EventAlgorithm):
     def execute(self):
         if _debug:
             CommandFailureEventAlgorithm._debug("execute")
+        raise NotImplementedError("COMMAND_FAILURE not implemented")
 
 
 #
@@ -1338,6 +1341,7 @@ class FloatingLimitEventAlgorithm(EventAlgorithm):
         if _debug:
             FloatingLimitEventAlgorithm._debug("execute")
             # use pHighDiffLimit for both high and low unless pLowDiffLimit has a value
+        raise NotImplementedError("FLOATING_LIMIT not implemented")
 
 
 #
@@ -1754,6 +1758,7 @@ class BufferReadyEventAlgorithm(EventAlgorithm):
     def execute(self):
         if _debug:
             BufferReadyEventAlgorithm._debug("execute")
+        raise NotImplementedError("BUFFER_READY not implemented")
 
 
 #
@@ -1823,6 +1828,7 @@ class UnsignedRangeEventAlgorithm(EventAlgorithm):
         if _debug:
             UnsignedRangeEventAlgorithm._debug("execute")
             # use pHighLimit for both high and low unless pLowLimit has a value
+        raise NotImplementedError("UNSIGNED_RANGE not implemented")
 
 
 #
@@ -1866,6 +1872,7 @@ class ExtendedEventAlgorithm(EventAlgorithm):
     def execute(self):
         if _debug:
             ExtendedEventAlgorithm._debug("execute")
+        raise NotImplementedError("EXTENDED not implemented")
 
 
 #
@@ -1930,6 +1937,7 @@ class ChangeOfStatusFlags(EventAlgorithm):
     def execute(self):
         if _debug:
             ChangeOfStatusFlags._debug("execute")
+        raise NotImplementedError("CHANGE_OF_STATUS_FLAGS not implemented")
 
 
 #
@@ -1952,7 +1960,7 @@ class AccessEventEventAlgorithm(EventAlgorithm):
     ):
         if _debug:
             AccessEventEventAlgorithm._debug("__init__ %r", monitored_object)
-        raise NotImplementedError("AccessEventEventAlgorithm")
+        raise NotImplementedError("ACCESS_EVENT")
 
 
 #
@@ -2021,6 +2029,7 @@ class DoubleOutOfRangeEventAlgorithm(EventAlgorithm):
         if _debug:
             DoubleOutOfRangeEventAlgorithm._debug("execute")
             # use pHighLimit for both high and low unless pLowLimit has a value
+        raise NotImplementedError("DOUBLE_OUT_OF_RANGE not implemented")
 
 
 #
@@ -2089,6 +2098,7 @@ class SignedOutOfRangeEventAlgorithm(EventAlgorithm):
         if _debug:
             SignedOutOfRangeEventAlgorithm._debug("execute")
             # use pHighLimit for both high and low unless pLowLimit has a value
+        raise NotImplementedError("SIGNED_OUT_OF_RANGE not implemented")
 
 
 #
@@ -2157,6 +2167,7 @@ class UnsignedOutOfRangeEventAlgorithm(EventAlgorithm):
         if _debug:
             UnsignedOutOfRangeEventAlgorithm._debug("execute")
             # use pHighLimit for both high and low unless pLowLimit has a value
+        raise NotImplementedError("UNSIGNED_OUT_OF_RANGE not implemented")
 
 
 #
@@ -2219,6 +2230,7 @@ class ChangeOfCharacterStringEventAlgorithm(EventAlgorithm):
     def execute(self):
         if _debug:
             ChangeOfCharacterStringEventAlgorithm._debug("execute")
+        raise NotImplementedError("CHANGE_OF_CHARACTERSTRING not implemented")
 
 
 #
@@ -2307,6 +2319,7 @@ class ChangeOfDiscreteValueEventAlgorithm(EventAlgorithm):
     def execute(self):
         if _debug:
             ChangeOfDiscreteValueEventAlgorithm._debug("execute")
+        raise NotImplementedError("CHANGE_OF_DISCRETE_VALUE not implemented")
 
 
 #
@@ -2339,7 +2352,7 @@ class ChangeOfTimerEventAlgorithm(EventAlgorithm):
         monitored_object: Object,
     ):
         if _debug:
-            ChangeOfDiscreteValueEventAlgorithm._debug("__init__ %r", monitored_object)
+            ChangeOfTimerEventAlgorithm._debug("__init__ %r", monitored_object)
         raise NotImplementedError("special assistance needed")
 
         super().__init__(monitoring_object, monitored_object)
@@ -2380,7 +2393,8 @@ class ChangeOfTimerEventAlgorithm(EventAlgorithm):
 
     def execute(self):
         if _debug:
-            ChangeOfDiscreteValueEventAlgorithm._debug("execute")
+            ChangeOfTimerEventAlgorithm._debug("execute")
+        raise NotImplementedError("CHANGE_OF_TIMER not implemented")
 
 
 #

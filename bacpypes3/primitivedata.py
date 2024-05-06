@@ -2074,7 +2074,6 @@ class Date(Atomic, tuple):
                 for a, b in zip(matches[:-1], matches[1:]):
                     if a != b:
                         raise ValueError("ambiguous")
-                        break
                 else:
                     match = matches[0]
 
@@ -2125,27 +2124,28 @@ class Date(Atomic, tuple):
                 day_of_week = int(day_of_week)
                 if day_of_week == 255:
                     pass
-                elif day_of_week > 7:
+                elif (day_of_week == 0) or (day_of_week > 7):
                     raise ValueError("invalid day of week")
 
             # year becomes the correct octet
             if year != 255:
                 year -= 1900
 
-            # assume the worst
-            day_of_week = 255
-
             # check for special values
             if year == 255:
-                pass
+                if not day_of_week:
+                    day_of_week = 255
             elif month in _special_mon_inv:
-                pass
+                if not day_of_week:
+                    day_of_week = 255
             elif day in _special_day_inv:
-                pass
-            else:
+                if not day_of_week:
+                    day_of_week = 255
+            elif not day_of_week:
                 try:
-                    today = time.mktime((year + 1900, month, day, 0, 0, 0, 0, 0, -1))
-                    day_of_week = time.gmtime(today)[6] + 1
+                    day_of_week = (
+                        datetime.datetime(year + 1900, month, day).weekday() + 1
+                    )
                 except OverflowError:
                     pass
 
@@ -2184,6 +2184,34 @@ class Date(Atomic, tuple):
             or (day in _special_day_inv)
             or (day_of_week == 255)
         )
+
+    @property
+    def date(self) -> datetime.date:
+        """Return the value as a datetime.date object."""
+        if self.is_special:
+            raise ValueError("date contains special values")
+
+        # rip it apart
+        year, month, day, day_of_week = self
+
+        return datetime.date(year + 1900, month, day)
+
+    def isoformat(self) -> str:
+        return self.date.isoformat()
+
+    @classmethod
+    def fromisoformat(cls: type, date_string: str) -> Date:
+        date_value = datetime.date.fromisoformat(date_string)
+
+        value = (
+            date_value.year - 1900,
+            date_value.month,
+            date_value.day,
+            date_value.weekday() + 1,
+        )
+
+        # return an instance
+        return cast(Date, cls(value))
 
     def __str__(self) -> str:
         """String representation of the date."""
@@ -2339,6 +2367,33 @@ class Time(Atomic, tuple):
         hour, minute, second, hundredth = self
 
         return (hour == 255) or (minute == 255) or (second == 255) or (hundredth == 255)
+
+    @property
+    def time(self) -> datetime.time:
+        """Return the value as a datetime.time object."""
+        if self.is_special:
+            raise ValueError("time contains special values")
+        # rip it apart
+        hour, minute, second, hundredth = self
+
+        return datetime.time(hour, minute, second, hundredth * 10000)
+
+    def isoformat(self) -> str:
+        return self.time.isoformat()
+
+    @classmethod
+    def fromisoformat(cls: type, time_string: str) -> Time:
+        time_value = datetime.time.fromisoformat(time_string)
+
+        value = (
+            time_value.hour,
+            time_value.minute,
+            time_value.second,
+            time_value.microsecond // 10000,
+        )
+
+        # return an instance
+        return cast(Time, cls(value))
 
     def __str__(self) -> str:
         # rip it apart

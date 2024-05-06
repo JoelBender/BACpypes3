@@ -351,7 +351,7 @@ class ObjectProxy:
             o = atomic_encode(self._graph, value)
         elif isinstance(value, Sequence):
             o = _blank_node()
-            sequence_to_graph(value, o, self._graph)
+            sequence_to_graph(value, o, g)
         else:
             o = Literal(value)
 

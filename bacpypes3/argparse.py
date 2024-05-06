@@ -30,6 +30,31 @@ _debug = 0
 _log = ModuleLogger(globals())
 
 
+def _getenv(varname: str, default: Any = None) -> Any:
+    """
+    When passing environment variables into a docker build process the value
+    might be an empty string which should be interpreted as not provided.  In
+    the case where a default value is an integer, the string value should be
+    converted to an int.
+    """
+    value = os.getenv(varname)
+    if (value is None) or (value == ""):
+        return default
+    if isinstance(default, int):
+        return int(value)
+    return value
+
+
+# settings
+BACPYPES_DEVICE_NAME = _getenv("BACPYPES_DEVICE_NAME", "Excelsior")
+BACPYPES_DEVICE_INSTANCE = _getenv("BACPYPES_DEVICE_INSTANCE", 999)
+BACPYPES_NETWORK = _getenv("BACPYPES_NETWORK", 0)
+BACPYPES_DEVICE_ADDRESS = _getenv("BACPYPES_DEVICE_ADDRESS")
+BACPYPES_VENDOR_IDENTIFIER = _getenv("BACPYPES_VENDOR_IDENTIFIER", 999)
+BACPYPES_FOREIGN_BBMD = _getenv("BACPYPES_FOREIGN_BBMD")
+BACPYPES_FOREIGN_TTL = _getenv("BACPYPES_FOREIGN_TTL", 30)
+BACPYPES_BBMD_BDT = _getenv("BACPYPES_BBMD_BDT")
+
 # keep track of the logging handlers
 logging_handlers: Dict[logging.Logger, List[logging.StreamHandler]] = {}
 
@@ -401,49 +426,49 @@ class SimpleArgumentParser(ArgumentParser):
             "--name",
             type=str,
             help="device name",
-            default=os.getenv("BACPYPES_DEVICE_NAME") or "Excelsior",
+            default=BACPYPES_DEVICE_NAME,
         )
         self.add_argument(
             "--instance",
             type=int,
             help="device object instance number, a.k.a., device identifier",
-            default=int(os.getenv("BACPYPES_DEVICE_INSTANCE") or 999),
+            default=BACPYPES_DEVICE_INSTANCE,
         )
         self.add_argument(
             "--network",
             type=int,
             help="local network number",
-            default=int(os.getenv("BACPYPES_NETWORK") or 0),
+            default=BACPYPES_NETWORK,
         )
         self.add_argument(
             "--address",
             type=str,
             help="local network address",
-            default=os.getenv("BACPYPES_DEVICE_ADDRESS"),
+            default=BACPYPES_DEVICE_ADDRESS,
         )
         self.add_argument(
             "--vendoridentifier",
             type=int,
             help="vendor identifier",
-            default=int(os.getenv("BACPYPES_VENDOR_IDENTIFIER") or 999),
+            default=BACPYPES_VENDOR_IDENTIFIER,
         )
         self.add_argument(
             "--foreign",
             type=str,
             help="BBMD address to register as a foreign device",
-            default=os.getenv("BACPYPES_FOREIGN_BBMD"),
+            default=BACPYPES_FOREIGN_BBMD,
         )
         self.add_argument(
             "--ttl",
             type=int,
             help="foreign device subscription time-to-live",
-            default=os.getenv("BACPYPES_FOREIGN_TTL", 30),
+            default=BACPYPES_FOREIGN_TTL,
         )
         self.add_argument(
             "--bbmd",
             nargs="*",
             help="BDT addresses as a BBMD",
-            default=os.getenv("BACPYPES_BBMD_BDT"),
+            default=BACPYPES_BBMD_BDT,
         )
 
     def expand_args(self, result_args: argparse.Namespace) -> None:
