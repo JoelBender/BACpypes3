@@ -1829,7 +1829,7 @@ class LargeAnalogValueObject(Object):
     units: EngineeringUnits
     priorityArray: ArrayOf(PriorityValue, _length=16)
     relinquishDefault: Integer
-    covIncrement: Unsigned
+    covIncrement: Double
     timeDelay: Unsigned
     notificationClass: Unsigned
     highLimit: Double
