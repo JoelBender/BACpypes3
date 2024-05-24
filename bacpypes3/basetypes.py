@@ -1173,6 +1173,16 @@ class NodeType(Enumerated):
     property = 9
     functional = 10
     other = 11
+    subsystem = 12
+    building = 13
+    floor = 14
+    section = 15
+    module = 16
+    tree = 17
+    member = 18
+    protocol = 19
+    room = 20
+    zone = 21
 
 
 class NotifyType(Enumerated):
