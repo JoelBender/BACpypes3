@@ -1828,7 +1828,7 @@ class LargeAnalogValueObject(Object):
     outOfService: Boolean
     units: EngineeringUnits
     priorityArray: ArrayOf(PriorityValue, _length=16)
-    relinquishDefault: Integer
+    relinquishDefault: Double
     covIncrement: Double
     timeDelay: Unsigned
     notificationClass: Unsigned
