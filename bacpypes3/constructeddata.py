@@ -1396,7 +1396,7 @@ class Array(ExtendedList, metaclass=ArrayMetaclass):
             value = await value
 
         # check the index
-        if index is not None:
+        if index is not None and value is not None:
             if (index < 0) or (index > len(value)):
                 raise PropertyError("invalidArrayIndex")
             if index == 0:
