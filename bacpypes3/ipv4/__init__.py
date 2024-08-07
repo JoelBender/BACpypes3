@@ -69,8 +69,8 @@ class IPv4DatagramServer(Server[PDU]):
     _transport_tasks: List[Any]
 
     local_address: Tuple[str, int]
-    local_transport: asyncio.DatagramTransport
-    local_protocol: IPv4DatagramProtocol
+    local_transport: Optional[asyncio.DatagramTransport]
+    local_protocol: Optional[IPv4DatagramProtocol]
     broadcast_address: Optional[Tuple[str, int]]
     broadcast_transport: Optional[asyncio.DatagramTransport]
     broadcast_protocol: Optional[IPv4DatagramProtocol]
@@ -93,6 +93,15 @@ class IPv4DatagramServer(Server[PDU]):
         if _debug:
             IPv4DatagramServer._debug("    - local_address: %r", self.local_address)
 
+        # initialized in set_local_transport_protocol callback
+        self.local_transport = None
+        self.local_protocol = None
+
+        # initialized in set_broadcast_transport_protocol callback
+        self.broadcast_address = None
+        self.broadcast_transport = None
+        self.broadcast_protocol = None
+
         # no broadcast if this is an ephemeral port
         if self.local_address[1] == 0:
             no_broadcast = True
@@ -114,9 +123,7 @@ class IPv4DatagramServer(Server[PDU]):
 
         # see if we need a broadcast listener
         if no_broadcast or (address.addrBroadcastTuple == address.addrTuple):
-            self.broadcast_address = None
-            self.broadcast_transport = None
-            self.broadcast_protocol = None
+            pass
         else:
             self.broadcast_address = address.addrBroadcastTuple
             if _debug:
@@ -261,6 +268,7 @@ class IPv4DatagramServer(Server[PDU]):
             IPv4DatagramServer._debug("close")
 
         # close the transport(s)
-        self.local_transport.close()
+        if self.local_transport:
+            self.local_transport.close()
         if self.broadcast_transport:
             self.broadcast_transport.close()
