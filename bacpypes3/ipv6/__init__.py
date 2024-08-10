@@ -56,8 +56,8 @@ class IPv6DatagramServer(Server[PDU]):
 
     interface_index: int
     local_address: Tuple[str, int, int, int]
-    transport: asyncio.DatagramTransport
-    protocol: IPv6DatagramProtocol
+    transport: Optional[asyncio.DatagramTransport]
+    protocol: Optional[IPv6DatagramProtocol]
 
     def __init__(
         self,
@@ -73,6 +73,10 @@ class IPv6DatagramServer(Server[PDU]):
         self.local_address = address.addrTuple
         if _debug:
             IPv6DatagramServer._debug("    - local_address: %r", self.local_address)
+
+        # initialized in set_local_transport_protocol callback
+        self.transport = None
+        self.protocol = None
 
         # the address tuple contains the interface index as the last element,
         # like ('::', 47808, 0, 0) for any interface, or if attempting to bind
@@ -196,4 +200,5 @@ class IPv6DatagramServer(Server[PDU]):
             IPv6DatagramServer._debug("close")
 
         # close the transport
-        self.transport.close()
+        if self.transport:
+            self.transport.close()
