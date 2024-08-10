@@ -1010,7 +1010,10 @@ class Unsigned(Atomic, int):
             if cls._context is not None:
                 raise InvalidTag(f"unsigned context tag {cls._context} expected")
             if tag.tag_number != TagNumber.unsigned:
-                raise InvalidTag("unsigned application tag expected")
+                if tag.tag_number == 0:
+                    return None
+                else:
+                    raise InvalidTag(f"unsigned application tag expected, got {tag.tag_number}")
         elif tag.tag_class == TagClass.context:
             if cls._context is None:
                 raise InvalidTag("unsigned application tag expected")
