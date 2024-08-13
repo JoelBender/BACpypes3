@@ -919,7 +919,10 @@ class Boolean(Atomic, int):
             if cls._context is not None:
                 raise InvalidTag(f"boolean context tag {cls._context} expected")
             if tag.tag_number != TagNumber.boolean:
-                raise InvalidTag("boolean application tag expected")
+                if tag.tag_number == TagNumber.null:
+                    return None
+                else:
+                    raise InvalidTag("boolean application tag expected")
             value = bool(tag.tag_lvt)
         elif tag.tag_class == TagClass.context:
             if cls._context is None:
@@ -1010,7 +1013,7 @@ class Unsigned(Atomic, int):
             if cls._context is not None:
                 raise InvalidTag(f"unsigned context tag {cls._context} expected")
             if tag.tag_number != TagNumber.unsigned:
-                if tag.tag_number == 0:
+                if tag.tag_number == TagNumber.null:
                     return None
                 else:
                     raise InvalidTag(f"unsigned application tag expected, got {tag.tag_number}")
@@ -1134,7 +1137,10 @@ class Integer(Atomic, int):
             if cls._context is not None:
                 raise InvalidTag(f"integer context tag {cls._context} expected")
             if tag.tag_number != TagNumber.integer:
-                raise InvalidTag("integer application tag expected")
+                if tag.tag_number == TagNumber.null:
+                    return None
+                else:
+                    raise InvalidTag("integer application tag expected")
         elif tag.tag_class == TagClass.context:
             if cls._context is None:
                 raise InvalidTag("integer application tag expected")
@@ -1221,7 +1227,10 @@ class Real(Atomic, float):
             if cls._context is not None:
                 raise InvalidTag(f"real context tag {cls._context} expected")
             if tag.tag_number != TagNumber.real:
-                raise InvalidTag("real application tag expected")
+                if tag.tag_number == TagNumber.null:
+                    return None
+                else:
+                    raise InvalidTag("real application tag expected")
         elif tag.tag_class == TagClass.context:
             if cls._context is None:
                 raise InvalidTag("real application tag expected")
@@ -1276,7 +1285,10 @@ class Double(Real):
             if cls._context is not None:
                 raise InvalidTag(f"double context tag {cls._context} expected")
             if tag.tag_number != TagNumber.double:
-                raise InvalidTag("double application tag expected")
+                if tag.tag_number == TagNumber.null:
+                    return None
+                else:
+                    raise InvalidTag("double application tag expected")
         elif tag.tag_class == TagClass.context:
             if cls._context is None:
                 raise InvalidTag("double application tag expected")
@@ -1358,7 +1370,10 @@ class OctetString(Atomic, bytes):
             if cls._context is not None:
                 raise InvalidTag(f"octet string context tag {cls._context} expected")
             if tag.tag_number != TagNumber.octetString:
-                raise InvalidTag("octet string application tag expected")
+                if tag.tag_number == TagNumber.null:
+                    return None
+                else:
+                    raise InvalidTag("octet string application tag expected")
         elif tag.tag_class == TagClass.context:
             if cls._context is None:
                 raise InvalidTag("octet string application tag expected")
@@ -1448,7 +1463,10 @@ class CharacterString(Atomic, str):
                     f"character string context tag {cls._context} expected"
                 )
             if tag.tag_number != TagNumber.characterString:
-                raise InvalidTag("character string application tag expected")
+                if tag.tag_number == TagNumber.null:
+                    return None
+                else:
+                    raise InvalidTag("character string application tag expected")
         elif tag.tag_class == TagClass.context:
             if cls._context is None:
                 raise InvalidTag("character string application tag expected")
@@ -1738,7 +1756,10 @@ class BitString(Atomic, list, metaclass=BitStringMetaclass):
             if cls._context is not None:
                 raise InvalidTag(f"bit string context tag {cls._context} expected")
             if tag.tag_number != TagNumber.bitString:
-                raise InvalidTag("bit string application tag expected")
+                if tag.tag_number == TagNumber.null:
+                    return None
+                else:
+                    raise InvalidTag("bit string application tag expected")
         elif tag.tag_class == TagClass.context:
             if cls._context is None:
                 raise InvalidTag("bit string application tag expected")
@@ -1951,7 +1972,10 @@ class Enumerated(Atomic, int, metaclass=EnumeratedMetaclass):
             if cls._context is not None:
                 raise InvalidTag(f"enumerated context tag {cls._context} expected")
             if tag.tag_number != TagNumber.enumerated:
-                raise InvalidTag("enumerated application tag expected")
+                if tag.tag_number == TagNumber.null:
+                    return None
+                else:
+                    raise InvalidTag("enumerated application tag expected")
         elif tag.tag_class == TagClass.context:
             if cls._context is None:
                 raise InvalidTag("enumerated application tag expected")
@@ -2270,7 +2294,10 @@ class Date(Atomic, tuple):
             if cls._context is not None:
                 raise InvalidTag(f"date context tag {cls._context} expected")
             if tag.tag_number != TagNumber.date:
-                raise InvalidTag("date application tag expected")
+                if tag.tag_number == TagNumber.null:
+                    return None
+                else:
+                    raise InvalidTag("date application tag expected")
         elif tag.tag_class == TagClass.context:
             if cls._context is None:
                 raise InvalidTag("date application tag expected")
@@ -2455,7 +2482,10 @@ class Time(Atomic, tuple):
             if cls._context is not None:
                 raise InvalidTag(f"enumerated context tag {cls._context} expected")
             if tag.tag_number != TagNumber.time:
-                raise InvalidTag("time application tag expected")
+                if tag.tag_number == TagNumber.null:
+                    return None
+                else:
+                    raise InvalidTag("time application tag expected")
         elif tag.tag_class == TagClass.context:
             if cls._context is None:
                 raise InvalidTag("time application tag expected")
@@ -3136,7 +3166,10 @@ class ObjectIdentifier(Atomic, tuple):
                     f"object identifier context tag {cls._context} expected"
                 )
             if tag.tag_number != TagNumber.objectIdentifier:
-                raise InvalidTag("object identifier application tag expected")
+                if tag.tag_number == TagNumber.null:
+                    return None
+                else:
+                    raise InvalidTag("object identifier application tag expected")
         elif tag.tag_class == TagClass.context:
             if cls._context is None:
                 raise InvalidTag("object identifier application tag expected")
