@@ -4,7 +4,7 @@ Custom Objects and Properties
 
 from bacpypes3.debugging import ModuleLogger
 from bacpypes3.primitivedata import Integer, ObjectType
-from bacpypes3.basetypes import PropertyIdentifier
+from bacpypes3.basetypes import PropertyIdentifier, OptionalUnsigned
 from bacpypes3.vendor import VendorInfo
 
 from bacpypes3.local.object import _Object
@@ -36,7 +36,8 @@ class ProprietaryPropertyIdentifier(PropertyIdentifier):
     types or are used in custom properties of standard types.
     """
 
-    custom_property = 512
+    custom_integer = 512
+    custom_optional_unsigned = 513
 
 
 # create a VendorInfo object for this custom application before registering
@@ -49,11 +50,10 @@ custom_vendor_info = VendorInfo(
 class DeviceObject(_DeviceObject):
     """
     When running as an instance of this custom device, the DeviceObject is
-    an extension of the one defined in bacpypes3.local.device (in this case
-    doesn't add any proprietary properties).
+    an extension of the one defined in bacpypes3.local.device.
     """
 
-    pass
+    custom_optional_unsigned: OptionalUnsigned
 
 
 class NetworkPortObject(_NetworkPortObject):
@@ -88,4 +88,4 @@ class ProprietaryObject(_Object):
     # propertyList: ArrayOf(PropertyIdentifier)
 
     # this is a custom property using a standard datatype
-    custom_property: Integer
+    custom_integer: Integer

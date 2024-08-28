@@ -149,7 +149,7 @@ async def main() -> None:
             segmentationSupported="segmented-both",
             vendorID=888,
         )
-        app.device_info_cache.set_device_info(i_am)
+        await app.device_info_cache.set_device_info(i_am)
 
         # run until the console is done, canceled or EOF
         await console.fini.wait()

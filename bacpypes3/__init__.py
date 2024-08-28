@@ -54,6 +54,7 @@ from . import console
 from . import ipv4
 from . import ipv6
 from . import vlan
+from . import mstp
 
 try:
     import websockets

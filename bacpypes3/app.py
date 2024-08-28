@@ -44,6 +44,7 @@ from .errors import AbortException, ExecutionError, RejectException, Unrecognize
 from .ipv4.link import BBMDLinkLayer as BBMDLinkLayer_ipv4
 from .ipv4.link import ForeignLinkLayer as ForeignLinkLayer_ipv4
 from .ipv4.link import NormalLinkLayer as NormalLinkLayer_ipv4
+from .mstp import MSTPLinkLayer
 
 # for serialized parameter initialization
 from .json import json_to_sequence
@@ -649,6 +650,21 @@ class Application(
 
             elif obj.networkType == NetworkType.ipv6:
                 raise NotImplementedError("IPv6")
+
+            elif obj.networkType == NetworkType.mstp:
+                link_address = obj.address
+                if _debug:
+                    Application._debug("     - link_address: %r", link_address)
+
+                link_layer = MSTPLinkLayer(obj.networkInterfaceName)
+                if _debug:
+                    Application._debug("     - link_layer: %r", link_layer)
+
+                # let the NSAP know about this link layer
+                if obj.networkNumber == 0:
+                    self.nsap.bind(link_layer)
+                else:
+                    self.nsap.bind(link_layer, net=obj.networkNumber)
 
             elif obj.networkType == NetworkType.virtual:
                 link_address = obj.address

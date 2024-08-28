@@ -1,0 +1,49 @@
+{
+    "BACpypes": {
+        "backup_count": 5,
+        "color": false,
+        "config": {},
+        "cov_lifetime": 60,
+        "debug": [],
+        "debug_file": "",
+        "max_bytes": 1048576,
+        "route_aware": false
+    },
+    "application": [
+        {
+            "apdu-segment-timeout": 1000,
+            "apdu-timeout": 3000,
+            "application-software-version": "1.0",
+            "database-revision": 1,
+            "firmware-revision": "N/A",
+            "max-apdu-length-accepted": 1024,
+            "model-name": "N/A",
+            "number-of-apdu-retries": 3,
+            "object-identifier": "device,997",
+            "object-name": "Potemkin-0",
+            "object-type": "device",
+            "protocol-revision": 22,
+            "protocol-version": 1,
+            "segmentation-supported": "segmented-both",
+            "system-status": "operational",
+            "vendor-identifier": 999,
+            "vendor-name": "BACpypes"
+        },
+        {
+            "link-speed": 38400.0,
+            "mac-address": "10",
+            "max-info-frames": 1,
+            "max-master": 127,
+            "network-interface-name": "/tmp/tmp.DdsXSDW5pv",
+            "network-number": 100,
+            "network-number-quality": "configured",
+            "network-type": "mstp",
+            "object-identifier": "network-port,1",
+            "object-name": "NetworkPort-1",
+            "object-type": "network-port",
+            "out-of-service": false,
+            "protocol-level": "bacnet-application",
+            "reliability": "no-fault-detected"
+        }
+    ]
+}
