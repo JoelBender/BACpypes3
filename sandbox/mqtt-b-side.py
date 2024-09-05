@@ -1,8 +1,8 @@
 """
 MQTT B-side Example
 
-When a payload from a broker is received, look up the topic name and map it to
-an Analog Value Object and set the present-value.
+When the present-value of an Analog Object is changed, publish a message to the
+broker using the object name as the topic.
 """
 
 import asyncio
