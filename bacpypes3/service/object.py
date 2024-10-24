@@ -35,7 +35,13 @@ from ..basetypes import (
 )
 from ..constructeddata import Any, Array, List, SequenceOf
 from ..debugging import ModuleLogger, bacpypes_debugging
-from ..errors import ExecutionError, ObjectError, PropertyError, RejectException
+from ..errors import (
+    ExecutionError,
+    ObjectError,
+    PropertyError,
+    RejectException,
+    UnrecognizedService,
+)
 from ..object import DeviceObject
 from ..pdu import Address
 from ..primitivedata import Date, Null, ObjectIdentifier, Time, Unsigned
@@ -840,10 +846,10 @@ class ReadWritePropertyMultipleServices:
         """Respond to a WritePropertyMultiple Request."""
         if _debug:
             ReadWritePropertyMultipleServices._debug(
-                "do_ReadPropertyMultipleRequest %r", apdu
+                "do_WritePropertyMultipleRequest %r", apdu
             )
 
-        raise NotImplementedError()
+        raise UnrecognizedService()
 
 
 @bacpypes_debugging
