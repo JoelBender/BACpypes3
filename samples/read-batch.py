@@ -1,5 +1,15 @@
 """
-Simple console example that reads batches of values.
+This example reads in a tab-delimited list of DeviceAddressObjectPropertyReference
+and reads them as a batch.
+
+The text file contains:
+    key                 - any simple value to identify the row
+    device address      - an Address, like '192.168.0.12' or '5101:16'
+    object identifier   - an ObjectIdentifier, like 'analog-value,12'
+    property reference  - a PropertyReference, like 'present-value'
+
+Note that the property reference can also include an array index like
+'priority-array[6]'.
 """
 
 import sys
@@ -12,10 +22,7 @@ from bacpypes3.debugging import bacpypes_debugging, ModuleLogger
 from bacpypes3.argparse import SimpleArgumentParser
 from bacpypes3.app import Application
 
-from bacpypes3.console import Console
-from bacpypes3.cmd import Cmd
-from bacpypes3.comm import bind
-
+from bacpypes3.apdu import ErrorRejectAbortNack
 from bacpypes3.lib.batchread import DeviceAddressObjectPropertyReference, BatchRead
 
 # some debugging
@@ -26,49 +33,17 @@ _log = ModuleLogger(globals())
 app: Application
 batch_read: BatchRead
 
-# stuff to read, parameters to DeviceAddressObjectPropertyReference
-stuff_to_read = [
-    (1, "100:2", "device,10002", "object-name"),
-    (2, "100:2", "device,10002", "local-date"),
-    (3, "100:2", "device,10002", "local-time"),
-    (4, "100:2", "analog-value,1", "object-name"),
-    (5, "100:2", "analog-value,1", "present-value"),
-    (6, "100:3", "device,10003", "object-name"),
-    (7, "100:4", "device,10004", "object-name"),
-    (8, "100:5", "device,10005", "object-name"),
-    (9, "200:2", "device,20002", "object-name"),
-    (10, "200:2", "analog-value,1", "present-value"),
-    (11, "200:2", "analog-value,2", "present-value"),
-    (12, "200:3", "device:20003", "object-name"),
-]
 
-
-@bacpypes_debugging
-class SampleCmd(Cmd):
+def callback(key: str, value: Union[float, ErrorRejectAbortNack]) -> None:
     """
-    Sample Cmd
+    This is called when the batch has found a value or an error.  The alternative
+    to using a callback is to wait for the batch to complete and zip() the
+    results with the list of keys.
     """
-
-    _debug: Callable[..., None]
-
-    async def do_read(self) -> None:
-        """
-        usage: read
-        """
-        if _debug:
-            SampleCmd._debug("do_read")
-
-        asyncio.ensure_future(batch_read.run(app, self.callback))
-
-    def callback(self, key, value) -> None:
-        asyncio.ensure_future(self.response(f"{key} = {value}"))
-
-    async def do_stop(self) -> None:
-        """
-        usage: stop
-        """
-        global batch_read
-        batch_read.stop()
+    if isinstance(value, ErrorRejectAbortNack):
+        print(f"{objprop}: {value.errorClass}, {value.errorCode}")
+    else:
+        print(f"{objprop} = {value}")
 
 
 async def main() -> None:
@@ -80,22 +55,18 @@ async def main() -> None:
         if _debug:
             _log.debug("settings: %r", settings)
 
-        # build a very small stack
-        console = Console()
-        cmd = SampleCmd()
-        bind(console, cmd)
-
         # build the application
         app = Application.from_args(args)
 
         # transform the list of stuff to read
-        daopr_list = [
-            DeviceAddressObjectPropertyReference(*args) for args in stuff_to_read
-        ]
+        daopr_list = []
+        while line := readline():
+            line_args = line[:-1].split("\t")
+            daopr_list.append(DeviceAddressObjectPropertyReference(*line_args))
         batch_read = BatchRead(daopr_list)
 
-        # run until the console is done, canceled or EOF
-        await console.fini.wait()
+        # run until the batch is done
+        await batch_read.run(app, callback)
 
     except KeyboardInterrupt:
         if _debug:
