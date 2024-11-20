@@ -79,6 +79,9 @@ class SubscriptionContextManager:
         # timer handle to refresh the subscription
         self.refresh_subscription_handle = None
 
+        # result of refresh task to check if exception occurred
+        self.refresh_subscription_task = None
+
     async def __aenter__(self) -> SubscriptionContextManager:
         if _debug:
             SubscriptionContextManager._debug("__aenter__")
