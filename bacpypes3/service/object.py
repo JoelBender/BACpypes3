@@ -39,7 +39,6 @@ from ..errors import (
     ExecutionError,
     ObjectError,
     PropertyError,
-    RejectException,
     UnrecognizedService,
 )
 from ..object import DeviceObject
@@ -65,9 +64,9 @@ class ReadWritePropertyServices:
 
     async def read_property(
         self,
-        address: Address,
-        objid: ObjectIdentifier,
-        prop: PropertyIdentifier,
+        address: Union[Address, str],
+        objid: Union[ObjectIdentifier, str],
+        prop: Union[PropertyIdentifier, str],
         array_index: Optional[int] = None,
     ) -> _Any:
         """
@@ -79,6 +78,35 @@ class ReadWritePropertyServices:
             ReadWritePropertyServices._debug(
                 "read_property %r %r %r %r", address, objid, prop, array_index
             )
+
+        # parse the address if needed
+        if isinstance(address, str):
+            address = Address(address)
+        elif not isinstance(address, Address):
+            raise TypeError("address")
+
+        # get the vendor information to have a context for parsing the
+        # object identifier and property reference
+        vendor_info = await self.get_vendor_info(device_address=address)
+
+        # parse the object identifier if needed
+        if isinstance(objid, str):
+            objid = await self.parse_object_identifier(objid, vendor_info=vendor_info)
+        elif not isinstance(objid, ObjectIdentifier):
+            raise TypeError("objid")
+
+        # parse the property reference if needed
+        if isinstance(prop, str):
+            property_reference = await self.parse_property_reference(
+                prop, vendor_info=vendor_info
+            )
+            prop = property_reference.propertyIdentifier
+            if property_reference.propertyArrayIndex is not None:
+                if array_index is not None:
+                    raise ValueError("array index conflict")
+                array_index = property_reference.propertyArrayIndex
+        elif not isinstance(prop, PropertyIdentifier):
+            raise TypeError("prop")
 
         # create a request
         read_property_request = ReadPropertyRequest(
@@ -107,21 +135,6 @@ class ReadWritePropertyServices:
             if _debug:
                 ReadWritePropertyServices._debug("    - invalid response: %r", response)
             return None
-
-        # get information about the device from the cache
-        device_info = await self.device_info_cache.get_device_info(address)
-        if _debug:
-            ReadWritePropertyServices._debug("    - device_info: %r", device_info)
-
-        # using the device info, look up the vendor information
-        if device_info:
-            vendor_info = get_vendor_info(device_info.vendor_identifier)
-        else:
-            vendor_info = get_vendor_info(0)
-        if _debug:
-            ReadWritePropertyServices._debug(
-                "    - vendor_info (%d): %r", vendor_info.vendor_identifier, vendor_info
-            )
 
         # using the vendor information, look up the class
         object_class = vendor_info.get_object_class(objid[0])
@@ -159,9 +172,9 @@ class ReadWritePropertyServices:
 
     async def write_property(
         self,
-        address: Address,
-        objid: ObjectIdentifier,
-        prop: PropertyIdentifier,
+        address: Union[Address, str],
+        objid: Union[ObjectIdentifier, str],
+        prop: Union[PropertyIdentifier, str],
         value: _Any,
         array_index: Optional[int] = None,
         priority: Optional[int] = None,
@@ -182,20 +195,34 @@ class ReadWritePropertyServices:
                 priority,
             )
 
-        # get information about the device from the cache
-        device_info = await self.device_info_cache.get_device_info(address)
-        if _debug:
-            ReadWritePropertyServices._debug("    - device_info: %r", device_info)
+        # parse the address if needed
+        if isinstance(address, str):
+            address = Address(address)
+        elif not isinstance(objid, Address):
+            raise TypeError("address")
 
-        # using the device info, look up the vendor information
-        if device_info:
-            vendor_info = get_vendor_info(device_info.vendor_identifier)
-        else:
-            vendor_info = get_vendor_info(0)
-        if _debug:
-            ReadWritePropertyServices._debug(
-                "    - vendor_info (%d): %r", vendor_info.vendor_identifier, vendor_info
+        # get the vendor information to have a context for parsing the
+        # object identifier and property reference
+        vendor_info = await self.get_vendor_info(device_address=address)
+
+        # parse the object identifier if needed
+        if isinstance(objid, str):
+            objid = self.parse_object_identifier(objid, vendor_info=vendor_info)
+        elif not isinstance(objid, ObjectIdentifier):
+            raise TypeError("objid")
+
+        # parse the property reference if needed
+        if isinstance(prop, str):
+            property_reference = await self.parse_property_reference(
+                prop, vendor_info=vendor_info
             )
+            prop = property_reference.propertyIdentifier
+            if property_reference.propertyArrayIndex is not None:
+                if array_index is not None:
+                    raise ValueError("array index conflict")
+                array_index = property_reference.propertyArrayIndex
+        elif not isinstance(objid, PropertyIdentifier):
+            raise TypeError("prop")
 
         # using the vendor information, look up the class
         object_class = vendor_info.get_object_class(objid[0])

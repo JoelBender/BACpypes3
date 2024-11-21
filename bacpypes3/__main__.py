@@ -6,7 +6,7 @@ import sys
 import asyncio
 import json
 
-from typing import Callable, List, Optional, Tuple, Union
+from typing import Callable, List, Optional, Tuple
 
 import bacpypes3
 from bacpypes3.settings import settings
@@ -56,7 +56,7 @@ class CmdShell(Cmd):
         self,
         address: Address,
         object_identifier: str,
-        property_identifier: Union[int, str],
+        property_identifier: str,
     ) -> None:
         """
         Send a Read Property Request and wait for the response.
@@ -69,37 +69,19 @@ class CmdShell(Cmd):
             )
         global app
 
-        # get information about the device from the cache
-        device_info = await app.device_info_cache.get_device_info(address)
-        if _debug:
-            CmdShell._debug("    - device_info: %r", device_info)
-
-        # using the device info, look up the vendor information
-        if device_info:
-            vendor_info = get_vendor_info(device_info.vendor_identifier)
-        else:
-            vendor_info = get_vendor_info(0)
-        if _debug:
-            CmdShell._debug("    - vendor_info: %r", vendor_info)
-
-        # use the vendor info to parse the object identifier
-        object_identifier = vendor_info.object_identifier(object_identifier)
-        if _debug:
-            CmdShell._debug("    - object_identifier: %r", object_identifier)
-
-        # use the vendor info to parse the property reference
-        property_reference = PropertyReference(
-            property_identifier, vendor_identifier=vendor_info.vendor_identifier
+        # parse the components
+        object_property_reference = await app.parse_object_property_reference(
+            object_identifier,
+            property_identifier,
+            device_address=address,
         )
-        if _debug:
-            CmdShell._debug("    - property_reference: %r", property_reference)
 
         try:
             property_value = await app.read_property(
                 address,
-                object_identifier,
-                property_reference.propertyIdentifier,
-                property_reference.propertyArrayIndex,
+                object_property_reference.objectIdentifier,
+                object_property_reference.propertyIdentifier,
+                object_property_reference.propertyArrayIndex,
             )
             if _debug:
                 CmdShell._debug("    - property_value: %r", property_value)
@@ -139,30 +121,16 @@ class CmdShell(Cmd):
             )
         global app
 
-        # get information about the device from the cache
-        device_info = await app.device_info_cache.get_device_info(address)
-        if _debug:
-            CmdShell._debug("    - device_info: %r", device_info)
+        # get the vendor information
+        vendor_info = await app.get_vendor_information(address)
 
-        # using the device info, look up the vendor information
-        if device_info:
-            vendor_info = get_vendor_info(device_info.vendor_identifier)
-        else:
-            vendor_info = get_vendor_info(0)
-        if _debug:
-            CmdShell._debug("    - vendor_info: %r", vendor_info)
-
-        # use the vendor info to parse the object identifier
-        object_identifier = vendor_info.object_identifier(object_identifier)
-        if _debug:
-            CmdShell._debug("    - object_identifier: %r", object_identifier)
-
-        # use the vendor info to parse the property reference
-        property_reference = PropertyReference(
-            property_identifier, vendor_identifier=vendor_info.vendor_identifier
+        # parse the components
+        object_property_reference = await app.parse_object_property_reference(
+            address,
+            object_identifier,
+            property_identifier,
+            vendor_info=vendor_info,
         )
-        if _debug:
-            CmdShell._debug("    - property_reference: %r", property_reference)
 
         if value == "null":
             if priority is None:
@@ -172,10 +140,10 @@ class CmdShell(Cmd):
         try:
             response = await app.write_property(
                 address,
-                object_identifier,
-                property_reference.propertyIdentifier,
+                object_property_reference.objectIdentifier,
+                object_property_reference.propertyIdentifier,
                 value,
-                property_reference.propertyArrayIndex,
+                object_property_reference.propertyArrayIndex,
                 priority,
             )
             if _debug:
@@ -440,9 +408,9 @@ class CmdShell(Cmd):
             CmdShell._debug("do_wirtn %r %r", address, network)
         assert app.nse
 
-        result_list: List[
-            Tuple[NetworkAdapter, IAmRouterToNetwork]
-        ] = await app.nse.who_is_router_to_network(destination=address, network=network)
+        result_list: List[Tuple[NetworkAdapter, IAmRouterToNetwork]] = (
+            await app.nse.who_is_router_to_network(destination=address, network=network)
+        )
         if _debug:
             CmdShell._debug("    - result_list: %r", result_list)
         if not result_list:
@@ -486,9 +454,9 @@ class CmdShell(Cmd):
             CmdShell._debug("do_irt %r", address)
         assert app.nse
 
-        result_list: List[
-            Tuple[NetworkAdapter, InitializeRoutingTableAck]
-        ] = await app.nse.initialize_routing_table(destination=address)
+        result_list: List[Tuple[NetworkAdapter, InitializeRoutingTableAck]] = (
+            await app.nse.initialize_routing_table(destination=address)
+        )
         if _debug:
             CmdShell._debug("    - result_list: %r", result_list)
         if not result_list:
@@ -532,9 +500,9 @@ class CmdShell(Cmd):
             raise NotImplementedError("IPv4 only")
 
         try:
-            result_list: Optional[
-                List[IPv4Address]
-            ] = await bvll_ase.read_broadcast_distribution_table(address)
+            result_list: Optional[List[IPv4Address]] = (
+                await bvll_ase.read_broadcast_distribution_table(address)
+            )
             if result_list is None:
                 await self.response("No response")
             else:
