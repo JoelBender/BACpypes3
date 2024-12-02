@@ -19,11 +19,10 @@ from bacpypes3.pdu import Address, IPv4Address
 from bacpypes3.comm import bind
 
 from bacpypes3.primitivedata import Null, CharacterString, ObjectIdentifier
-from bacpypes3.basetypes import ErrorType, PropertyIdentifier, PropertyReference
+from bacpypes3.basetypes import ErrorType
 from bacpypes3.constructeddata import AnyAtomic
 from bacpypes3.apdu import ErrorRejectAbortNack
 from bacpypes3.npdu import IAmRouterToNetwork, InitializeRoutingTableAck
-from bacpypes3.vendor import get_vendor_info
 from bacpypes3.app import Application
 from bacpypes3.netservice import NetworkAdapter
 
@@ -122,7 +121,7 @@ class CmdShell(Cmd):
         global app
 
         # get the vendor information
-        vendor_info = await app.get_vendor_information(address)
+        vendor_info = await app.get_vendor_info(device_address=address)
 
         # parse the components
         object_property_reference = await app.parse_object_property_reference(
@@ -298,57 +297,24 @@ class CmdShell(Cmd):
             CmdShell._debug("do_rpm %r %r", address, args)
         args_list: List[str] = list(args)
 
-        # get information about the device from the cache
-        device_info = await app.device_info_cache.get_device_info(address)
-        if _debug:
-            CmdShell._debug("    - device_info: %r", device_info)
-
-        # using the device info, look up the vendor information
-        if device_info:
-            vendor_info = get_vendor_info(device_info.vendor_identifier)
-        else:
-            vendor_info = get_vendor_info(0)
-        if _debug:
-            CmdShell._debug("    - vendor_info: %r", vendor_info)
+        # get the vendor information
+        vendor_info = await app.get_vendor_info(device_address=address)
 
         parameter_list = []
         while args_list:
-            # use the vendor information to translate the object identifier,
-            # then use the object type portion to look up the object class
+            # use the vendor information to translate the object identifier
             object_identifier = vendor_info.object_identifier(args_list.pop(0))
-            object_class = vendor_info.get_object_class(object_identifier[0])
-            if not object_class:
-                await self.response(f"unrecognized object type: {object_identifier}")
-                return
-
-            # save this as a parameter
             parameter_list.append(object_identifier)
 
             property_reference_list = []
             while args_list:
                 # use the vendor info to parse the property reference
-                property_reference = PropertyReference(
+                property_reference = await app.parse_property_reference(
                     args_list.pop(0),
                     vendor_info=vendor_info,
                 )
                 if _debug:
                     CmdShell._debug("    - property_reference: %r", property_reference)
-
-                if property_reference.propertyIdentifier not in (
-                    PropertyIdentifier.all,
-                    PropertyIdentifier.required,
-                    PropertyIdentifier.optional,
-                ):
-                    property_type = object_class.get_property_type(
-                        property_reference.propertyIdentifier
-                    )
-                    if _debug:
-                        CmdShell._debug("    - property_type: %r", property_type)
-                    if not property_type:
-                        await self.response(
-                            f"unrecognized property: {property_reference.propertyIdentifier}"
-                        )
-                        return
 
                 # save this as a parameter
                 property_reference_list.append(property_reference)
