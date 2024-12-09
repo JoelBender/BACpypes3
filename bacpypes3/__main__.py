@@ -649,7 +649,7 @@ async def main() -> None:
 
                 print(f"rdflib {rdflib.__version__} {rdflib.__file__}")
             except ImportError:
-                print("yaml not installed")
+                print("rdflib not installed")
 
             try:
                 import websockets
