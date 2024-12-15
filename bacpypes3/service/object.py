@@ -198,7 +198,7 @@ class ReadWritePropertyServices:
         # parse the address if needed
         if isinstance(address, str):
             address = Address(address)
-        elif not isinstance(objid, Address):
+        elif not isinstance(address, Address):
             raise TypeError("address")
 
         # get the vendor information to have a context for parsing the
@@ -221,7 +221,7 @@ class ReadWritePropertyServices:
                 if array_index is not None:
                     raise ValueError("array index conflict")
                 array_index = property_reference.propertyArrayIndex
-        elif not isinstance(objid, PropertyIdentifier):
+        elif not isinstance(prop, PropertyIdentifier):
             raise TypeError("prop")
 
         # using the vendor information, look up the class

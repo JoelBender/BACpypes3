@@ -125,7 +125,6 @@ class CmdShell(Cmd):
 
         # parse the components
         object_property_reference = await app.parse_object_property_reference(
-            address,
             object_identifier,
             property_identifier,
             vendor_info=vendor_info,
