@@ -207,7 +207,7 @@ class ReadWritePropertyServices:
 
         # parse the object identifier if needed
         if isinstance(objid, str):
-            objid = self.parse_object_identifier(objid, vendor_info=vendor_info)
+            objid = await self.parse_object_identifier(objid, vendor_info=vendor_info)
         elif not isinstance(objid, ObjectIdentifier):
             raise TypeError("objid")
 
