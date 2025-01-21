@@ -871,8 +871,6 @@ class Application(
             if len(arg) != 2:
                 raise ValueError("'type,instance' or 'type:instance' expected")
             obj_type, obj_instance = arg
-            print(f"{obj_type, obj_instance = }")
-            print(f"{vendor_info.object_type = }")
 
             obj_type = vendor_info.object_type(obj_type)
             obj_instance = int(obj_instance, base=0)
