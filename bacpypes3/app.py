@@ -7,6 +7,8 @@ from __future__ import annotations
 import argparse
 import asyncio
 import dataclasses
+import re
+
 from functools import partial
 from typing import TYPE_CHECKING
 from typing import Any as _Any
@@ -34,6 +36,8 @@ from .basetypes import (
     HostNPort,
     IPMode,
     NetworkType,
+    ObjectPropertyReference,
+    PropertyReference,
     ProtocolLevel,
     Segmentation,
     ServicesSupported,
@@ -70,7 +74,7 @@ from .service.object import (
     ReadWritePropertyMultipleServices,
     ReadWritePropertyServices,
 )
-from .vendor import get_vendor_info
+from .vendor import get_vendor_info, VendorInfo
 from .vlan.link import VirtualLinkLayer
 
 if TYPE_CHECKING:
@@ -82,6 +86,10 @@ else:
 # some debugging
 _debug = 0
 _log = ModuleLogger(globals())
+
+
+# 'property[index]' matching
+property_index_re = re.compile(r"^([0-9A-Za-z-_]+)(?:\[([0-9]+)\])?$")
 
 
 #
@@ -753,6 +761,277 @@ class Application(
 
         # return the bit list
         return services_supported
+
+    # -----
+
+    async def get_device_info(self, addr: Union[Address, int]) -> Optional[DeviceInfo]:
+        if _debug:
+            Application._debug("get_device_info %r", addr)
+
+        # redirect to the cache
+        device_info = await self.device_info_cache.get_device_info(addr)
+        if _debug:
+            DeviceInfoCache._debug("    - device_info: %r", device_info)
+
+        return device_info
+
+    async def get_vendor_info(
+        self,
+        *,
+        device_instance: Optional[int] = None,
+        device_address: Optional[Address] = None,
+        vendor_identifier: Optional[int] = None,
+    ) -> VendorInfo:
+        if _debug:
+            Application._debug(
+                "get_vendor_info device_instance=%r device_address=%r vendor_identifier=%r",
+                device_instance,
+                device_address,
+                vendor_identifier,
+            )
+
+        # vendor identifier provided
+        if vendor_identifier is not None:
+            pass
+
+        # look for device information to get the vendor identifier
+        elif (device_address is not None) or (device_instance is not None):
+            device_info = await self.device_info_cache.get_device_info(
+                device_address or device_instance
+            )
+            if _debug:
+                Application._debug("    - device_info: %r", device_info)
+
+            if device_info:
+                vendor_identifier = device_info.vendor_identifier
+            else:
+                # defaults to ASHRAE
+                vendor_identifier = 0
+
+        else:
+            raise RuntimeError("parameter expected")
+
+        # get the vendor information from the "registered" vendors
+        vendor_info = get_vendor_info(vendor_identifier)
+        if _debug:
+            Application._debug("    - vendor_info: %r", vendor_info)
+
+        return vendor_info
+
+    async def parse_object_identifier(
+        self,
+        arg: Union[int, str, tuple],
+        *,
+        device_instance: Optional[int] = None,
+        device_address: Optional[Address] = None,
+        vendor_identifier: Optional[int] = 0,
+        vendor_info: Optional[VendorInfo] = None,
+    ) -> ObjectIdentifier:
+        if _debug:
+            Application._debug("parse_object_identifier %r", arg)
+
+        # maybe the context was provided
+        if not vendor_info:
+            vendor_info = await self.get_vendor_info(
+                device_instance=device_instance,
+                device_address=device_address,
+                vendor_identifier=vendor_identifier,
+            )
+        if _debug:
+            Application._debug("    - vendor_info: %r", vendor_info)
+
+        if isinstance(arg, tuple):
+            if len(arg) != 2:
+                raise ValueError("2-tuple expected")
+            obj_type, obj_instance = arg
+
+            if isinstance(obj_type, (int, str)):
+                obj_type = vendor_info.object_type(obj_type)
+
+            if isinstance(obj_instance, str):
+                obj_instance = int(obj_instance, base=0)
+            elif isinstance(obj_instance, bool) or (not isinstance(obj_instance, int)):
+                raise TypeError("invalid instance type")
+
+            if (obj_instance < 0) or (obj_instance > 4194303):
+                raise ValueError("instance out of range")
+
+        elif isinstance(arg, int):
+            if arg < 0:
+                raise ValueError("unsigned integer expected")
+
+            obj_type, obj_instance = (arg >> 22), (arg & 0x3FFFFF)
+            obj_type = vendor_info.object_type(obj_type)
+
+        elif isinstance(arg, str):
+            if "," in arg:
+                arg = arg.split(",")
+            elif ":" in arg:
+                arg = arg.split(":")
+            if len(arg) != 2:
+                raise ValueError("'type,instance' or 'type:instance' expected")
+            obj_type, obj_instance = arg
+
+            obj_type = vendor_info.object_type(obj_type)
+            obj_instance = int(obj_instance, base=0)
+            if (obj_instance < 0) or (obj_instance > 4194303):
+                raise ValueError("instance out of range")
+
+        else:
+            raise TypeError()
+
+        return ObjectIdentifier((obj_type, obj_instance))
+
+    async def parse_property_reference(
+        self,
+        arg: Union[int, str, tuple],
+        *,
+        device_instance: Optional[int] = None,
+        device_address: Optional[Address] = None,
+        vendor_identifier: Optional[int] = 0,
+        vendor_info: Optional[VendorInfo] = None,
+    ) -> PropertyReference:
+        if _debug:
+            Application._debug(
+                "parse_property_reference %r device_instance=%r device_address=%r vendor_identifier=%r vendor_info=%r",
+                arg,
+                device_instance,
+                device_address,
+                vendor_identifier,
+                vendor_info,
+            )
+
+        rslt = PropertyReference()
+
+        # maybe the context was provided
+        if not vendor_info:
+            vendor_info = await self.get_vendor_info(
+                device_instance=device_instance,
+                device_address=device_address,
+                vendor_identifier=vendor_identifier,
+            )
+        if _debug:
+            Application._debug("    - vendor_info: %r", vendor_info)
+
+        # specific property enumeration
+        if isinstance(arg, int):
+            rslt.propertyIdentifier = vendor_info.property_identifier(arg)
+
+        # property reference by name
+        elif isinstance(arg, str):
+            # split the property identifier and its index
+            property_index_match = property_index_re.match(arg)
+            if not property_index_match:
+                raise ValueError(arg)
+
+            (
+                property_identifier,
+                property_array_index,
+            ) = property_index_match.groups()
+            if _debug:
+                Application._debug(
+                    "    - property_identifier, property_array_index= %r, %r",
+                    property_identifier,
+                    property_array_index,
+                )
+            # property identifier is an int or a name
+            if property_identifier.isdigit():
+                rslt.propertyIdentifier = vendor_info.property_identifier(
+                    int(property_identifier)
+                )
+            else:
+                # translate the string
+                rslt.propertyIdentifier = vendor_info.property_identifier(
+                    property_identifier
+                )
+
+            # array index is an int
+            if property_array_index is not None:
+                rslt.propertyArrayIndex = int(property_array_index)
+
+        elif isinstance(arg, tuple) and (len(arg) == 2):
+            property_identifier, property_array_index = arg
+
+            # look up the name 'some-property'
+            if isinstance(property_identifier, str):
+                # translate the string
+                rslt.propertyIdentifier = vendor_info.property_identifier(
+                    property_identifier
+                )
+
+            # build something like (12, 4)
+            elif isinstance(property_identifier, int):
+                rslt.propertyIdentifier = vendor_info.property_identifier(
+                    property_identifier
+                )
+
+            else:
+                raise TypeError(arg)
+
+            if not isinstance(property_array_index, int):
+                raise TypeError(arg)
+            rslt.propertyArrayIndex = property_array_index
+
+        else:
+            raise TypeError(arg)
+
+        if _debug:
+            Application._debug("    - rslt = %r", rslt)
+        return rslt
+
+    async def parse_object_property_reference(
+        self,
+        object_identifier: Union[int, str, tuple],
+        property_reference: Union[int, str],
+        *,
+        device_instance: Optional[int] = None,
+        device_address: Optional[Address] = None,
+        vendor_identifier: Optional[int] = 0,
+        vendor_info: Optional[VendorInfo] = None,
+    ) -> ObjectPropertyReference:
+        if _debug:
+            Application._debug(
+                "parse_object_property_reference %r %r device_instance=%r device_address=%r vendor_identifier=%r vendor_info=%r",
+                object_identifier,
+                property_reference,
+                device_instance,
+                device_address,
+                vendor_identifier,
+                vendor_info,
+            )
+
+        # maybe the context was provided
+        if not vendor_info:
+            vendor_info = await self.get_vendor_info(
+                device_instance=device_instance,
+                device_address=device_address,
+                vendor_identifier=vendor_identifier,
+            )
+        if _debug:
+            Application._debug("    - vendor_info: %r", vendor_info)
+
+        # try the first bit
+        object_identifier = await self.parse_object_identifier(
+            object_identifier,
+            vendor_info=vendor_info,
+        )
+        if _debug:
+            Application._debug("    - object_identifier: %r", object_identifier)
+
+        # try the second bit
+        property_reference = await self.parse_property_reference(
+            property_reference,
+            vendor_info=vendor_info,
+        )
+        if _debug:
+            Application._debug("    - property_reference: %r", property_reference)
+
+        # mash them together
+        return ObjectPropertyReference(
+            objectIdentifier=object_identifier,
+            propertyIdentifier=property_reference.propertyIdentifier,
+            propertyArrayIndex=property_reference.propertyArrayIndex,
+        )
 
     # -----
 

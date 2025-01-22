@@ -1,23 +1,18 @@
 """
 Vendor
 """
+
 # mypy: ignore-errors
 
 from __future__ import annotations
 
-import sys
-import inspect
 import warnings
-from functools import partial
 
 from typing import (
-    cast,
-    Any as _Any,
     Callable,
     Dict,
     Optional,
     Tuple,
-    Union,
 )
 
 from .debugging import ModuleLogger, DebugContents, bacpypes_debugging
@@ -46,7 +41,12 @@ def get_vendor_info(vendor_identifier: int) -> VendorInfo:
 @bacpypes_debugging
 class VendorInfo(DebugContents):
     _debug: Callable[..., None]
-    _debug_contents: Tuple[str, ...] = ("vendor_identifier", "object_type", "object_identifier", "property_identifier")
+    _debug_contents: Tuple[str, ...] = (
+        "vendor_identifier",
+        "object_type",
+        "object_identifier",
+        "property_identifier",
+    )
 
     vendor_identifier: int
     registered_object_classes: Dict[int, type] = {}
@@ -70,8 +70,6 @@ class VendorInfo(DebugContents):
             raise RuntimeError(
                 f"vendor identifier already registered: {vendor_identifier!r}"
             )
-
-        assert vendor_identifier not in _vendor_info
         _vendor_info[vendor_identifier] = self
 
         self.vendor_identifier = vendor_identifier
@@ -133,4 +131,3 @@ class VendorInfo(DebugContents):
 
 # ASHRAE is Vendor ID 0
 ASHRAE_vendor_info = VendorInfo(0)
-

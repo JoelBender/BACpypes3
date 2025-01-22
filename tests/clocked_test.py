@@ -65,11 +65,9 @@ class ClockedTest:
 
 
 @pytest.fixture(scope="function")
-async def clocked_test(
-    event_loop: asyncio.BaseEventLoop,
-) -> AsyncGenerator[ClockedTest, None]:
+async def clocked_test() -> AsyncGenerator[ClockedTest, None]:
     """
     This function scoped fixture returns an instance of a ClockedTest.
     """
-    with ClockedTest(event_loop) as clocked_test:
+    with ClockedTest(asyncio.get_running_loop()) as clocked_test:
         yield clocked_test

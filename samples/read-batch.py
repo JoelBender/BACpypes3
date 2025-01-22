@@ -8,17 +8,16 @@ The text file contains:
     object identifier   - an ObjectIdentifier, like 'analog-value,12'
     property reference  - a PropertyReference, like 'present-value'
 
-Note that the property reference can also include an array index like
-'priority-array[6]'.
+The property reference can also include an array index like 'priority-array[6]'.
 """
 
 import sys
 import asyncio
 
-from typing import Callable
+from typing import Union
 
 from bacpypes3.settings import settings
-from bacpypes3.debugging import bacpypes_debugging, ModuleLogger
+from bacpypes3.debugging import ModuleLogger
 from bacpypes3.argparse import SimpleArgumentParser
 from bacpypes3.app import Application
 
@@ -41,9 +40,9 @@ def callback(key: str, value: Union[float, ErrorRejectAbortNack]) -> None:
     results with the list of keys.
     """
     if isinstance(value, ErrorRejectAbortNack):
-        print(f"{objprop}: {value.errorClass}, {value.errorCode}")
+        print(f"{key}: {value.errorClass}, {value.errorCode}")
     else:
-        print(f"{objprop} = {value}")
+        print(f"{key} = {value}")
 
 
 async def main() -> None:
@@ -60,7 +59,7 @@ async def main() -> None:
 
         # transform the list of stuff to read
         daopr_list = []
-        while line := readline():
+        while line := sys.stdin.readline():
             line_args = line[:-1].split("\t")
             daopr_list.append(DeviceAddressObjectPropertyReference(*line_args))
         batch_read = BatchRead(daopr_list)
@@ -74,8 +73,6 @@ async def main() -> None:
     finally:
         if app:
             app.close()
-        if console and console.exit_status:
-            sys.exit(console.exit_status)
 
 
 if __name__ == "__main__":
