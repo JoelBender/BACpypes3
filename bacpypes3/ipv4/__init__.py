@@ -5,7 +5,7 @@ IPv4
 import os
 import asyncio
 import functools
-
+import socket
 from typing import Any, Callable, Optional, List, Tuple, Union, cast
 
 from ..debugging import ModuleLogger, bacpypes_debugging
@@ -133,9 +133,13 @@ class IPv4DatagramServer(Server[PDU]):
 
             # Windows takes care of the broadcast, but Linux needs a broadcast endpoint
             if "nt" not in os.name:
+                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+                sock.bind(address.addrBroadcastTuple)
                 broadcast_endpoint_task = loop.create_task(
                     self.retrying_create_datagram_endpoint(
-                        loop, address.addrBroadcastTuple
+                        loop, address.addrBroadcastTuple, sock 
                     )
                 )
                 if _debug:
@@ -148,7 +152,7 @@ class IPv4DatagramServer(Server[PDU]):
                 self._transport_tasks.append(broadcast_endpoint_task)
 
     async def retrying_create_datagram_endpoint(
-        self, loop: asyncio.events.AbstractEventLoop, addrTuple: Tuple[str, int]
+            self, loop: asyncio.events.AbstractEventLoop, addrTuple: Tuple[str, int], sock= None
     ):
         """
         Repeat attempts to create datagram endpoint, sometimes during boot
@@ -156,9 +160,14 @@ class IPv4DatagramServer(Server[PDU]):
         """
         while True:
             try:
-                return await loop.create_datagram_endpoint(
-                    IPv4DatagramProtocol, local_addr=addrTuple, allow_broadcast=True
-                )
+                if sock:
+                    return await loop.create_datagram_endpoint(
+                        IPv4DatagramProtocol, sock=sock
+                    )
+                else:
+                    return await loop.create_datagram_endpoint(
+                        IPv4DatagramProtocol, local_addr=addrTuple, allow_broadcast=True, reuse_port=True
+                    )
             except OSError:
                 if _debug:
                     IPv4DatagramServer._debug(
