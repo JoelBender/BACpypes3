@@ -52,21 +52,9 @@ class SampleCmd(Cmd):
                 "do_read %r %r %r", address, object_identifier, property_identifier
             )
 
-        # split the property identifier and its index
-        property_index_match = property_index_re.match(property_identifier)
-        if not property_index_match:
-            await self.response("property specification incorrect")
-            return
-
-        property_identifier, property_array_index = property_index_match.groups()
-        if property_identifier.isdigit():
-            property_identifier = int(property_identifier)
-        if property_array_index is not None:
-            property_array_index = int(property_array_index)
-
         try:
             property_value = await app.read_property(
-                address, object_identifier, property_identifier, property_array_index
+                address, object_identifier, property_identifier
             )
             if _debug:
                 SampleCmd._debug("    - property_value: %r", property_value)
