@@ -95,6 +95,18 @@ class TestTime(unittest.TestCase):
         with pytest.raises(ValueError):
             Time("some string")
 
+    def test_time_str(self):
+        if _debug:
+            TestTime._debug("test_time_str")
+
+        assert Time("01:02") == (1, 2, 0, 0)
+        assert Time("01:02:03") == (1, 2, 3, 0)
+        assert Time("01:02:03.4") == (1, 2, 3, 40)
+        assert Time("01:02:03.04") == (1, 2, 3, 4)
+
+        assert Time("01:02:*") == (1, 2, 255, 255)
+        assert Time("01:02:03.*") == (1, 2, 3, 255)
+
     def test_time_tuple(self):
         if _debug:
             TestTime._debug("test_time_tuple")
