@@ -2322,7 +2322,7 @@ class Time(Atomic, tuple):
 
             tup_list = []
             tup_items = list(tup_match.groups())
-            for s in tup_items:
+            for s in tup_items[:3]:
                 if s == "*":
                     tup_list.append(255)
                 elif s is None:
@@ -2333,9 +2333,16 @@ class Time(Atomic, tuple):
                 else:
                     tup_list.append(int(s))
 
-            # fix the hundredths if necessary
-            if (tup_list[3] > 0) and (tup_list[3] < 10):
-                tup_list[3] = tup_list[3] * 10
+            # fix the hundredths
+            if tup_items[3] is None:
+                if "*" in tup_items:
+                    tup_list.append(255)
+                else:
+                    tup_list.append(0)
+            elif tup_items[3] == "*":
+                tup_list.append(255)
+            else:
+                tup_list.append(int((tup_items[3] + "00")[:2]))
 
             arg = tuple(tup_list)
 

@@ -1,6 +1,7 @@
 """
 Base Types
 """
+
 # mypy: ignore-errors
 
 from __future__ import annotations
@@ -1666,7 +1667,7 @@ class IPv4OctetString(OctetString):
             raise TypeError(type(arg))
 
     def __repr__(self):
-        return str(IPv4Address(self + b"\xBA\xC0"))
+        return str(IPv4Address(self + b"\xba\xc0"))
 
 
 class IPv6OctetString(OctetString):
@@ -1682,7 +1683,7 @@ class IPv6OctetString(OctetString):
             raise TypeError(type(arg))
 
     def __repr__(self):
-        return str(IPv6Address(self + b"\xBA\xC0"))
+        return str(IPv6Address(self + b"\xba\xc0"))
 
 
 #
@@ -1851,6 +1852,23 @@ class DeviceObjectReference(Sequence):
     objectIdentifier = ObjectIdentifier(_context=1)
 
 
+_yyyy = r"(?P<year>\d{4}|255|[*])"
+_mm = r"(?P<month>0?[1-9]|1[0-4]|odd|even|255|[*])"
+_dd = r"(?P<day>[0-3]?\d|last|odd|even|255|[*])"
+_dow = r"(?P<dow>[1-7]|mon|tue|wed|thu|fri|sat|sun|255|[*])"
+_time = r"([*]|[0-9]+)[:]([*]|[0-9]+)(?:[:]([*]|[0-9]+)(?:[.]([*]|[0-9]+))?)?"
+_datetime_re = re.compile(
+    r"^(?P<date>"
+    + r"[/-]".join((_yyyy, _mm, _dd))
+    + r"(?:\s+"
+    + _dow
+    + ")?)"
+    + r"(?:\s+(?P<time>"
+    + _time
+    + "))?$"
+)
+
+
 class DateTime(Sequence):
     _order = ("date", "time")
     date = Date
@@ -1863,6 +1881,12 @@ class DateTime(Sequence):
     ) -> None:
         if arg is None:
             pass
+        elif isinstance(arg, str):
+            match = _datetime_re.match(arg)
+            if not match:
+                raise ValueError(arg)
+            kwargs["date"] = Date(match.group("date"))
+            kwargs["time"] = Time(match.group("time") or (0, 0, 0, 0))
         elif isinstance(arg, DateTime):
             kwargs["date"] = arg.date
             kwargs["time"] = arg.time
@@ -1940,7 +1964,7 @@ class DateTime(Sequence):
         if _debug:
             HostAddress._debug("DeviceAddress.cast %r", arg)
 
-        if isinstance(arg, (DateTime, datetime.datetime)):
+        if isinstance(arg, (str, DateTime, datetime.datetime)):
             return arg
         else:
             raise TypeError(type(arg))
@@ -2523,7 +2547,7 @@ class BDTEntry(Sequence):
                 addr = bbmdAddress.address
                 if isinstance(addr, IPv4Address) and (broadcastMask is None):
                     broadcastMask = addr.netmask.packed
-                    if broadcastMask != b"\xFF\xFF\xFF\xFF":
+                    if broadcastMask != b"\xff\xff\xff\xff":
                         addr = None
         else:
             raise TypeError(type(arg))
@@ -2549,7 +2573,7 @@ class BDTEntry(Sequence):
         if not self._address:
             self._address = addr = self.bbmdAddress.address
             if isinstance(addr, IPv4Address) and (
-                self.broadcastMask != b"\xFF\xFF\xFF\xFF"
+                self.broadcastMask != b"\xff\xff\xff\xff"
             ):
                 addr_str = ".".join(str(i) for i in addr.addrAddr[:-2])
                 mask_str = ".".join(str(i) for i in self.broadcastMask)
