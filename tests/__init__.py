@@ -12,4 +12,5 @@ from . import test_vlan  # noqa: F401
 from . import test_utilities  # noqa: F401
 
 from . import test_primitive_data  # noqa: F401
+from . import test_basetypes  # noqa: F401
 from . import test_constructed_data  # noqa: F401

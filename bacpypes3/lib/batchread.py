@@ -183,7 +183,7 @@ class AddressGroupWorker:
             try:
                 pss = await batch.app.read_property(
                     self.address,
-                    (ObjectType.device, device_info.device_instance),
+                    ObjectIdentifier((ObjectType.device, device_info.device_instance)),
                     "protocol-services-supported",
                 )
                 if _debug:

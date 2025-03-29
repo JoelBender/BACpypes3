@@ -2259,7 +2259,9 @@ class NetworkServiceElement(ApplicationServiceElement, DebugContents):
             NetworkServiceElement._debug("   - learning something new")
 
         # update the routing information
-        sap.router_info_cache.update_source_network(adapter.adapterNet, npdu.nniNet)
+        asyncio.create_task(
+            sap.router_info_cache.update_source_network(adapter.adapterNet, npdu.nniNet)
+        )
 
         # delete the reference from the old (learned) network
         del sap.adapters[adapter.adapterNet]
