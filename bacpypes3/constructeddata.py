@@ -392,8 +392,6 @@ class Sequence(Element, DebugContents, metaclass=SequenceMetaclass):
         """Encode a sequence as a tag list."""
         if _debug:
             Sequence._debug("(%s).encode", self.__class__.__name__)
-        if not self._order:
-            raise RuntimeError("sequences must be ordered")
 
         tag_list = TagList()
 
