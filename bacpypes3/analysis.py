@@ -488,7 +488,7 @@ if __name__ == "__main__":
                     print("  BVLL: %s" % frame.bvll)
                     frame.bvll.debug_contents()
                 if frame.npci:
-                    print("  NPDU: %s" % frame.npci)
+                    print("  NPCI: %s" % frame.npci)
                     frame.npci.debug_contents()
                 if frame.npdu:
                     print("  NPDU: %s" % frame.npdu)
