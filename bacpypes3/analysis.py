@@ -298,14 +298,15 @@ def decode_packet(data: bytes) -> Optional[Frame]:
         try:
             bvll = atype.decode(bvlci)
             frame.bvll = bvll
+            pdu.pduData = bvll.pduData
 
             # no deeper decoding for some
-            if atype not in (
-                DistributeBroadcastToNetwork,
-                OriginalUnicastNPDU,
-                OriginalBroadcastNPDU,
-            ):
-                return frame
+            # if atype not in (
+            #     DistributeBroadcastToNetwork,
+            #     OriginalUnicastNPDU,
+            #     OriginalBroadcastNPDU,
+            # ):
+            #     return frame
         except Exception as err:
             if _debug:
                 decode_packet._debug("    - decoding Error: %r", err)
