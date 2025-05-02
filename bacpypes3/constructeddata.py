@@ -501,6 +501,21 @@ class Sequence(Element, DebugContents, metaclass=SequenceMetaclass):
                     tag = tag_list.peek()
                     if _debug:
                         Sequence._debug("    - next tag: %r", tag)
+                elif element._optional and element._context is None:
+                    # the element is optional but is not context encoded
+                    try:
+                        # make a copy of the tag list
+                        tag_list_copy = TagList(tag_list)
+
+                        # decode that which can be decoded
+                        value = element.decode(tag_list_copy)
+
+                        # delete from this list the tags that were consumed
+                        del tag_list.tagList[
+                            : len(tag_list.tagList) - len(tag_list_copy.tagList)
+                        ]
+                    except (AttributeError, InvalidTag):
+                        continue
                 elif not element._optional:
                     raise AttributeError(
                         f"{attr} is a context tagged {element._context} required element of {cls.__name__}"
