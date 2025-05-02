@@ -20,6 +20,7 @@ from .ipv4.bvll import (
     DistributeBroadcastToNetwork,
     OriginalUnicastNPDU,
     OriginalBroadcastNPDU,
+    ForwardedNPDU,
 )
 from .npdu import NPDU, npdu_types
 from .apdu import (
@@ -304,8 +305,13 @@ def decode_packet(data: bytes) -> Optional[Frame]:
                 DistributeBroadcastToNetwork,
                 OriginalUnicastNPDU,
                 OriginalBroadcastNPDU,
+                ForwardedNPDU,
             ):
                 return frame
+
+            # reference the rest of the packet
+            pdu = PDU(bvll.pduData)
+
         except Exception as err:
             if _debug:
                 decode_packet._debug("    - decoding Error: %r", err)
