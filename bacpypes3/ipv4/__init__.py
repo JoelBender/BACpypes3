@@ -79,6 +79,7 @@ class IPv4DatagramServer(Server[PDU]):
         self,
         address: IPv4Address,
         no_broadcast: bool = False,
+        bind_socket: Optional[socket.socket] = None,
     ) -> None:
         if _debug:
             IPv4DatagramServer._debug(
@@ -108,7 +109,7 @@ class IPv4DatagramServer(Server[PDU]):
 
         # easy call to create a local endpoint
         local_endpoint_task = loop.create_task(
-            self.retrying_create_datagram_endpoint(loop, address.addrTuple)
+            self.retrying_create_datagram_endpoint(loop, address.addrTuple, bind_socket=bind_socket)  # type: ignore[arg-type]
         )
         if _debug:
             IPv4DatagramServer._debug(
@@ -133,15 +134,18 @@ class IPv4DatagramServer(Server[PDU]):
 
             # Windows takes care of the broadcast, but Linux needs a broadcast endpoint
             if "nt" not in os.name:
-                sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM, socket.IPPROTO_UDP)
-                sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-                sock.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-                sock.bind(address.addrBroadcastTuple)
-                broadcast_endpoint_task = loop.create_task(
-                    self.retrying_create_datagram_endpoint(
-                        loop, address.addrBroadcastTuple, sock 
+                if bind_socket:
+                    broadcast_endpoint_task = loop.create_task(
+                        self.retrying_create_datagram_endpoint(
+                            loop, address.addrBroadcastTuple, bind_socket=bind_socket 
+                        )
                     )
-                )
+                else:
+                    broadcast_endpoint_task = loop.create_task(
+                        self.retrying_create_datagram_endpoint(
+                            loop, address.addrBroadcastTuple
+                        )
+                    )
                 if _debug:
                     IPv4DatagramServer._debug(
                         "    - broadcast_endpoint_task: %r", broadcast_endpoint_task
@@ -152,7 +156,7 @@ class IPv4DatagramServer(Server[PDU]):
                 self._transport_tasks.append(broadcast_endpoint_task)
 
     async def retrying_create_datagram_endpoint(
-            self, loop: asyncio.events.AbstractEventLoop, addrTuple: Tuple[str, int], sock= None
+            self, loop: asyncio.events.AbstractEventLoop, addrTuple: Tuple[str, int], bind_socket: Optional[socket.socket] = None
     ):
         """
         Repeat attempts to create datagram endpoint, sometimes during boot
@@ -160,14 +164,13 @@ class IPv4DatagramServer(Server[PDU]):
         """
         while True:
             try:
-                if sock:
+                if bind_socket:
                     return await loop.create_datagram_endpoint(
-                        IPv4DatagramProtocol, sock=sock
+                        IPv4DatagramProtocol, sock=bind_socket
                     )
-                else:
-                    return await loop.create_datagram_endpoint(
-                        IPv4DatagramProtocol, local_addr=addrTuple, allow_broadcast=True, reuse_port=True
-                    )
+                return await loop.create_datagram_endpoint(
+                    IPv4DatagramProtocol, local_addr=addrTuple, allow_broadcast=True, reuse_port=True
+                )
             except OSError:
                 if _debug:
                     IPv4DatagramServer._debug(
