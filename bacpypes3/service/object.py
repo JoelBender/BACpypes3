@@ -162,7 +162,7 @@ class ReadWritePropertyServices:
                 )
 
         # cast it out of the Any
-        property_value = response.propertyValue.cast_out(property_type)
+        property_value = response.propertyValue.cast_out(property_type, null=True)
         if _debug:
             ReadWritePropertyServices._debug(
                 "    - property_value: %r %r", property_value, property_type.__class__
