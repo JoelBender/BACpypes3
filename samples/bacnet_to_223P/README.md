@@ -51,7 +51,8 @@ pip install pyshacl ontoenv buildingmotif
 
 ---
 
-## 3. Interactive Shell (`tester.py`)
+
+## 3. Interactive bacpypes Shell (`tester.py`)
 
 A command-line shell for manually reading, writing, and overriding BACnet points. It also includes integrated RDF tools for querying (SPARQL) and validating (SHACL) your generated ASHRAE 223P models without leaving the console.
 
@@ -62,36 +63,25 @@ python tester.py
 
 ```
 
-*(If you need to bind to a specific IP for a NIC, specificy a unique UDP port add `--address 192.168.1.X/24:47809`)*
+*(Optional: Bind to a specific interface using `--address 192.168.1.X/24`)*
 
-### **Shell Command Cheat Sheet**
-
-Once inside the shell (`>`), type these commands:
+#### **Shell Command Cheat Sheet**
 
 **Discovery**
 
 ```text
 > whois                     # Find all devices
 > whois 1000 2000           # Find devices in range 1000-2000
-> objects 192.168.1.20 123  # List all points on device 123 (auto-fallbacks to single read if needed)
+> objects 192.168.1.20 123  # List all points on device 123
 
 ```
 
 **Reading & Writing Data**
-*Format: `write <IP> <Object> <Property> <Value> <Priority>*`
 
 ```text
 > read 192.168.1.20 analog-input,1 present-value
-> write 192.168.1.20 binary-output,1 present-value active 8    # Turn ON (Priority 8)
+> write 192.168.1.20 binary-output,1 present-value active 8    # Override ON (Priority 8)
 > write 192.168.1.20 binary-output,1 present-value null 8      # Release Override
-
-```
-
-**Checking Priorities**
-*Always check who is controlling a point before you override it.*
-
-```text
-> priority 192.168.1.20 binary-output,1
 
 ```
 
@@ -99,54 +89,57 @@ Once inside the shell (`>`), type these commands:
 *Run queries and validation against your generated `model.ttl` file.*
 
 ```text
-# Run a SHACL validation report (Pass/Fail)
-> shacl model.ttl shapes.ttl
+# 1. Download Official Standards (Run once)
+# Fetches the 223P and BACnet dictionaries needed for validation
+> download_standards
 
-# Run a SPARQL query (Dump first 10 items)
-> sparql model.ttl "SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10"
+# 2. Run a SHACL validation report
+# Validates your model against your Shapes + the Official Standards
+> shacl model.ttl shapes.ttl 223p.ttl bacnet-2020.ttl
 
-# Find all Devices in the model
+# 3. The "Hello World" Dump
+# Prints the first 20 raw items to prove the graph is loaded
+> sparql model.ttl "SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 20"
+
+# 4. Find all Devices
+# Lists every BACnet Controller found in the file
 > sparql model.ttl "SELECT ?device ?name WHERE { ?device a bacnet:BACnetDevice ; rdfs:label ?name }"
 
-# Find all 'Temp' sensors and their values
-> sparql model.ttl "SELECT ?point ?val WHERE { ?point a s223:QuantifiableObservableProperty ; rdfs:label ?name ; bacnet:presentValue ?val . FILTER regex(?name, 'Temp', 'i') }"
+# 5. Find "Temp" sensors and their live values
+# Searches the full 'Description' for the word "Temp" and returns the value
+> sparql model.ttl "SELECT ?point ?val WHERE { ?point a s223:QuantifiableObservableProperty ; bacnet:description ?desc ; bacnet:presentValue ?val . FILTER regex(?desc, 'Temp', 'i') }"
 
 ```
 
-### **Test Bench Hammers (Drills)**
+---
 
-Use these sequences to test real hardware response and model accuracy.
+## 4. Validation & Compliance
 
-**Hardware Drill**
+After scanning, you can "grade" your digital twin against the official ASHRAE 223P standard to check for compliance and missing data.
 
-```text
-> whois 1000 3456799
-> read 192.168.204.13 analog-input,1 present-value
-> priority 192.168.204.14 analog-output,1
-> write 192.168.204.14 analog-output,1 present-value 999.8 9
-> write 192.168.204.14 analog-output,1 present-value null 9
-> priority 192.168.204.14 analog-output,1
+**Run the Validator (Save to File):**
+
+```bash
+python tester.py model validate --model model.ttl --shapes shapes.ttl --ontology 223p.ttl bacnet-2020.ttl > report.txt
 
 ```
 
-**Data Drill**
+### Understanding the Report (`report.txt`)
 
-```text
-> sparql model.ttl "SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10"
-> sparql model.ttl "SELECT ?point ?val WHERE { ?point a s223:QuantifiableObservableProperty ; bacnet:presentValue ?val }"
+* **`Conforms: True`**: Your model is fully valid.
+* **`Conforms: False`**: Issues were found. Check the details below:
 
-```
- 
-**Exit**
+| Severity | Type | Meaning | Action Required |
+| --- | --- | --- | --- |
+| **Violation** 🛑 | **CRITICAL** | Broken data (e.g., missing values). | **Fix Now.** Check scanner logic or device connection. |
+| **Warning** ⚠️ | **INFO** | Missing physical context. | **Fix Later.** Example: "Point exists but isn't linked to a specific pipe." This is expected for raw scans. |
 
-```text
-> exit
-```
+---
 
-### **Under the Hood**
+## Under the Hood
 
 The `tester.py` script runs a single Python process that manages distinct workloads to keep the system responsive:
 
-1. **The BACnet Stack:** It maintains an active UDP socket listener on port 47808 using `bacpypes3`. This runs on the main event loop, allowing it to receive `I-Am` and `COV` notifications asynchronously while you type.
-2. **The RDF Engine:** When you run `sparql` or `shacl`, the script offloads these CPU-intensive tasks to a separate thread using `asyncio.to_thread`. This prevents the heavy graph processing (loading thousands of triples) from blocking the network socket. You can validate a massive model without causing BACnet timeouts or dropping packets.
-3. **The SHACL Validator:** This tool applies the logic defined in `shapes.ttl` to your data graph. Think of `shapes.ttl` as a **Pydantic Model** for your graph. Just as Pydantic enforces that a Python dictionary has the correct keys and value types (e.g., `ip: str`), SHACL enforces that your graph nodes possess the required RDF properties (e.g., `bacnet:deviceInstance`). It transforms the graph from a simple collection of data points into a validated, compliant model.
+1. **The BACnet Stack:** It maintains an active UDP socket listener on port 47808 using `bacpypes3`. This runs on the main event loop, allowing it to receive `I-Am` and `COV` notifications asynchronously.
+2. **The RDF Engine:** When you run `sparql` or `shacl`, the script offloads these CPU-intensive tasks to a separate thread. This prevents heavy graph processing (loading thousands of triples) from blocking the network socket.
+3. **The SHACL Validator:** This tool applies the logic defined in `shapes.ttl` to your data graph. It transforms the graph from a simple collection of data points into a validated, compliant model by checking against the official ASHRAE ontologies.

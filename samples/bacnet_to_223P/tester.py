@@ -3,11 +3,9 @@ from rdflib import Graph
 import pyshacl
 from ontoenv import OntoEnv
 
-import aiohttp
-
 import asyncio
 import re
-from typing import List, Optional, Tuple
+from typing import List, Optional
 
 from bacpypes3.pdu import Address
 from bacpypes3.comm import bind
@@ -22,16 +20,23 @@ from bacpypes3.constructeddata import AnyAtomic
 from bacpypes3.apdu import (
     ErrorRejectAbortNack,
     PropertyReference,
-    PropertyIdentifier,
     ErrorType,
     AbortPDU,
-    AbortReason
 )
 from bacpypes3.vendor import get_vendor_info
 from bacpypes3.netservice import NetworkAdapter
 
 import sys
 import argparse
+
+import json
+from bacpypes3.json.util import (
+    atomic_encode,
+    sequence_to_json,
+    extendedlist_to_json_list,
+)
+from bacpypes3.primitivedata import Atomic
+from bacpypes3.constructeddata import Sequence, Array, List as BACnetList
 
 
 """
@@ -47,13 +52,18 @@ Test Bench Hammers
 > priority 192.168.204.13 analog-output,1
 
 Drill 1: The "Hello World" (Dump everything)
-> sparql autoscan_223p.ttl "SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10"
+Just proves the graph is loaded and readable.
+> sparql autoscan_223p.ttl "SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 100"
 
 Drill 2: Find all Devices
+Finds the root device nodes (like your AHU and Schedule Server).
 > sparql autoscan_223p.ttl "SELECT ?device ?name WHERE { ?device a bacnet:BACnetDevice ; rdfs:label ?name }"
 
+
 Drill 3: Find "Temp" sensors and their values
-> sparql autoscan_223p.ttl "SELECT ?point ?val WHERE { ?point a s223:QuantifiableObservableProperty ; rdfs:label ?name ; bacnet:presentValue ?val . FILTER regex(?name, 'Temp', 'i') }"
+It searches the bacnet:description (e.g., "Supply Air Temperature") because your point names are short codes (e.g., "SA-T").
+sparql autoscan_223p.ttl "SELECT ?point ?val WHERE { ?point a s223:QuantifiableObservableProperty ; bacnet:description ?desc ; bacnet:presentValue ?val . FILTER regex(?desc, 'Temp', 'i') }"
+
 """
 
 
@@ -98,18 +108,32 @@ def run_sparql(model_path: str, query_text: str) -> None:
         
         print(" | ".join(clean_row))
 
-def run_shacl(model_path: str, shapes_path: str, inplace: bool = False) -> None:
+def run_shacl(model_path: str, shapes_path: str, ontology_paths: List[str] = None, inplace: bool = False) -> None:
     data_g = load_graph(model_path)
 
+    # Load the Shapes (Your Rules)
     env = OntoEnv(temporary=True, no_search=True)
     sid = env.add(shapes_path)
     shacl_g = env.get_graph(sid)
     env.import_dependencies(shacl_g)
 
+    # Load EXTRA Ontologies (The Dictionaries)
+    # We merge them all into one "Knowledge Graph"
+    if ontology_paths:
+        for path in ontology_paths:
+            print(f"Loading ontology: {path}...")
+            try:
+                oid = env.add(path)
+                ont_g = env.get_graph(oid)
+                shacl_g = shacl_g + ont_g
+            except Exception as e:
+                print(f"Warning: Failed to load {path}: {e}")
+
+    print("Running Validation...")
     valid, report_graph, report_text = pyshacl.validate(
         data_graph=data_g,
         shacl_graph=shacl_g,
-        ont_graph=shacl_g,
+        ont_graph=shacl_g, # Now contains 223P + BACnet2020 + Shapes
         advanced=True,
         inplace=inplace,
         js=True,
@@ -129,26 +153,18 @@ class InteractiveCmd(Cmd):
 
     async def do_download_standards(self) -> None:
         """
-        Downloads the official ASHRAE 223P and BACnet 2020 ontologies.
+        Downloads standards using the NREL Brick-Import mirror.
         usage: download_standards
         """
         import aiohttp
         
-        # We target two files: 223p.ttl and bacnet-2020.ttl.
-        # This dictionary defines a list of potential URLs for EACH file.
         targets = {
             "223p.ttl": [
-                "https://data.ashrae.org/BACnet/223p/223p.ttl",           # Official (Case Sensitive)
+                "https://data.ashrae.org/BACnet/223p/223p.ttl",
             ],
             "bacnet-2020.ttl": [
-                # This is the "Magic Bullet" Link - The Raw GitHub file from the Open223 project
-                "https://raw.githubusercontent.com/open223/open223-defs/main/lib/bacnet.ttl",
-                
-                # Backup: NREL's new location (they moved the folder structure recently)
-                "https://raw.githubusercontent.com/NREL/BuildingMOTIF/develop/libraries/bacnet/2020/bacnet.ttl",
-                
-                # Official sites (Keep as last resort since they are failing)
-                "https://data.ashrae.org/BACnet/2020/BACnet.ttl"
+                # The NREL Raw Link
+                "https://raw.githubusercontent.com/NREL/BuildingMOTIF/develop/libraries/brick/imports/bacnet.ttl",
             ]
         }
         
@@ -157,103 +173,64 @@ class InteractiveCmd(Cmd):
             for filename, urls in targets.items():
                 print(f"  Target: {filename}")
                 downloaded = False
-                
                 for url in urls:
                     print(f"    Fetching from {url} ...", end=" ")
                     try:
                         async with session.get(url) as resp:
                             if resp.status == 200:
                                 content = await resp.text()
-                                # Verify we didn't just download a 404 HTML page
-                                if "<!DOCTYPE html>" in content[:50]:
-                                    print("Failed (Got HTML, expected Turtle)")
-                                    continue
-                                    
+                                if "<!DOCTYPE html>" in content:
+                                     print("Failed (Got HTML)")
+                                     continue
                                 with open(filename, "w", encoding="utf-8") as f:
                                     f.write(content)
                                 print("✓ Success!")
                                 downloaded = True
-                                break # Move to next file
+                                break
                             else:
                                 print(f"Failed ({resp.status})")
                     except Exception as e:
                         print(f"Error ({e})")
-                
                 if not downloaded:
-                    print(f"  ! CRITICAL: Could not download {filename} from any source.")
-        
-        print("\nDone. You can now use these files in validation.")
+                    print(f"  ! CRITICAL: Could not download {filename}")
+        print("\nDone.")
 
     async def do_sparql(self, model_path: str, query: str) -> None:
         """
         Run a SPARQL query on a Turtle model file.
-        NOTE: Enclose the query in quotes!
-        
         usage: sparql <model.ttl> <query_string>
-        example: sparql model.ttl "SELECT ?s WHERE { ?s rdf:type s223:QuantifiableObservableProperty }"
         """
-        # Inject standard prefixes if the user was lazy
+        # FIX: Updated Prefixes to match the new Official 2020 Standard
         if "PREFIX" not in query.upper():
             query = (
                 "PREFIX s223: <http://data.ashrae.org/standard223#>\n"
-                "PREFIX bacnet: <urn:bacnet-autoscan/bacnet#>\n"
+                "PREFIX bacnet: <http://data.ashrae.org/bacnet/2020#>\n" # <--- FIXED THIS
                 "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
                 "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
+                "PREFIX brick: <https://brickschema.org/schema/Brick#>\n"
                 + query
             )
         
         print(f"Running SPARQL on {model_path}...")
-        
-        # Run in a separate thread to avoid blocking BACnet traffic
         try:
             await asyncio.to_thread(run_sparql, model_path, query)
         except Exception as e:
             print(f"SPARQL Error: {e}")
 
-    def run_shacl(model_path: str, shapes_path: str, ontology_path: str = None, inplace: bool = False) -> None:
-        data_g = load_graph(model_path)
+    async def do_shacl(self, model_path: str, shapes_path: str, *ontology_paths: str) -> None:
+        """
+        Validate a model against shapes + multiple ontologies.
+        usage: shacl <model.ttl> <shapes.ttl> [ontology1.ttl] [ontology2.ttl] ...
+        """
+        print(f"Validating {model_path} against {shapes_path}...")
+        if ontology_paths:
+            print(f"(Using ontologies: {ontology_paths})")
         
-        # Load the Shapes (Your Rules)
-        env = OntoEnv(temporary=True, no_search=True)
-        sid = env.add(shapes_path)
-        shacl_g = env.get_graph(sid)
-        
-        # Load the Ontology (The Dictionary - e.g., 223p.ttl)
-        ont_g = None
-        if ontology_path:
-            print(f"Loading background ontology from {ontology_path}...")
-            oid = env.add(ontology_path)
-            ont_g = env.get_graph(oid)
-            # Merge shapes and ontology for the "knowledge" graph
-            shacl_g = shacl_g + ont_g
-
-        valid, report_graph, report_text = pyshacl.validate(
-            data_graph=data_g,
-            shacl_graph=shacl_g,
-            ont_graph=shacl_g, # Now includes your standard definitions!
-            advanced=True,
-            inplace=inplace,
-            js=True,
-            allow_warnings=True,
-        )
-
-        print(report_text)
-        print(f"Valid? {valid}")
-
-    async def do_shacl(self, model_path: str, shapes_path: str, ontology_path: str = None) -> None:
-            """
-            Validate a model against a SHACL shapes file, optionally using a standard ontology.
-            
-            usage: shacl <model.ttl> <shapes.ttl> [ontology.ttl]
-            """
-            print(f"Validating {model_path} against {shapes_path}...")
-            if ontology_path:
-                print(f"(Using {ontology_path} for inference)")
-            
-            try:
-                await asyncio.to_thread(run_shacl, model_path, shapes_path, ontology_path)
-            except Exception as e:
-                print(f"SHACL Error: {e}")
+        try:
+            # Pass the list of ontologies to the helper
+            await asyncio.to_thread(run_shacl, model_path, shapes_path, list(ontology_paths))
+        except Exception as e:
+            print(f"SHACL Error: {e}")
 
     async def do_whois(
         self, low_limit: Optional[int] = None, high_limit: Optional[int] = None
@@ -331,7 +308,7 @@ class InteractiveCmd(Cmd):
         property_identifier: str,
     ) -> None:
         """
-        Read a single property.
+        Read a single property (Enhanced with JSON serialization).
         usage: read <address> <objid> <prop>
         example: read 192.168.1.10 analog-value,1 present-value
         """
@@ -351,9 +328,26 @@ class InteractiveCmd(Cmd):
             value = await app.read_property(
                 address, object_identifier, prop_id, array_index
             )
+
+            # --- SERIALIZATION LOGIC (Copied from client_utils.py) ---
             if isinstance(value, AnyAtomic):
                 value = value.get_value()
-            print(f"  = {value}")
+
+            encoded = value
+
+            if isinstance(value, Atomic):
+                encoded = atomic_encode(value)
+            elif isinstance(value, Sequence):
+                encoded = sequence_to_json(value)
+            elif isinstance(value, (Array, BACnetList)):
+                encoded = extendedlist_to_json_list(value)
+            # ---------------------------------------------------------
+
+            # Pretty Print if it's complex data (like a schedule)
+            if isinstance(encoded, (dict, list)):
+                print(json.dumps(encoded, indent=2))
+            else:
+                print(f"  = {encoded}")
 
         except ErrorRejectAbortNack as err:
             print(f"  ! Error: {err}")
@@ -555,6 +549,7 @@ def build_model_cli_parser() -> argparse.ArgumentParser:
     va = sub.add_parser("validate")
     va.add_argument("--model", required=True)
     va.add_argument("--shapes", required=True)
+    va.add_argument("--ontology", nargs="+", help="List of ontology files (223p, bacnet, etc.)")
     va.add_argument("--inplace", action="store_true")
 
     return p
@@ -576,7 +571,7 @@ async def main() -> None:
             if "PREFIX" not in query_text.upper():
                 query_text = (
                     "PREFIX s223: <http://data.ashrae.org/standard223#>\n"
-                    "PREFIX bacnet: <urn:bacnet-autoscan/bacnet#>\n"
+                    "PREFIX bacnet: <http://data.ashrae.org/bacnet/2020#>\n"  # <--- UPDATE THIS LINE
                     "PREFIX rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>\n"
                     "PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#>\n"
                     + query_text
@@ -586,7 +581,7 @@ async def main() -> None:
             return
 
         if args.cmd == "validate":
-            run_shacl(args.model, args.shapes, inplace=args.inplace)
+            run_shacl(args.model, args.shapes, ontology_paths=args.ontology, inplace=args.inplace)
             return
 
     # otherwise: EXISTING interactive shell behavior (unchanged)
