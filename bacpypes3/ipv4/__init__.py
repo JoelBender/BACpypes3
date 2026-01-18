@@ -67,6 +67,7 @@ class IPv4DatagramServer(Server[PDU]):
     _debug: Callable[..., None]
     _exception: Callable[..., None]
     _transport_tasks: List[Any]
+    _local_transport_ready: asyncio.Event
 
     local_address: Tuple[str, int]
     local_transport: Optional[asyncio.DatagramTransport]
@@ -120,6 +121,7 @@ class IPv4DatagramServer(Server[PDU]):
 
         # keep a list of things that need to complete before sending stuff
         self._transport_tasks = [local_endpoint_task]
+        self._local_transport_ready = asyncio.Event()
 
         # see if we need a broadcast listener
         if no_broadcast or (address.addrBroadcastTuple == address.addrTuple):
@@ -197,6 +199,9 @@ class IPv4DatagramServer(Server[PDU]):
             self.broadcast_protocol.server = self
             self.broadcast_protocol.destination = LocalBroadcast()
 
+        # ready now
+        self._local_transport_ready.set()
+
     def set_broadcast_transport_protocol(self, address, task):
         if _debug:
             IPv4DatagramServer._debug(
@@ -246,6 +251,13 @@ class IPv4DatagramServer(Server[PDU]):
             raise ValueError(f"invalid destination: {pdu.pduDestination}")
         if _debug:
             IPv4DatagramServer._debug("    - pdu_destination: %r", pdu_destination)
+
+        # wait for the local transport to be ready, in some cases it might not be
+        # even when there are no transport tasks which should have already completed
+        if not self._local_transport_ready.is_set():
+            if _debug:
+                IPv4DatagramServer._debug("    - waiting for local transport")
+        await self._local_transport_ready.wait()
 
         # send it along
         self.local_transport.sendto(pdu.pduData, pdu_destination)
