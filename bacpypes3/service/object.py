@@ -18,6 +18,7 @@ from ..apdu import (
     ReadRangeRequest,
     SimpleAckPDU,
     WritePropertyRequest,
+    WritePropertyMultipleError,
 )
 from ..basetypes import (
     DateTime,
@@ -32,6 +33,7 @@ from ..basetypes import (
     ReadAccessResultElement,
     ReadAccessResultElementChoice,
     ReadAccessSpecification,
+    ObjectPropertyReference,
 )
 from ..constructeddata import Any, Array, List, SequenceOf
 from ..debugging import ModuleLogger, bacpypes_debugging
@@ -39,7 +41,6 @@ from ..errors import (
     ExecutionError,
     ObjectError,
     PropertyError,
-    UnrecognizedService,
 )
 from ..object import DeviceObject
 from ..pdu import Address
@@ -888,14 +889,105 @@ class ReadWritePropertyMultipleServices:
         # return the result
         await self.response(resp)
 
-    def do_WritePropertyMultipleRequest(self, apdu):
+    async def do_WritePropertyMultipleRequest(self, apdu) -> None:
         """Respond to a WritePropertyMultiple Request."""
         if _debug:
             ReadWritePropertyMultipleServices._debug(
                 "do_WritePropertyMultipleRequest %r", apdu
             )
 
-        raise UnrecognizedService()
+        # make sure at least one object reference exists
+        object_reference_exists = False
+        for write_access_spec in apdu.listOfWriteAccessSpecs:
+            object_identifier = write_access_spec.objectIdentifier
+
+            # wildcard device identifier resolves to the application device object
+            if (
+                object_identifier == ("device", 4194303)
+            ) and self.device_object is not None:
+                object_identifier = self.device_object.objectIdentifier
+
+            if self.get_object_id(object_identifier):
+                object_reference_exists = True
+
+        if not object_reference_exists:
+            raise ObjectError("unknown-object")
+
+        # process each write access specification in order
+        for write_access_spec in apdu.listOfWriteAccessSpecs:
+            object_identifier = write_access_spec.objectIdentifier
+
+            if (
+                object_identifier == ("device", 4194303)
+            ) and self.device_object is not None:
+                object_identifier = self.device_object.objectIdentifier
+
+            obj = self.get_object_id(object_identifier)
+            if not obj:
+                error_type = ErrorType(errorClass="object", errorCode="unknownObject")
+                obj_prop_ref = ObjectPropertyReference(objectIdentifier=object_identifier)
+                raise WritePropertyMultipleError(
+                    errorType=error_type,
+                    firstFailedWriteAttempt=obj_prop_ref,
+                )
+
+            for prop_value in write_access_spec.listOfProperties:
+                property_identifier = prop_value.propertyIdentifier
+                property_array_index = prop_value.propertyArrayIndex
+                priority = prop_value.priority
+
+                property_type = obj.get_property_type(property_identifier)
+                if not property_type:
+                    error_type = ErrorType(
+                        errorClass="property", errorCode="unknownProperty"
+                    )
+                    obj_prop_ref = ObjectPropertyReference(
+                        objectIdentifier=object_identifier,
+                        propertyIdentifier=property_identifier,
+                    )
+                    if property_array_index is not None:
+                        obj_prop_ref.propertyArrayIndex = property_array_index
+                    raise WritePropertyMultipleError(
+                        errorType=error_type,
+                        firstFailedWriteAttempt=obj_prop_ref,
+                    )
+
+                if issubclass(property_type, Array):
+                    if property_array_index is None:
+                        pass
+                    elif property_array_index == 0:
+                        property_type = Unsigned
+                    else:
+                        property_type = property_type._subtype
+
+                try:
+                    value = prop_value.value.cast_out(
+                        property_type, null=(priority is not None)
+                    )
+                    await obj.write_property(
+                        property_identifier, value, property_array_index, priority
+                    )
+                except ExecutionError as err:
+                    error_type = ErrorType(
+                        errorClass=err.errorClass, errorCode=err.errorCode
+                    )
+                    obj_prop_ref = ObjectPropertyReference(
+                        objectIdentifier=object_identifier,
+                        propertyIdentifier=property_identifier,
+                    )
+                    if property_array_index is not None:
+                        obj_prop_ref.propertyArrayIndex = property_array_index
+                    raise WritePropertyMultipleError(
+                        errorType=error_type,
+                        firstFailedWriteAttempt=obj_prop_ref,
+                    )
+
+        # respond with a simple ack when everything succeeded
+        resp = SimpleAckPDU(context=apdu)
+        if _debug:
+            ReadWritePropertyMultipleServices._debug("    - resp: %r", resp)
+
+        await self.response(resp)
 
 
 @bacpypes_debugging
