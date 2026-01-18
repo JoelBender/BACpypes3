@@ -7,7 +7,7 @@ Two scripts for discovering, auditing, and manually testing BACnet networks.
 Run this once to get the required libraries:
 
 ```bash
-pip install bacpypes3 ifaddr rdflib
+pip install bacpypes3 ifaddr rdflib pyshacl ontoenv aiohttp
 ```
 
 -----
@@ -62,7 +62,7 @@ python tester.py
 
 ```
 
-*(If you need to bind to a specific IP, add `--address 192.168.1.X/24`)*
+*(If you need to bind to a specific IP for a NIC, specificy a unique UDP port add `--address 192.168.1.X/24:47809`)*
 
 ### **Shell Command Cheat Sheet**
 

@@ -3,6 +3,8 @@ from rdflib import Graph
 import pyshacl
 from ontoenv import OntoEnv
 
+import aiohttp
+
 import asyncio
 import re
 from typing import List, Optional, Tuple
@@ -37,19 +39,21 @@ import argparse
 Test Bench Hammers
 > whois 1000 3456799
 > read 192.168.204.13 analog-input,1 present-value
-> priority 192.168.204.14 analog-output,1
-> write 192.168.204.14 analog-output,1 present-value 999.8 9
-> write 192.168.204.14 analog-output,1 present-value null 9
-> priority 192.168.204.14 analog-output,1
+> read 192.168.204.14 schedule,1 present-value
+> read 192.168.204.14 schedule,1 weekly-schedule
+> priority 192.168.204.13 analog-output,1
+> write 192.168.204.13 analog-output,1 present-value 999.8 9
+> write 192.168.204.13 analog-output,1 present-value null 9
+> priority 192.168.204.13 analog-output,1
 
 Drill 1: The "Hello World" (Dump everything)
-> sparql model.ttl "SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10"
+> sparql autoscan_223p.ttl "SELECT ?s ?p ?o WHERE { ?s ?p ?o } LIMIT 10"
 
 Drill 2: Find all Devices
-> sparql model.ttl "SELECT ?device ?name WHERE { ?device a bacnet:BACnetDevice ; rdfs:label ?name }"
+> sparql autoscan_223p.ttl "SELECT ?device ?name WHERE { ?device a bacnet:BACnetDevice ; rdfs:label ?name }"
 
 Drill 3: Find "Temp" sensors and their values
-> sparql model.ttl "SELECT ?point ?val WHERE { ?point a s223:QuantifiableObservableProperty ; rdfs:label ?name ; bacnet:presentValue ?val . FILTER regex(?name, 'Temp', 'i') }"
+> sparql autoscan_223p.ttl "SELECT ?point ?val WHERE { ?point a s223:QuantifiableObservableProperty ; rdfs:label ?name ; bacnet:presentValue ?val . FILTER regex(?name, 'Temp', 'i') }"
 """
 
 
@@ -123,6 +127,63 @@ class InteractiveCmd(Cmd):
     Interactive BACnet Console with added RDF/SHACL capabilities.
     """
 
+    async def do_download_standards(self) -> None:
+        """
+        Downloads the official ASHRAE 223P and BACnet 2020 ontologies.
+        usage: download_standards
+        """
+        import aiohttp
+        
+        # We target two files: 223p.ttl and bacnet-2020.ttl.
+        # This dictionary defines a list of potential URLs for EACH file.
+        targets = {
+            "223p.ttl": [
+                "https://data.ashrae.org/BACnet/223p/223p.ttl",           # Official (Case Sensitive)
+            ],
+            "bacnet-2020.ttl": [
+                # This is the "Magic Bullet" Link - The Raw GitHub file from the Open223 project
+                "https://raw.githubusercontent.com/open223/open223-defs/main/lib/bacnet.ttl",
+                
+                # Backup: NREL's new location (they moved the folder structure recently)
+                "https://raw.githubusercontent.com/NREL/BuildingMOTIF/develop/libraries/bacnet/2020/bacnet.ttl",
+                
+                # Official sites (Keep as last resort since they are failing)
+                "https://data.ashrae.org/BACnet/2020/BACnet.ttl"
+            ]
+        }
+        
+        print("Downloading standards...")
+        async with aiohttp.ClientSession() as session:
+            for filename, urls in targets.items():
+                print(f"  Target: {filename}")
+                downloaded = False
+                
+                for url in urls:
+                    print(f"    Fetching from {url} ...", end=" ")
+                    try:
+                        async with session.get(url) as resp:
+                            if resp.status == 200:
+                                content = await resp.text()
+                                # Verify we didn't just download a 404 HTML page
+                                if "<!DOCTYPE html>" in content[:50]:
+                                    print("Failed (Got HTML, expected Turtle)")
+                                    continue
+                                    
+                                with open(filename, "w", encoding="utf-8") as f:
+                                    f.write(content)
+                                print("✓ Success!")
+                                downloaded = True
+                                break # Move to next file
+                            else:
+                                print(f"Failed ({resp.status})")
+                    except Exception as e:
+                        print(f"Error ({e})")
+                
+                if not downloaded:
+                    print(f"  ! CRITICAL: Could not download {filename} from any source.")
+        
+        print("\nDone. You can now use these files in validation.")
+
     async def do_sparql(self, model_path: str, query: str) -> None:
         """
         Run a SPARQL query on a Turtle model file.
@@ -149,19 +210,50 @@ class InteractiveCmd(Cmd):
         except Exception as e:
             print(f"SPARQL Error: {e}")
 
-    async def do_shacl(self, model_path: str, shapes_path: str) -> None:
-        """
-        Validate a model against a SHACL shapes file.
+    def run_shacl(model_path: str, shapes_path: str, ontology_path: str = None, inplace: bool = False) -> None:
+        data_g = load_graph(model_path)
         
-        usage: shacl <model.ttl> <shapes.ttl>
-        """
-        print(f"Validating {model_path} against {shapes_path}...")
+        # Load the Shapes (Your Rules)
+        env = OntoEnv(temporary=True, no_search=True)
+        sid = env.add(shapes_path)
+        shacl_g = env.get_graph(sid)
         
-        # Run in a separate thread because pyshacl is heavy/blocking
-        try:
-            await asyncio.to_thread(run_shacl, model_path, shapes_path)
-        except Exception as e:
-            print(f"SHACL Error: {e}")
+        # Load the Ontology (The Dictionary - e.g., 223p.ttl)
+        ont_g = None
+        if ontology_path:
+            print(f"Loading background ontology from {ontology_path}...")
+            oid = env.add(ontology_path)
+            ont_g = env.get_graph(oid)
+            # Merge shapes and ontology for the "knowledge" graph
+            shacl_g = shacl_g + ont_g
+
+        valid, report_graph, report_text = pyshacl.validate(
+            data_graph=data_g,
+            shacl_graph=shacl_g,
+            ont_graph=shacl_g, # Now includes your standard definitions!
+            advanced=True,
+            inplace=inplace,
+            js=True,
+            allow_warnings=True,
+        )
+
+        print(report_text)
+        print(f"Valid? {valid}")
+
+    async def do_shacl(self, model_path: str, shapes_path: str, ontology_path: str = None) -> None:
+            """
+            Validate a model against a SHACL shapes file, optionally using a standard ontology.
+            
+            usage: shacl <model.ttl> <shapes.ttl> [ontology.ttl]
+            """
+            print(f"Validating {model_path} against {shapes_path}...")
+            if ontology_path:
+                print(f"(Using {ontology_path} for inference)")
+            
+            try:
+                await asyncio.to_thread(run_shacl, model_path, shapes_path, ontology_path)
+            except Exception as e:
+                print(f"SHACL Error: {e}")
 
     async def do_whois(
         self, low_limit: Optional[int] = None, high_limit: Optional[int] = None
