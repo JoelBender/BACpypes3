@@ -1,9 +1,9 @@
-DeviceID,IP,ObjType,ObjInst,Name,Description,PresentValue,Units/StateText,Reliability,OutOfService,StatusFlags,PriorityArray(Active)
-3456790,192.168.204.14,device,3456790,Zone1VAV,,,,,,,
-3456790,192.168.204.14,network-port,1,NetworkPort-1,,,,noFaultDetected,0,,
-3456790,192.168.204.14,analog-input,1,ZoneTemp,Zone Air Temperature,71.7060546875,degreesFahrenheit,,,,
-3456790,192.168.204.14,analog-input,2,VAVFlow,Measured VAV Airflow,386.19647216796875,cubicFeetPerMinute,,,,
-3456790,192.168.204.14,analog-value,1,ZoneCoolingSpt,Zone Cooling Setpoint,70.0,degreesFahrenheit,,,,"{1: 70.0, 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
-3456790,192.168.204.14,analog-value,2,ZoneDemand,Cooling Loop Output / Zone Demand (0–100%),26.026893615722656,percent,,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: 26.026893615722656}"
-3456790,192.168.204.14,analog-value,3,VAVFlowSpt,VAV Airflow Setpoint,800.0,cubicFeetPerMinute,,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
-3456790,192.168.204.14,analog-output,1,VAVDamperCmd,VAV Damper Command (%),50.0,percent,,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
+DeviceID,IP,ObjType,ObjInst,Name,Description,PresentValue,Units,Reliability,OutOfService,PriorityArray
+3456790,192.168.204.14,device,3456790,Zone1VAV,,,,,,
+3456790,192.168.204.14,network-port,1,NetworkPort-1,,,,no-fault-detected,0,
+3456790,192.168.204.14,analog-input,1,ZoneTemp,Zone Air Temperature,71.14649963378906,degrees-fahrenheit,,,
+3456790,192.168.204.14,analog-input,2,VAVFlow,Measured VAV Airflow,407.2784423828125,cubic-feet-per-minute,,,
+3456790,192.168.204.14,analog-value,1,ZoneCoolingSpt,Zone Cooling Setpoint,70.0,degrees-fahrenheit,,,"{1: 70.0, 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
+3456790,192.168.204.14,analog-value,2,ZoneDemand,Cooling Loop Output / Zone Demand (0–100%),85.89198303222656,percent,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: 85.89198303222656}"
+3456790,192.168.204.14,analog-value,3,VAVFlowSpt,VAV Airflow Setpoint,800.0,cubic-feet-per-minute,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
+3456790,192.168.204.14,analog-output,1,VAVDamperCmd,VAV Damper Command (%),50.0,percent,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"

@@ -1,4 +1,4 @@
-@prefix bacnet: <urn:bacnet-autoscan/bacnet#> .
+@prefix bacnet: <http://data.ashrae.org/bacnet/2020#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix s223: <http://data.ashrae.org/standard223#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
@@ -44,93 +44,77 @@
     rdfs:label "DAP-P" ;
     bacnet:description "AHU Duct Static Pressure" ;
     bacnet:deviceInstance 3456789 ;
-    bacnet:engineeringUnits "inchesOfWater" ;
-    bacnet:ipAddress "192.168.204.13" ;
-    bacnet:isWritable false ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.inches-of-water ;
     bacnet:objectInstance 1 ;
     bacnet:objectType "analog-input" ;
-    bacnet:presentValue "1.3185585737228394" ;
+    bacnet:presentValue "1.276415467262268" ;
     bacnet:supportsPriorityArray false .
 
 <urn:bacnet-autoscan/entity/point/3456789/analog-input/2> a s223:QuantifiableObservableProperty ;
     rdfs:label "SA-T" ;
     bacnet:description "Supply Air Temperature" ;
     bacnet:deviceInstance 3456789 ;
-    bacnet:engineeringUnits "degreesFahrenheit" ;
-    bacnet:ipAddress "192.168.204.13" ;
-    bacnet:isWritable false ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.degrees-fahrenheit ;
     bacnet:objectInstance 2 ;
     bacnet:objectType "analog-input" ;
-    bacnet:presentValue "55.892818450927734" ;
+    bacnet:presentValue "55.09464645385742" ;
     bacnet:supportsPriorityArray false .
 
 <urn:bacnet-autoscan/entity/point/3456789/analog-input/3> a s223:QuantifiableObservableProperty ;
     rdfs:label "MA-T" ;
     bacnet:description "Mixed Air Temperature" ;
     bacnet:deviceInstance 3456789 ;
-    bacnet:engineeringUnits "degreesFahrenheit" ;
-    bacnet:ipAddress "192.168.204.13" ;
-    bacnet:isWritable false ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.degrees-fahrenheit ;
     bacnet:objectInstance 3 ;
     bacnet:objectType "analog-input" ;
-    bacnet:presentValue "73.02953338623047" ;
+    bacnet:presentValue "79.87801361083984" ;
     bacnet:supportsPriorityArray false .
 
 <urn:bacnet-autoscan/entity/point/3456789/analog-input/4> a s223:QuantifiableObservableProperty ;
     rdfs:label "RA-T" ;
     bacnet:description "Return Air Temperature" ;
     bacnet:deviceInstance 3456789 ;
-    bacnet:engineeringUnits "degreesFahrenheit" ;
-    bacnet:ipAddress "192.168.204.13" ;
-    bacnet:isWritable false ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.degrees-fahrenheit ;
     bacnet:objectInstance 4 ;
     bacnet:objectType "analog-input" ;
-    bacnet:presentValue "77.44796752929688" ;
+    bacnet:presentValue "55.54839324951172" ;
     bacnet:supportsPriorityArray false .
 
 <urn:bacnet-autoscan/entity/point/3456789/analog-input/5> a s223:QuantifiableObservableProperty ;
     rdfs:label "SA-FLOW" ;
     bacnet:description "Supply Airflow" ;
     bacnet:deviceInstance 3456789 ;
-    bacnet:engineeringUnits "cubicFeetPerMinute" ;
-    bacnet:ipAddress "192.168.204.13" ;
-    bacnet:isWritable false ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.cubic-feet-per-minute ;
     bacnet:objectInstance 5 ;
     bacnet:objectType "analog-input" ;
-    bacnet:presentValue "77.77198028564453" ;
+    bacnet:presentValue "60.295570373535156" ;
     bacnet:supportsPriorityArray false .
 
 <urn:bacnet-autoscan/entity/point/3456789/analog-input/6> a s223:QuantifiableObservableProperty ;
     rdfs:label "OA-T" ;
     bacnet:description "Outside Air Temperature (Local Sensor)" ;
     bacnet:deviceInstance 3456789 ;
-    bacnet:engineeringUnits "degreesFahrenheit" ;
-    bacnet:ipAddress "192.168.204.13" ;
-    bacnet:isWritable false ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.degrees-fahrenheit ;
     bacnet:objectInstance 6 ;
     bacnet:objectType "analog-input" ;
-    bacnet:presentValue "89.41627502441406" ;
+    bacnet:presentValue "48.12152099609375" ;
     bacnet:supportsPriorityArray false .
 
 <urn:bacnet-autoscan/entity/point/3456789/analog-input/7> a s223:QuantifiableObservableProperty ;
     rdfs:label "ELEC-PWR" ;
     bacnet:description "Building Electrical Power" ;
     bacnet:deviceInstance 3456789 ;
-    bacnet:engineeringUnits "kilowatts" ;
-    bacnet:ipAddress "192.168.204.13" ;
-    bacnet:isWritable false ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.kilowatts ;
     bacnet:objectInstance 7 ;
     bacnet:objectType "analog-input" ;
-    bacnet:presentValue "148.13739013671875" ;
+    bacnet:presentValue "181.41519165039062" ;
     bacnet:supportsPriorityArray false .
 
 <urn:bacnet-autoscan/entity/point/3456789/analog-output/1> a s223:QuantifiableObservableProperty ;
     rdfs:label "SF-O" ;
     bacnet:description "Supply Fan Speed Command" ;
     bacnet:deviceInstance 3456789 ;
-    bacnet:engineeringUnits "percent" ;
-    bacnet:ipAddress "192.168.204.13" ;
-    bacnet:isWritable true ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.percent ;
     bacnet:objectInstance 1 ;
     bacnet:objectType "analog-output" ;
     bacnet:presentValue "50.0" ;
@@ -140,9 +124,7 @@
     rdfs:label "HTG-O" ;
     bacnet:description "Heating Valve Command" ;
     bacnet:deviceInstance 3456789 ;
-    bacnet:engineeringUnits "percent" ;
-    bacnet:ipAddress "192.168.204.13" ;
-    bacnet:isWritable true ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.percent ;
     bacnet:objectInstance 2 ;
     bacnet:objectType "analog-output" ;
     bacnet:presentValue "0.0" ;
@@ -152,9 +134,7 @@
     rdfs:label "CLG-O" ;
     bacnet:description "Cooling Valve Command" ;
     bacnet:deviceInstance 3456789 ;
-    bacnet:engineeringUnits "percent" ;
-    bacnet:ipAddress "192.168.204.13" ;
-    bacnet:isWritable true ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.percent ;
     bacnet:objectInstance 3 ;
     bacnet:objectType "analog-output" ;
     bacnet:presentValue "0.0" ;
@@ -164,9 +144,7 @@
     rdfs:label "DPR-O" ;
     bacnet:description "Mixing Dampers Command" ;
     bacnet:deviceInstance 3456789 ;
-    bacnet:engineeringUnits "percent" ;
-    bacnet:ipAddress "192.168.204.13" ;
-    bacnet:isWritable true ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.percent ;
     bacnet:objectInstance 4 ;
     bacnet:objectType "analog-output" ;
     bacnet:presentValue "55.0" ;
@@ -176,9 +154,7 @@
     rdfs:label "DAP-SP" ;
     bacnet:description "Duct Static Pressure Setpoint (DischargeAirPressureSp)" ;
     bacnet:deviceInstance 3456789 ;
-    bacnet:engineeringUnits "inchesOfWater" ;
-    bacnet:ipAddress "192.168.204.13" ;
-    bacnet:isWritable true ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.inches-of-water ;
     bacnet:objectInstance 1 ;
     bacnet:objectType "analog-value" ;
     bacnet:presentValue "1.0" ;
@@ -188,9 +164,7 @@
     rdfs:label "SAT-SP" ;
     bacnet:description "Supply Air Temperature Setpoint (DischargeAirTempSp)" ;
     bacnet:deviceInstance 3456789 ;
-    bacnet:engineeringUnits "degreesFahrenheit" ;
-    bacnet:ipAddress "192.168.204.13" ;
-    bacnet:isWritable true ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.degrees-fahrenheit ;
     bacnet:objectInstance 2 ;
     bacnet:objectType "analog-value" ;
     bacnet:presentValue "58.0" ;
@@ -200,9 +174,7 @@
     rdfs:label "OAT-NETWORK" ;
     bacnet:description "Outside Air Temperature (Network / Averaged)" ;
     bacnet:deviceInstance 3456789 ;
-    bacnet:engineeringUnits "degreesFahrenheit" ;
-    bacnet:ipAddress "192.168.204.13" ;
-    bacnet:isWritable true ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.degrees-fahrenheit ;
     bacnet:objectInstance 3 ;
     bacnet:objectType "analog-value" ;
     bacnet:presentValue "-5.0" ;
@@ -212,19 +184,15 @@
     rdfs:label "SF-S" ;
     bacnet:description "Supply Fan Status" ;
     bacnet:deviceInstance 3456789 ;
-    bacnet:ipAddress "192.168.204.13" ;
-    bacnet:isWritable false ;
     bacnet:objectInstance 1 ;
     bacnet:objectType "binary-input" ;
-    bacnet:presentValue "inactive" ;
+    bacnet:presentValue "active" ;
     bacnet:supportsPriorityArray false .
 
 <urn:bacnet-autoscan/entity/point/3456789/binary-output/1> a s223:ObservableProperty ;
     rdfs:label "SF-C" ;
     bacnet:description "Supply Fan Command (fanRunCmd)" ;
     bacnet:deviceInstance 3456789 ;
-    bacnet:ipAddress "192.168.204.13" ;
-    bacnet:isWritable true ;
     bacnet:objectInstance 1 ;
     bacnet:objectType "binary-output" ;
     bacnet:presentValue "inactive" ;
@@ -233,8 +201,6 @@
 <urn:bacnet-autoscan/entity/point/3456789/device/3456789> a s223:ObservableProperty ;
     rdfs:label "BensFakeAhu" ;
     bacnet:deviceInstance 3456789 ;
-    bacnet:ipAddress "192.168.204.13" ;
-    bacnet:isWritable false ;
     bacnet:objectInstance 3456789 ;
     bacnet:objectType "device" ;
     bacnet:supportsPriorityArray false .
@@ -243,8 +209,6 @@
     rdfs:label "Occ-Schedule" ;
     bacnet:description "Occupancy Schedule State" ;
     bacnet:deviceInstance 3456789 ;
-    bacnet:ipAddress "192.168.204.13" ;
-    bacnet:isWritable true ;
     bacnet:objectInstance 1 ;
     bacnet:objectType "multi-state-value" ;
     bacnet:presentValue "1" ;
@@ -253,43 +217,36 @@
 <urn:bacnet-autoscan/entity/point/3456789/network-port/1> a s223:ObservableProperty ;
     rdfs:label "NetworkPort-1" ;
     bacnet:deviceInstance 3456789 ;
-    bacnet:ipAddress "192.168.204.13" ;
-    bacnet:isWritable false ;
     bacnet:objectInstance 1 ;
     bacnet:objectType "network-port" ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
     bacnet:supportsPriorityArray false .
 
 <urn:bacnet-autoscan/entity/point/3456790/analog-input/1> a s223:QuantifiableObservableProperty ;
     rdfs:label "ZoneTemp" ;
     bacnet:description "Zone Air Temperature" ;
     bacnet:deviceInstance 3456790 ;
-    bacnet:engineeringUnits "degreesFahrenheit" ;
-    bacnet:ipAddress "192.168.204.14" ;
-    bacnet:isWritable false ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.degrees-fahrenheit ;
     bacnet:objectInstance 1 ;
     bacnet:objectType "analog-input" ;
-    bacnet:presentValue "71.7060546875" ;
+    bacnet:presentValue "71.14649963378906" ;
     bacnet:supportsPriorityArray false .
 
 <urn:bacnet-autoscan/entity/point/3456790/analog-input/2> a s223:QuantifiableObservableProperty ;
     rdfs:label "VAVFlow" ;
     bacnet:description "Measured VAV Airflow" ;
     bacnet:deviceInstance 3456790 ;
-    bacnet:engineeringUnits "cubicFeetPerMinute" ;
-    bacnet:ipAddress "192.168.204.14" ;
-    bacnet:isWritable false ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.cubic-feet-per-minute ;
     bacnet:objectInstance 2 ;
     bacnet:objectType "analog-input" ;
-    bacnet:presentValue "386.19647216796875" ;
+    bacnet:presentValue "407.2784423828125" ;
     bacnet:supportsPriorityArray false .
 
 <urn:bacnet-autoscan/entity/point/3456790/analog-output/1> a s223:QuantifiableObservableProperty ;
     rdfs:label "VAVDamperCmd" ;
     bacnet:description "VAV Damper Command (%)" ;
     bacnet:deviceInstance 3456790 ;
-    bacnet:engineeringUnits "percent" ;
-    bacnet:ipAddress "192.168.204.14" ;
-    bacnet:isWritable true ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.percent ;
     bacnet:objectInstance 1 ;
     bacnet:objectType "analog-output" ;
     bacnet:presentValue "50.0" ;
@@ -299,9 +256,7 @@
     rdfs:label "ZoneCoolingSpt" ;
     bacnet:description "Zone Cooling Setpoint" ;
     bacnet:deviceInstance 3456790 ;
-    bacnet:engineeringUnits "degreesFahrenheit" ;
-    bacnet:ipAddress "192.168.204.14" ;
-    bacnet:isWritable true ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.degrees-fahrenheit ;
     bacnet:objectInstance 1 ;
     bacnet:objectType "analog-value" ;
     bacnet:presentValue "70.0" ;
@@ -311,21 +266,17 @@
     rdfs:label "ZoneDemand" ;
     bacnet:description "Cooling Loop Output / Zone Demand (0–100%)" ;
     bacnet:deviceInstance 3456790 ;
-    bacnet:engineeringUnits "percent" ;
-    bacnet:ipAddress "192.168.204.14" ;
-    bacnet:isWritable true ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.percent ;
     bacnet:objectInstance 2 ;
     bacnet:objectType "analog-value" ;
-    bacnet:presentValue "26.026893615722656" ;
+    bacnet:presentValue "85.89198303222656" ;
     bacnet:supportsPriorityArray true .
 
 <urn:bacnet-autoscan/entity/point/3456790/analog-value/3> a s223:QuantifiableObservableProperty ;
     rdfs:label "VAVFlowSpt" ;
     bacnet:description "VAV Airflow Setpoint" ;
     bacnet:deviceInstance 3456790 ;
-    bacnet:engineeringUnits "cubicFeetPerMinute" ;
-    bacnet:ipAddress "192.168.204.14" ;
-    bacnet:isWritable true ;
+    bacnet:engineeringUnits bacnet:EngineeringUnits.cubic-feet-per-minute ;
     bacnet:objectInstance 3 ;
     bacnet:objectType "analog-value" ;
     bacnet:presentValue "800.0" ;
@@ -334,8 +285,6 @@
 <urn:bacnet-autoscan/entity/point/3456790/device/3456790> a s223:ObservableProperty ;
     rdfs:label "Zone1VAV" ;
     bacnet:deviceInstance 3456790 ;
-    bacnet:ipAddress "192.168.204.14" ;
-    bacnet:isWritable false ;
     bacnet:objectInstance 3456790 ;
     bacnet:objectType "device" ;
     bacnet:supportsPriorityArray false .
@@ -343,9 +292,8 @@
 <urn:bacnet-autoscan/entity/point/3456790/network-port/1> a s223:ObservableProperty ;
     rdfs:label "NetworkPort-1" ;
     bacnet:deviceInstance 3456790 ;
-    bacnet:ipAddress "192.168.204.14" ;
-    bacnet:isWritable false ;
     bacnet:objectInstance 1 ;
     bacnet:objectType "network-port" ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
     bacnet:supportsPriorityArray false .
 
