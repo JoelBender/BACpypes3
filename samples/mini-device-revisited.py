@@ -25,7 +25,7 @@ Usage:
 ------
 Run the script with the device name, instance ID, and optional debug flag:
 
-    python mini_device_no_schedule.py --name BensServerTest --instance 3456 --debug
+    python mini-device-revisited.py --name BensServerTest --instance 3456 --debug
 
 Arguments:
 ----------
