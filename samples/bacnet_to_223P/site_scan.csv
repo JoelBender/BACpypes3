@@ -1,13 +1,14 @@
 DeviceID,IP,ObjType,ObjInst,Name,Description,PresentValue,Units,Reliability,OutOfService,PriorityArray
 3456789,192.168.204.13,device,3456789,BensFakeAhu,,,,,,
+3456789,192.168.204.13,device,3456789,BensFakeAhu,,,,,,
 3456789,192.168.204.13,network-port,1,NetworkPort-1,,,,no-fault-detected,0,
-3456789,192.168.204.13,analog-input,1,DAP-P,AHU Duct Static Pressure,1.0981853008270264,inches-of-water,,,
-3456789,192.168.204.13,analog-input,2,SA-T,Supply Air Temperature,53.8140869140625,degrees-fahrenheit,,,
-3456789,192.168.204.13,analog-input,3,MA-T,Mixed Air Temperature,47.557865142822266,degrees-fahrenheit,,,
-3456789,192.168.204.13,analog-input,4,RA-T,Return Air Temperature,65.83141326904297,degrees-fahrenheit,,,
-3456789,192.168.204.13,analog-input,5,SA-FLOW,Supply Airflow,69.56571197509766,cubic-feet-per-minute,,,
-3456789,192.168.204.13,analog-input,6,OA-T,Outside Air Temperature (Local Sensor),41.571510314941406,degrees-fahrenheit,,,
-3456789,192.168.204.13,analog-input,7,ELEC-PWR,Building Electrical Power,189.93321228027344,kilowatts,,,
+3456789,192.168.204.13,analog-input,1,DAP-P,AHU Duct Static Pressure,0.7465224862098694,inches-of-water,,,
+3456789,192.168.204.13,analog-input,2,SA-T,Supply Air Temperature,59.22426986694336,degrees-fahrenheit,,,
+3456789,192.168.204.13,analog-input,3,MA-T,Mixed Air Temperature,65.54703521728516,degrees-fahrenheit,,,
+3456789,192.168.204.13,analog-input,4,RA-T,Return Air Temperature,61.74495315551758,degrees-fahrenheit,,,
+3456789,192.168.204.13,analog-input,5,SA-FLOW,Supply Airflow,41.18648910522461,cubic-feet-per-minute,,,
+3456789,192.168.204.13,analog-input,6,OA-T,Outside Air Temperature (Local Sensor),94.22737884521484,degrees-fahrenheit,,,
+3456789,192.168.204.13,analog-input,7,ELEC-PWR,Building Electrical Power,171.71368408203125,kilowatts,,,
 3456789,192.168.204.13,analog-output,1,SF-O,Supply Fan Speed Command,50.0,percent,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
 3456789,192.168.204.13,analog-output,2,HTG-O,Heating Valve Command,0.0,percent,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
 3456789,192.168.204.13,analog-output,3,CLG-O,Cooling Valve Command,0.0,percent,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
@@ -15,6 +16,12 @@ DeviceID,IP,ObjType,ObjInst,Name,Description,PresentValue,Units,Reliability,OutO
 3456789,192.168.204.13,analog-value,1,DAP-SP,Duct Static Pressure Setpoint (DischargeAirPressureSp),1.0,inches-of-water,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
 3456789,192.168.204.13,analog-value,2,SAT-SP,Supply Air Temperature Setpoint (DischargeAirTempSp),58.0,degrees-fahrenheit,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: 58.0, 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
 3456789,192.168.204.13,analog-value,3,OAT-NETWORK,Outside Air Temperature (Network / Averaged),-5.0,degrees-fahrenheit,,,"{1: -5.0, 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
-3456789,192.168.204.13,binary-input,1,SF-S,Supply Fan Status,inactive,,,,
+3456789,192.168.204.13,binary-input,1,SF-S,Supply Fan Status,active,,,,
 3456789,192.168.204.13,binary-output,1,SF-C,Supply Fan Command (fanRunCmd),inactive,,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
 3456789,192.168.204.13,multi-state-value,1,Occ-Schedule,Occupancy Schedule State,1,,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
+123456,192.168.204.14,device,123456,BensScheduleServer,,,,,,
+123456,192.168.204.14,device,123456,BensScheduleServer,,,,,,
+123456,192.168.204.14,network-port,1,NetworkPort-1,,,,no-fault-detected,0,
+123456,192.168.204.14,calendar,1,Holiday-Calendar,Global Holiday List (used for Schedule exceptions),,,,,
+123456,192.168.204.14,schedule,1,Office-Hours-Schedule,M-F 8-5; weekend closed; holidays closed via Calendar(1),0,,no-fault-detected,,
+123456,192.168.204.14,binary-value,1,occupied-bv,Mirrors Schedule(1) presentValue (active when non-zero),inactive,,,,

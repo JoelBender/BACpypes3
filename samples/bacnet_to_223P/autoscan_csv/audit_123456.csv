@@ -1,6 +1,0 @@
-DeviceID,IP,ObjType,ObjInst,Name,Description,PresentValue,Units,Reliability,OutOfService,PriorityArray
-123456,192.168.204.14,device,123456,BensScheduleServer,,,,,,
-123456,192.168.204.14,network-port,1,NetworkPort-1,,,,no-fault-detected,0,
-123456,192.168.204.14,calendar,1,Holiday-Calendar,Global Holiday List (used for Schedule exceptions),,,,,
-123456,192.168.204.14,schedule,1,Office-Hours-Schedule,M-F 8-5; weekend closed; holidays closed via Calendar(1),0,,no-fault-detected,,
-123456,192.168.204.14,binary-value,1,occupied-bv,Mirrors Schedule(1) presentValue (active when non-zero),inactive,,,,
