@@ -5,7 +5,7 @@ IPv4
 import os
 import asyncio
 import functools
-
+import socket
 from typing import Any, Callable, Optional, List, Tuple, Union, cast
 
 from ..debugging import ModuleLogger, bacpypes_debugging
@@ -67,6 +67,7 @@ class IPv4DatagramServer(Server[PDU]):
     _debug: Callable[..., None]
     _exception: Callable[..., None]
     _transport_tasks: List[Any]
+    _local_transport_ready: asyncio.Event
 
     local_address: Tuple[str, int]
     local_transport: Optional[asyncio.DatagramTransport]
@@ -79,6 +80,7 @@ class IPv4DatagramServer(Server[PDU]):
         self,
         address: IPv4Address,
         no_broadcast: bool = False,
+        bind_socket: Optional[socket.socket] = None,
     ) -> None:
         if _debug:
             IPv4DatagramServer._debug(
@@ -108,7 +110,7 @@ class IPv4DatagramServer(Server[PDU]):
 
         # easy call to create a local endpoint
         local_endpoint_task = loop.create_task(
-            self.retrying_create_datagram_endpoint(loop, address.addrTuple)
+            self.retrying_create_datagram_endpoint(loop, address.addrTuple, bind_socket=bind_socket)  # type: ignore[arg-type]
         )
         if _debug:
             IPv4DatagramServer._debug(
@@ -120,6 +122,7 @@ class IPv4DatagramServer(Server[PDU]):
 
         # keep a list of things that need to complete before sending stuff
         self._transport_tasks = [local_endpoint_task]
+        self._local_transport_ready = asyncio.Event()
 
         # see if we need a broadcast listener
         if no_broadcast or (address.addrBroadcastTuple == address.addrTuple):
@@ -133,11 +136,18 @@ class IPv4DatagramServer(Server[PDU]):
 
             # Windows takes care of the broadcast, but Linux needs a broadcast endpoint
             if "nt" not in os.name:
-                broadcast_endpoint_task = loop.create_task(
-                    self.retrying_create_datagram_endpoint(
-                        loop, address.addrBroadcastTuple
+                if bind_socket:
+                    broadcast_endpoint_task = loop.create_task(
+                        self.retrying_create_datagram_endpoint(
+                            loop, address.addrBroadcastTuple, bind_socket=bind_socket 
+                        )
                     )
-                )
+                else:
+                    broadcast_endpoint_task = loop.create_task(
+                        self.retrying_create_datagram_endpoint(
+                            loop, address.addrBroadcastTuple
+                        )
+                    )
                 if _debug:
                     IPv4DatagramServer._debug(
                         "    - broadcast_endpoint_task: %r", broadcast_endpoint_task
@@ -148,7 +158,7 @@ class IPv4DatagramServer(Server[PDU]):
                 self._transport_tasks.append(broadcast_endpoint_task)
 
     async def retrying_create_datagram_endpoint(
-        self, loop: asyncio.events.AbstractEventLoop, addrTuple: Tuple[str, int]
+            self, loop: asyncio.events.AbstractEventLoop, addrTuple: Tuple[str, int], bind_socket: Optional[socket.socket] = None
     ):
         """
         Repeat attempts to create datagram endpoint, sometimes during boot
@@ -156,8 +166,12 @@ class IPv4DatagramServer(Server[PDU]):
         """
         while True:
             try:
+                if bind_socket:
+                    return await loop.create_datagram_endpoint(
+                        IPv4DatagramProtocol, sock=bind_socket
+                    )
                 return await loop.create_datagram_endpoint(
-                    IPv4DatagramProtocol, local_addr=addrTuple, allow_broadcast=True
+                    IPv4DatagramProtocol, local_addr=addrTuple, allow_broadcast=True, reuse_port=True
                 )
             except OSError:
                 if _debug:
@@ -196,6 +210,9 @@ class IPv4DatagramServer(Server[PDU]):
             # tell the protocol instance created that it should talk back to us
             self.broadcast_protocol.server = self
             self.broadcast_protocol.destination = LocalBroadcast()
+
+        # ready now
+        self._local_transport_ready.set()
 
     def set_broadcast_transport_protocol(self, address, task):
         if _debug:
@@ -246,6 +263,13 @@ class IPv4DatagramServer(Server[PDU]):
             raise ValueError(f"invalid destination: {pdu.pduDestination}")
         if _debug:
             IPv4DatagramServer._debug("    - pdu_destination: %r", pdu_destination)
+
+        # wait for the local transport to be ready, in some cases it might not be
+        # even when there are no transport tasks which should have already completed
+        if not self._local_transport_ready.is_set():
+            if _debug:
+                IPv4DatagramServer._debug("    - waiting for local transport")
+        await self._local_transport_ready.wait()
 
         # send it along
         self.local_transport.sendto(pdu.pduData, pdu_destination)
