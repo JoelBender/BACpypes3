@@ -990,7 +990,17 @@ class ServerSSM(SSM):
             pass
         else:
             # decode this now, the APDU is complete
-            apdu = APCISequence.decode(apdu)
+            try:
+                apdu = APCISequence.decode(apdu)
+            except Exception as err:
+                if _debug:
+                    ServerSSM._debug("    - decoding error: %r", err)
+                # send an abort back to the client
+                abort = AbortPDU(reason=AbortReason.other)
+                abort.pduSource = self.pdu_address
+                abort.pduDestination = None
+                await self.ssmSAP.sap_request(abort)
+                return
             if _debug:
                 ServerSSM._debug("    - apdu: %r", apdu)
 
@@ -1640,7 +1650,7 @@ class ApplicationServiceAccessPoint(Client[PDU], ServiceAccessPoint):
                 apdu = APCISequence.decode(apdu)
                 if _debug:
                     ApplicationServiceAccessPoint._debug("    - apdu: %r", apdu)
-            except AttributeError as err:
+            except Exception as err:
                 if _debug:
                     ApplicationServiceAccessPoint._debug(
                         "    - decoding error: %r", err

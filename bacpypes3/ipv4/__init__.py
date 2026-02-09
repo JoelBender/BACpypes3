@@ -261,7 +261,12 @@ class IPv4DatagramServer(Server[PDU]):
             return
 
         # up the stack it goes
-        await self.response(pdu)
+        try:
+            await self.response(pdu)
+        except Exception as err:
+            if _debug:
+                IPv4DatagramServer._debug("    - error processing PDU: %r", err)
+            IPv4DatagramServer._exception("error processing incoming PDU: %r", err)
 
     def close(self) -> None:
         if _debug:
