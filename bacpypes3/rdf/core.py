@@ -33,7 +33,7 @@ _debug = 0
 _log = ModuleLogger(globals())
 
 
-BACnetNS = Namespace("http://data.ashrae.org/bacnet/2024#")
+BACnetNS = Namespace("http://data.ashrae.org/bacnet/")
 BACnetURI = Namespace("bacnet:")
 
 #
