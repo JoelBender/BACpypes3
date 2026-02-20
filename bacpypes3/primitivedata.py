@@ -1218,7 +1218,7 @@ class Real(Atomic, float):
             if cls._context is not None:
                 raise InvalidTag(f"real context tag {cls._context} expected")
             if tag.tag_number != TagNumber.real:
-                raise InvalidTag("real application tag expected")
+                raise InvalidTag(f"real application tag expected, saw {tag.tag_number}")
         elif tag.tag_class == TagClass.context:
             if cls._context is None:
                 raise InvalidTag("real application tag expected")
