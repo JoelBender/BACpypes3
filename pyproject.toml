@@ -48,3 +48,9 @@ include = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["bacpypes3"]
+
+[dependency-groups]
+dev = [
+    "pytest>=8.3.5",
+    "pytest-asyncio>=0.24.0",
+]
