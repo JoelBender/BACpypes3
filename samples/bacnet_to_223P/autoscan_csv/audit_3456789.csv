@@ -1,0 +1,20 @@
+DeviceID,IP,ObjType,ObjInst,Name,Description,PresentValue,Units/StateText,Reliability,OutOfService,StatusFlags,PriorityArray(Active)
+3456789,192.168.204.13,device,3456789,BensFakeAhu,,,,,,,
+3456789,192.168.204.13,network-port,1,NetworkPort-1,,,,noFaultDetected,0,,
+3456789,192.168.204.13,analog-input,1,DAP-P,AHU Duct Static Pressure,1.3185585737228394,inchesOfWater,,,,
+3456789,192.168.204.13,analog-input,2,SA-T,Supply Air Temperature,55.892818450927734,degreesFahrenheit,,,,
+3456789,192.168.204.13,analog-input,3,MA-T,Mixed Air Temperature,73.02953338623047,degreesFahrenheit,,,,
+3456789,192.168.204.13,analog-input,4,RA-T,Return Air Temperature,77.44796752929688,degreesFahrenheit,,,,
+3456789,192.168.204.13,analog-input,5,SA-FLOW,Supply Airflow,77.77198028564453,cubicFeetPerMinute,,,,
+3456789,192.168.204.13,analog-input,6,OA-T,Outside Air Temperature (Local Sensor),89.41627502441406,degreesFahrenheit,,,,
+3456789,192.168.204.13,analog-input,7,ELEC-PWR,Building Electrical Power,148.13739013671875,kilowatts,,,,
+3456789,192.168.204.13,analog-output,1,SF-O,Supply Fan Speed Command,50.0,percent,,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
+3456789,192.168.204.13,analog-output,2,HTG-O,Heating Valve Command,0.0,percent,,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
+3456789,192.168.204.13,analog-output,3,CLG-O,Cooling Valve Command,0.0,percent,,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
+3456789,192.168.204.13,analog-output,4,DPR-O,Mixing Dampers Command,55.0,percent,,,,"{1: 55.0, 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
+3456789,192.168.204.13,analog-value,1,DAP-SP,Duct Static Pressure Setpoint (DischargeAirPressureSp),1.0,inchesOfWater,,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
+3456789,192.168.204.13,analog-value,2,SAT-SP,Supply Air Temperature Setpoint (DischargeAirTempSp),58.0,degreesFahrenheit,,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: 58.0, 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
+3456789,192.168.204.13,analog-value,3,OAT-NETWORK,Outside Air Temperature (Network / Averaged),-5.0,degreesFahrenheit,,,,"{1: -5.0, 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
+3456789,192.168.204.13,binary-input,1,SF-S,Supply Fan Status,inactive,,,,,
+3456789,192.168.204.13,binary-output,1,SF-C,Supply Fan Command (fanRunCmd),inactive,,,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"
+3456789,192.168.204.13,multi-state-value,1,Occ-Schedule,Occupancy Schedule State,1,,,,,"{1: (), 2: (), 3: (), 4: (), 5: (), 6: (), 7: (), 8: (), 9: (), 10: (), 11: (), 12: (), 13: (), 14: (), 15: (), 16: ()}"

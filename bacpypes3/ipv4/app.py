@@ -5,6 +5,7 @@ Application Module
 from __future__ import annotations
 
 import asyncio
+from socket import socket
 from typing import Optional
 
 from ..debugging import bacpypes_debugging, ModuleLogger
@@ -60,6 +61,7 @@ class NormalApplication(
         device_object,
         local_address: Address,
         device_info_cache: Optional[DeviceInfoCache] = None,
+        bind_socket: Optional[socket] = None,
     ) -> None:
         if _debug:
             NormalApplication._debug(
@@ -130,6 +132,7 @@ class ForeignApplication(
         device_object,
         local_address: Address,
         device_info_cache: Optional[DeviceInfoCache] = None,
+        bind_socket: Optional[socket] = None,
     ) -> None:
         if _debug:
             ForeignApplication._debug(
@@ -138,7 +141,7 @@ class ForeignApplication(
                 local_address,
                 device_info_cache,
             )
-        Application.__init__(self, device_info_cache=device_info_cache)
+        Application.__init__(self, device_info_cache=device_info_cache, bind_socket=bind_socket)
         if not isinstance(device_object, DeviceObject):
             raise TypeError(f"device_object: {type(device_object)}")
         if not isinstance(local_address, IPv4Address):
@@ -164,7 +167,7 @@ class ForeignApplication(
         self.foreign = BIPForeign()
         self.codec = BVLLCodec()
         self.multiplexer = UDPMultiplexer()
-        self.server = IPv4DatagramServer(local_address, no_broadcast=True)
+        self.server = IPv4DatagramServer(local_address, no_broadcast=True, bind_socket=bind_socket)
 
         bind(self.foreign, self.codec, self.multiplexer.annexJ)  # type: ignore[arg-type]
         bind(self.multiplexer, self.server)  # type: ignore[arg-type]
@@ -205,6 +208,7 @@ class BBMDApplication(
         device_object,
         local_address: Address,
         device_info_cache: Optional[DeviceInfoCache] = None,
+        bind_socket: Optional[socket] = None,
     ) -> None:
         if _debug:
             BBMDApplication._debug(
@@ -213,7 +217,7 @@ class BBMDApplication(
                 local_address,
                 device_info_cache,
             )
-        Application.__init__(self, device_info_cache=device_info_cache)
+        Application.__init__(self, device_info_cache=device_info_cache, bind_socket=bind_socket)
         if not isinstance(device_object, DeviceObject):
             raise TypeError(f"device_object: {type(device_object)}")
         if not isinstance(local_address, IPv4Address):
@@ -238,7 +242,7 @@ class BBMDApplication(
         self.bbmd = BIPBBMD(local_address)
         self.codec = BVLLCodec()
         self.multiplexer = UDPMultiplexer()
-        self.server = IPv4DatagramServer(local_address)
+        self.server = IPv4DatagramServer(local_address, bind_socket=bind_socket)
 
         bind(self.bbmd, self.codec, self.multiplexer.annexJ)  # type: ignore[arg-type]
         bind(self.multiplexer, self.server)  # type: ignore[arg-type]

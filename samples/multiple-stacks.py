@@ -85,9 +85,9 @@ class CmdShell(Cmd, CmdDebugging):
             CmdShell._debug("do_wirtn %r %r", address, network)
         assert app.nse
 
-        result_list: List[
-            Tuple[NetworkAdapter, IAmRouterToNetwork]
-        ] = await app.nse.who_is_router_to_network(destination=address, network=network)
+        result_list: List[Tuple[NetworkAdapter, IAmRouterToNetwork]] = (
+            await app.nse.who_is_router_to_network(destination=address, network=network)
+        )
         if _debug:
             CmdShell._debug("    - result_list: %r", result_list)
         if not result_list:

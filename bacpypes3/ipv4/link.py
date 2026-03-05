@@ -11,6 +11,8 @@ instance which references a NetworkServiceAccessPoint.
 """
 
 from __future__ import annotations
+from typing import Optional
+from socket import socket
 
 from ..debugging import bacpypes_debugging, ModuleLogger
 
@@ -42,7 +44,7 @@ class NormalLinkLayer(BIPNormal):
     multiplexer: UDPMultiplexer
     server: IPv4DatagramServer
 
-    def __init__(self, local_address: IPv4Address, **kwargs) -> None:
+    def __init__(self, local_address: IPv4Address, bind_socket: Optional[socket]=None, **kwargs) -> None:
         if _debug:
             NormalLinkLayer._debug(
                 "__init__ %r %r",
@@ -55,7 +57,7 @@ class NormalLinkLayer(BIPNormal):
         # on the UDP multiplexer
         self.codec = BVLLCodec()
         self.multiplexer = UDPMultiplexer()
-        self.server = IPv4DatagramServer(local_address)
+        self.server = IPv4DatagramServer(local_address, bind_socket=bind_socket)
 
         bind(self, self.codec, self.multiplexer.annexJ)  # type: ignore[arg-type]
         bind(self.multiplexer, self.server)  # type: ignore[arg-type]
