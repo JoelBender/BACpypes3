@@ -1906,9 +1906,18 @@ class Any(Element):
         if self.tagList is None:
             return use_dict
 
+        tag_list_slice = slice(0, None)
+
+        # skip the context opening and closing tags, the dictionary will
+        # provide enough context, like the presentValue of a ReadPropertyACK
+        if (self.tagList[0].tag_class == TagClass.opening) and (
+            self.tagList[-1].tag_class == TagClass.closing
+        ):
+            tag_list_slice = slice(1, -1)
+
         mapped_value = [
             tag.dict_contents(as_class=as_class, include_data=include_data)
-            for tag in self.tagList
+            for tag in self.tagList[tag_list_slice]
         ]
         use_dict.__setitem__("any", mapped_value)
 
