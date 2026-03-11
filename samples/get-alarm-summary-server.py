@@ -3,20 +3,15 @@ Simple example that sends a Read Property request and decodes the response.
 """
 
 import asyncio
-from typing import Any as _Any
-from typing import Callable, Optional, Tuple, Union
+from typing import Callable
 
 from bacpypes3.debugging import ModuleLogger, bacpypes_debugging
 from bacpypes3.argparse import SimpleArgumentParser
 from bacpypes3.app import Application
 
-from bacpypes3.pdu import Address
-from bacpypes3.constructeddata import AnyAtomic
 from bacpypes3.basetypes import EventState, GetAlarmSummaryAlarmSummary
 from bacpypes3.apdu import (
-    GetAlarmSummaryRequest,
     GetAlarmSummaryACK,
-    ErrorRejectAbortNack,
 )
 
 from bacpypes3.local.device import DeviceObject as _DeviceObject
