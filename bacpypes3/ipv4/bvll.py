@@ -5,7 +5,7 @@ BACnet IPv4 Virtual Link Layer Protocol Data Units
 from __future__ import annotations
 
 import socket
-from typing import Callable, Optional, Tuple
+from typing import Any, Callable, Dict, Optional, Tuple, Union
 
 from ..errors import DecodingError
 from ..debugging import ModuleLogger, DebugContents, bacpypes_debugging
@@ -109,7 +109,13 @@ class LPCI(PCI, DebugContents):
 
         return lpci
 
-    def lpci_contents(self, use_dict=None, as_class=dict):
+    def lpci_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         if _debug:
             LPCI._debug("lpci_contents use_dict=%r as_class=%r", use_dict, as_class)
@@ -118,10 +124,32 @@ class LPCI(PCI, DebugContents):
         if use_dict is None:
             use_dict = as_class()
 
-        # skip over fields that aren't set
-        for k in LPCI._debug_contents:
-            if hasattr(self, k):
-                use_dict.__setitem__(k, getattr(self, k))
+        # look up the class that matches the function
+        atype = pdu_types.get(self.bvlciFunction, None)
+
+        use_dict.__setitem__("bvlciType", self.bvlciType)
+        use_dict.__setitem__("bvlciFunction", atype.__name__)
+        use_dict.__setitem__("bvlciLength", self.bvlciLength)
+
+        # return what we built/updated
+        return use_dict
+
+    def dict_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
+        """Return the contents of an object as a dict."""
+        if _debug:
+            LPCI._debug("lpci_contents use_dict=%r as_class=%r", use_dict, as_class)
+
+        # make/extend the dictionary of content
+        if use_dict is None:
+            use_dict = as_class()
+
+        self.lpci_contents(use_dict=use_dict, as_class=as_class, include_data=False)
 
         # return what we built/updated
         return use_dict
@@ -178,21 +206,37 @@ class LPDU(LPCI, PDUData):
 
         return lpdu
 
-    def lpdu_contents(self, use_dict=None, as_class=dict) -> dict:
-        return PDUData.pdudata_contents(self, use_dict=use_dict, as_class=as_class)
-
-    def dict_contents(self, use_dict=None, as_class=dict) -> dict:
+    def dict_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_lpci: Optional[bool] = False,
+        include_data: Optional[bool] = True,
+    ) -> dict:
         """Return the contents of an object as a dict."""
         if _debug:
-            LPDU._debug("dict_contents use_dict=%r as_class=%r", use_dict, as_class)
+            LPDU._debug(
+                "dict_contents use_dict=%r as_class=%r include_data=%r",
+                use_dict,
+                as_class,
+                include_data,
+            )
 
         # make/extend the dictionary of content
         if use_dict is None:
             use_dict = as_class()
 
         # call the parent classes
-        self.lpci_contents(use_dict=use_dict, as_class=as_class)
-        self.lpdu_contents(use_dict=use_dict, as_class=as_class)
+        if include_lpci:
+            self.lpci_contents(use_dict=use_dict, as_class=as_class, include_data=False)
+        self.lpdu_contents(
+            use_dict=use_dict, as_class=as_class, include_data=include_data
+        )
+        if include_data:
+            PDUData.pdudata_contents(
+                self, use_dict=use_dict, as_class=as_class, include_data=include_data
+            )
 
         # return what we built/updated
         return use_dict
@@ -312,7 +356,13 @@ class FDTEntry(DebugContents):
             and (self.fdRemain == other.fdRemain)
         )
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def dict_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         # make/extend the dictionary of content
         if use_dict is None:
@@ -340,6 +390,8 @@ class Result(LPDU, BaseException):
     pduType = LPCI.result
 
     def __init__(self, code: Optional[int] = None, *args, **kwargs):
+        if _debug:
+            Result._debug("__init__ code=%r %r %r", code, args, kwargs)
         LPDU.__init__(self, *args, **kwargs)
 
         self.bvlciFunction = LPCI.result
@@ -365,12 +417,21 @@ class Result(LPDU, BaseException):
         lpdu.bvlciResultCode = pdu.get_short()
         return lpdu
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         return key_value_contents(
             use_dict=use_dict,
             as_class=as_class,
-            key_values=(("result_code", self.bvlciResultCode),),
+            key_values=(
+                ("function", "Result"),
+                ("bvlciResultCode", self.bvlciResultCode),
+            ),
         )
 
 
@@ -431,7 +492,13 @@ class WriteBroadcastDistributionTable(LPDU):
 
         return lpdu
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         broadcast_distribution_table = []
         for bdte in self.bvlciBDT:
@@ -469,7 +536,13 @@ class ReadBroadcastDistributionTable(LPDU):
     def decode(class_, pdu: PDU) -> LPDU:  # type: ignore[override]
         return ReadBroadcastDistributionTable()
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         return key_value_contents(
             use_dict=use_dict,
@@ -527,7 +600,13 @@ class ReadBroadcastDistributionTableAck(LPDU):
 
         return lpdu
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         broadcast_distribution_table = []
         for bdte in self.bvlciBDT:
@@ -585,7 +664,13 @@ class ForwardedNPDU(LPDU):
 
         return ForwardedNPDU(addr, data)
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
 
         # make/extend the dictionary of content
@@ -646,7 +731,13 @@ class RegisterForeignDevice(LPDU):
 
         return RegisterForeignDevice(ttl)
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         return key_value_contents(
             use_dict=use_dict,
@@ -680,7 +771,13 @@ class ReadForeignDeviceTable(LPDU):
     def decode(class_, pdu: PDU) -> LPDU:  # type: ignore[override]
         return ReadForeignDeviceTable()
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         return key_value_contents(
             use_dict=use_dict,
@@ -739,7 +836,13 @@ class ReadForeignDeviceTableAck(LPDU):
 
         return lpdu
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         foreign_device_table = []
         for fdte in self.bvlciFDT:
@@ -792,7 +895,13 @@ class DeleteForeignDeviceTableEntry(LPDU):
 
         return DeleteForeignDeviceTableEntry(addr)
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         return key_value_contents(
             use_dict=use_dict,
@@ -841,7 +950,13 @@ class DistributeBroadcastToNetwork(LPDU):
 
         return DistributeBroadcastToNetwork(data)
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
 
         # make/extend the dictionary of content
@@ -899,7 +1014,13 @@ class OriginalUnicastNPDU(LPDU):
 
         return OriginalUnicastNPDU(data)
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
 
         # make/extend the dictionary of content
@@ -957,7 +1078,13 @@ class OriginalBroadcastNPDU(LPDU):
 
         return OriginalBroadcastNPDU(data)
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
 
         # make/extend the dictionary of content

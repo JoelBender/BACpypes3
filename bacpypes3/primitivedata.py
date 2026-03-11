@@ -365,6 +365,36 @@ class Tag:
         # data
         file.write("%stag_data = '%s'\n" % ("    " * indent, btox(self.tag_data, ".")))
 
+    def dict_contents(
+        self,
+        use_dict: Optional[Dict[str, _Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, _Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
+        # make/extend the dictionary of content
+        if use_dict is None:
+            use_dict = as_class()
+
+        if self.tag_class == TagClass.opening:
+            use_dict.__setitem__("open", self.tag_number)
+        elif self.tag_class == TagClass.closing:
+            use_dict.__setitem__("close", self.tag_number)
+        elif self.tag_class == TagClass.context:
+            use_dict.__setitem__("context", self.tag_number)
+        elif self.tag_class == TagClass.application:
+            use_dict.__setitem__(
+                self._app_tag_name[self.tag_number], self.app_to_object()
+            )
+
+        if include_data:
+            use_dict.__setitem__("number", self.tag_number)
+            use_dict.__setitem__("lvt", self.tag_lvt)
+            use_dict.__setitem__("data", btox(self.tag_data, "."))
+
+        # return what we built/updated
+        return use_dict
+
 
 class ApplicationTag(Tag):
     """

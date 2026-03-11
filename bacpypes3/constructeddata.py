@@ -15,7 +15,7 @@ from typing import Callable, Dict, FrozenSet
 from typing import List as _List
 from typing import Optional, Set, TextIO, Tuple, Union, cast, get_type_hints
 
-from .debugging import DebugContents, ModuleLogger, bacpypes_debugging
+from .debugging import DebugContents, ModuleLogger, bacpypes_debugging, btox
 from .errors import EncodingError, InvalidTag, PropertyError
 from .primitivedata import (
     Atomic,
@@ -30,6 +30,7 @@ from .primitivedata import (
     TagList,
     TagNumber,
     Unsigned,
+    ObjectIdentifier,
 )
 
 # some debugging
@@ -94,15 +95,21 @@ class SequenceMetaclass(ElementMetaclass):
         for supercls in reversed(superclasses):
             if hasattr(supercls, "_elements"):
                 if _debug:
-                    SequenceMetaclass._debug("    - supercls._elements: %r", supercls._elements)  # type: ignore[attr-defined]
+                    SequenceMetaclass._debug(
+                        "    - supercls._elements: %r", supercls._elements
+                    )  # type: ignore[attr-defined]
                 _elements.update(supercls._elements)  # type: ignore[attr-defined]
             if hasattr(supercls, "_inits"):
                 if _debug:
-                    SequenceMetaclass._debug("    - supercls._inits: %r", supercls._inits)  # type: ignore[attr-defined]
+                    SequenceMetaclass._debug(
+                        "    - supercls._inits: %r", supercls._inits
+                    )  # type: ignore[attr-defined]
                 _inits.update(supercls._inits)  # type: ignore[attr-defined]
             if hasattr(supercls, "_order"):
                 if _debug:
-                    SequenceMetaclass._debug("    - supercls._order: %r", supercls._order)  # type: ignore[attr-defined]
+                    SequenceMetaclass._debug(
+                        "    - supercls._order: %r", supercls._order
+                    )  # type: ignore[attr-defined]
                 for element in supercls._order:  # type: ignore[attr-defined]
                     if element not in _order:
                         _order.append(element)
@@ -607,6 +614,66 @@ class Sequence(Element, DebugContents, metaclass=SequenceMetaclass):
 
     def __hash__(self):
         return id(self)
+
+    def dict_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = False,
+    ):
+        """Return the contents of a sequence as a dict."""
+        if _debug:
+            Sequence._debug("dict_contents use_dict=%r as_class=%r", use_dict, as_class)
+
+        # make/extend the dictionary of content
+        if use_dict is None:
+            use_dict = as_class()
+
+        # check the elements
+        for attr in self._elements:
+            if _debug:
+                Sequence._debug("    - attr: %r", attr)
+
+            self_value = self.__getattribute__(attr)
+
+            mapped_value: Any = None
+            if isinstance(self_value, list):
+                mapped_value = []
+                for elem in self_value:
+                    if hasattr(elem, "dict_contents"):
+                        mapped_value.append(elem.dict_contents(as_class=as_class))
+                    else:
+                        mapped_value.append(elem)
+
+            elif isinstance(self_value, dict) and self_value:
+                mapped_value = {}
+
+                for key, elem in self_value.items():
+                    if hasattr(elem, "dict_contents"):
+                        mapped_value[key] = elem.dict_contents(as_class=as_class)
+                    else:
+                        mapped_value[key] = elem
+
+            elif isinstance(self_value, (bytes, bytearray)):
+                mapped_value = btox(self_value, ".")
+
+            elif hasattr(self_value, "dict_contents"):
+                mapped_value = self_value.dict_contents(as_class=as_class)
+
+            elif isinstance(self_value, ObjectIdentifier):
+                mapped_value = str(self_value)
+
+            elif self_value is None:
+                continue
+
+            else:
+                mapped_value = self_value
+
+            use_dict.__setitem__(attr, mapped_value)
+
+        # return what we built/updated
+        return use_dict
 
 
 @bacpypes_debugging
@@ -1820,6 +1887,33 @@ class Any(Element):
                 file.write("%s[%d] %r\n" % ("    " * indent, i, elem))
             indent -= 1
             file.write("%s    ]\n" % ("    " * indent,))
+
+    def dict_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = False,
+    ):
+        """Return the contents as a dict."""
+        if _debug:
+            Any._debug("dict_contents use_dict=%r as_class=%r", use_dict, as_class)
+
+        # make/extend the dictionary of content
+        if use_dict is None:
+            use_dict = as_class()
+
+        if self.tagList is None:
+            return use_dict
+
+        mapped_value = [
+            tag.dict_contents(as_class=as_class, include_data=include_data)
+            for tag in self.tagList
+        ]
+        use_dict.__setitem__("any", mapped_value)
+
+        # return what we built/updated
+        return use_dict
 
 
 @bacpypes_debugging
