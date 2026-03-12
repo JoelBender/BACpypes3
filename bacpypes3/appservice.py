@@ -118,6 +118,7 @@ class SSM(DebugContents):
         self.pdu_address = pdu_address
         self.invokeID = None  # invoke ID
         self._timer_handle = None  # no timer scheduled
+        self._timer_expired_request = None  # no timer expired action scheduled
 
         self.state = IDLE  # initial state
         self.segmentAPDU = None  # refers to request or response
@@ -178,6 +179,10 @@ class SSM(DebugContents):
                 SSM._debug("    - is scheduled")
             self._timer_handle.cancel()
             self._timer_handle = None
+
+            if self._timer_expired_request:
+                self._timer_expired_request.cancel()
+                self._timer_expired_request = None
 
     def restart_timer(self, msecs: int) -> None:
         if _debug:
@@ -620,7 +625,7 @@ class ClientSSM(SSM):
             raise err
 
         if fn:
-            asyncio.ensure_future(fn())
+            self._timer_expired_request = asyncio.ensure_future(fn())
 
     def abort(self, reason):
         """This function is called when the transaction should be aborted."""
@@ -1186,7 +1191,7 @@ class ServerSSM(SSM):
             raise RuntimeError("invalid state")
 
         if fn:
-            asyncio.ensure_future(fn())
+            self._timer_expired_request = asyncio.ensure_future(fn())
 
     def abort(self, reason):
         """This function is called when the application would like to abort the

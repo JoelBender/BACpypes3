@@ -538,11 +538,11 @@ class ScheduleObject(_Object, _ScheduleObject):
         self.presentValue = current_value
 
         # compute the time of the next transition
-        transition_time = datetime_to_time(current_date, next_transition)
+        transition_time = datetime_to_time(current_date, next_transition) - datetime_to_time(current_date, current_time)
 
         # schedule this to run
         try:
-            self._interpret_schedule_handle = asyncio.get_running_loop().call_at(
+            self._interpret_schedule_handle = asyncio.get_running_loop().call_later(
                 transition_time, self.interpret_schedule
             )
         except RuntimeError:
