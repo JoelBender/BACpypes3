@@ -688,7 +688,8 @@ class ForwardedNPDU(LPDU):
         )
 
         # this message has data
-        PDUData.dict_contents(self, use_dict=use_dict, as_class=as_class)
+        if include_data:
+            PDUData.dict_contents(self, use_dict=use_dict, as_class=as_class)
 
         # return what we built/updated
         return use_dict
@@ -971,7 +972,8 @@ class DistributeBroadcastToNetwork(LPDU):
         )
 
         # this message has data
-        PDUData.dict_contents(self, use_dict=use_dict, as_class=as_class)
+        if include_data:
+            PDUData.dict_contents(self, use_dict=use_dict, as_class=as_class)
 
         # return what we built/updated
         return use_dict
@@ -1035,7 +1037,8 @@ class OriginalUnicastNPDU(LPDU):
         )
 
         # this message has data
-        PDUData.dict_contents(self, use_dict=use_dict, as_class=as_class)
+        if include_data:
+            PDUData.dict_contents(self, use_dict=use_dict, as_class=as_class)
 
         # return what we built/updated
         return use_dict
@@ -1099,7 +1102,8 @@ class OriginalBroadcastNPDU(LPDU):
         )
 
         # this message has data
-        PDUData.dict_contents(self, use_dict=use_dict, as_class=as_class)
+        if include_data:
+            PDUData.dict_contents(self, use_dict=use_dict, as_class=as_class)
 
         # return what we built/updated
         return use_dict
