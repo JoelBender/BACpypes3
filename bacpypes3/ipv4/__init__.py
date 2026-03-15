@@ -170,8 +170,9 @@ class IPv4DatagramServer(Server[PDU]):
                     return await loop.create_datagram_endpoint(
                         IPv4DatagramProtocol, sock=bind_socket
                     )
+                reuse_port = "nt" not in os.name
                 return await loop.create_datagram_endpoint(
-                    IPv4DatagramProtocol, local_addr=addrTuple, allow_broadcast=True, reuse_port=True
+                    IPv4DatagramProtocol, local_addr=addrTuple, allow_broadcast=True, reuse_port=reuse_port
                 )
             except OSError:
                 if _debug:
