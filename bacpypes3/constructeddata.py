@@ -1,6 +1,7 @@
 """
 Constructed Data
 """
+
 # mypy: ignore-errors
 
 from __future__ import annotations
@@ -392,7 +393,7 @@ class Sequence(Element, DebugContents, metaclass=SequenceMetaclass):
         """Encode a sequence as a tag list."""
         if _debug:
             Sequence._debug("(%s).encode", self.__class__.__name__)
-        if not self._order:
+        if not hasattr(self, "_order"):
             raise RuntimeError("sequences must be ordered")
 
         tag_list = TagList()
@@ -438,7 +439,7 @@ class Sequence(Element, DebugContents, metaclass=SequenceMetaclass):
         # override the cls parameter when necessary
         if class_:
             cls = class_
-        if not cls._order:
+        if not hasattr(cls, "_order"):
             raise RuntimeError("sequences must be ordered")
 
         # look ahead for elements
