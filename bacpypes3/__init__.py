@@ -18,7 +18,7 @@ if _sys.platform not in _supported_platforms:
 #   Project Metadata
 #
 
-__version__ = "0.0.104"
+__version__ = "0.0.105"
 __author__ = "Joel Bender"
 __email__ = "joel@carrickbender.com"
 
@@ -102,4 +102,4 @@ except ImportError:
 #   Analysis
 #
 
-# from . import analysis
+from . import analysis

@@ -4,7 +4,7 @@ Application Layer Protocol Data Units
 
 from __future__ import annotations
 
-from typing import Callable, Tuple, cast
+from typing import Dict, Callable, Optional, Tuple, Union, cast
 
 from .basetypes import (
     AtomicReadFileACKAccessMethodChoice,
@@ -52,7 +52,7 @@ from .basetypes import (
 )
 from .constructeddata import Any, Sequence, SequenceOf
 from .debugging import DebugContents, ModuleLogger, bacpypes_debugging
-from .errors import DecodingError, TooManyArguments
+from .errors import DecodingError
 from .pdu import PCI, PDU, PDUData
 from .primitivedata import (
     Boolean,
@@ -460,7 +460,13 @@ class APCI(PCI):
 
         return apci
 
-    def apci_contents(self, use_dict=None, as_class=dict) -> dict:
+    def apci_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ) -> dict:
         """Return the contents of an object as a dict."""
         if _debug:
             APCI._debug("apci_contents use_dict=%r as_class=%r", use_dict, as_class)
@@ -478,24 +484,54 @@ class APCI(PCI):
             if value is None:
                 continue
 
+            def get_name(d: Dict, item: int):
+                if item in d:
+                    return d[item].__name__
+                else:
+                    return item  # f"(unknown type/service: {item})"
+
             if attr == "apduType":
-                mapped_value = apdu_types[self.apduType].__name__
+                mapped_value = get_name(apdu_types, self.apduType)
+
             elif attr == "apduService":
                 if self.apduType in (
                     ConfirmedRequestPDU.pduType,
                     SimpleAckPDU.pduType,
                     ComplexAckPDU.pduType,
                 ):
-                    mapped_value = confirmed_request_types[self.apduService].__name__
+                    mapped_value = get_name(confirmed_request_types, self.apduService)
                 elif self.apduType == UnconfirmedRequestPDU.pduType:
-                    mapped_value = unconfirmed_request_types[self.apduService].__name__
+                    mapped_value = get_name(unconfirmed_request_types, self.apduService)
                 elif self.apduType == ErrorPDU.pduType:
-                    mapped_value = error_types[self.apduService].__name__
+                    mapped_value = get_name(error_types, self.apduService)
             else:
                 mapped_value = value
 
             # save the mapped value
             use_dict.__setitem__(attr, mapped_value)
+
+        # return what we built/updated
+        return use_dict
+
+    def dict_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ) -> dict:
+        """Return the contents of an object as a dict."""
+        if _debug:
+            APCI._debug("dict_contents use_dict=%r as_class=%r", use_dict, as_class)
+
+        # make/extend the dictionary of content
+        if use_dict is None:
+            use_dict = as_class()
+
+        # call the parent classes
+        self.apci_contents(
+            use_dict=use_dict, as_class=as_class, include_data=include_data
+        )
 
         # return what we built/updated
         return use_dict
@@ -566,10 +602,25 @@ class APDU(APCI, PDUData):
 
         return apdu
 
-    def apdu_contents(self, use_dict=None, as_class=dict) -> dict:
-        return PDUData.pdudata_contents(self, use_dict=use_dict, as_class=as_class)
+    def apdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ) -> dict:
+        return PDUData.pdudata_contents(
+            self, use_dict=use_dict, as_class=as_class, include_data=include_data
+        )
 
-    def dict_contents(self, use_dict=None, as_class=dict) -> dict:
+    def dict_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_pci: Optional[bool] = False,
+        include_data: Optional[bool] = False,
+    ) -> dict:
         """Return the contents of an object as a dict."""
         if _debug:
             APDU._debug("dict_contents use_dict=%r as_class=%r", use_dict, as_class)
@@ -578,9 +629,12 @@ class APDU(APCI, PDUData):
         if use_dict is None:
             use_dict = as_class()
 
-        # call the parent classes
-        self.apci_contents(use_dict=use_dict, as_class=as_class)
-        self.apdu_contents(use_dict=use_dict, as_class=as_class)
+        # call the parent class
+        if include_pci:
+            self.apci_contents(use_dict=use_dict, as_class=as_class, include_data=False)
+        self.apdu_contents(
+            use_dict=use_dict, as_class=as_class, include_data=include_data
+        )
 
         # return what we built/updated
         return use_dict
@@ -1019,7 +1073,13 @@ class APCISequence(APCI, Sequence):
 
         return cast(APCISequence, apci_sequence)
 
-    def apdu_contents(self, use_dict=None, as_class=dict):
+    def apdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         if _debug:
             APCISequence._debug(
@@ -1034,7 +1094,9 @@ class APCISequence(APCI, Sequence):
         use_dict.__setitem__("function", self.__class__.__name__)
 
         # fill in from the sequence contents
-        Sequence.dict_contents(self, use_dict=use_dict, as_class=as_class)
+        Sequence.dict_contents(
+            self, use_dict=use_dict, as_class=as_class, include_data=include_data
+        )
 
         # return what we built/updated
         return use_dict
