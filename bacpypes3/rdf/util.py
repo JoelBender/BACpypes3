@@ -42,7 +42,7 @@ _log = ModuleLogger(globals())
 
 
 # note: defined in both core.py and util.py
-BACnetNS = Namespace("http://data.ashrae.org/bacnet/")
+BACNET = Namespace("http://data.ashrae.org/bacnet/")
 
 # enumeration names are analog-value rather that analogValue
 _unupper_re = re.compile("[A-Z]{2,}(?:(?=[A-Z][a-z])|$)")
@@ -63,7 +63,7 @@ def attr_to_predicate(k: str):
     k = k.replace("-ipnat-", "-ip-nat-")
     k = k.replace("-ipudp-", "-ip-udp-")
 
-    return BACnetNS[k]
+    return BACNET[k]
 
 
 #
@@ -83,11 +83,11 @@ _octetstring_as_hexBinary = 1
 
 
 def null_encode(graph: Graph, value):
-    return BACnetNS.Null
+    return BACNET.Null
 
 
 def null_decode(graph: Graph, value):
-    assert value == BACnetNS.Null
+    assert value == BACNET.Null
     return Null(())
 
 
@@ -172,7 +172,7 @@ def characterstring_decode(graph: Graph, value):
 def bitstring_encode(graph: Graph, value):
     if _bitstring_as_bits:
         bit_string = "".join(str(bit) for bit in value)
-        return Literal(bit_string, datatype=BACnetNS.BitString)
+        return Literal(bit_string, datatype=BACNET.bitString)
 
     if _bitstring_as_str:
         return Literal(str(value))
@@ -187,7 +187,7 @@ def bitstring_encode(graph: Graph, value):
 
             if bit_number in bit_names:
                 literal = URIRef(
-                    BACnetNS[value.__class__.__name__ + "." + bit_names[bit_number]]
+                    BACNET[value.__class__.__name__ + "." + bit_names[bit_number]]
                 )
             else:
                 literal = Literal(bit_number)
@@ -214,7 +214,7 @@ def bitstring_encode(graph: Graph, value):
 
 def bitstring_decode(graph: Graph, value, class_):
     if _bitstring_as_bits:
-        assert isinstance(value, Literal) and (value.datatype == BACnetNS.BitString)
+        assert isinstance(value, Literal) and (value.datatype == BACNET.bitString)
         bit_string = [int(c) for c in str(value) if c in ("0", "1")]
         return class_(bit_string)
 
@@ -231,7 +231,7 @@ def bitstring_decode(graph: Graph, value, class_):
             if isinstance(node_value, int):
                 bits_set.add(node_value)
             elif isinstance(node_value, URIRef):
-                uri_value = str(node_value).replace(str(BACnetNS), "").split(".", 1)
+                uri_value = str(node_value).replace(str(BACNET), "").split(".", 1)
                 assert uri_value[0] == class_.__name__
 
                 bits_set.add(class_._bitstring_names[uri_value[1]])
@@ -256,9 +256,9 @@ def enumerated_encode(graph: Graph, value):
     if _enumerated_as_str:
         return Literal(value.asn1)
     if _enumerated_as_datatype:
-        return Literal(value.asn1, datatype=BACnetNS[value.__class__.__name__])
+        return Literal(value.asn1, datatype=BACNET[value.__class__.__name__])
     if _enumerated_as_uri:
-        return URIRef(BACnetNS[value.__class__.__name__ + "." + value.asn1])
+        return URIRef(BACNET[value.__class__.__name__ + "." + value.asn1])
 
     raise NotImplementedError("enumerated_encode")
 
@@ -270,13 +270,13 @@ def enumerated_decode(graph: Graph, value, class_):
 
     if _enumerated_as_datatype:
         assert isinstance(value, Literal)
-        assert value.datatype == BACnetNS[class_.__name__]
+        assert value.datatype == BACNET[class_.__name__]
         return class_(str(value))
 
     if _enumerated_as_uri:
         assert isinstance(value, URIRef)
 
-        uri_value = str(value).replace(str(BACnetNS), "").split(".", 1)
+        uri_value = str(value).replace(str(BACNET), "").split(".", 1)
         assert uri_value[0] == class_.__name__
 
         return class_(uri_value[1])
@@ -286,14 +286,14 @@ def enumerated_decode(graph: Graph, value, class_):
 
 def date_encode(graph: Graph, value):
     if value.is_special:
-        return Literal(str(value), datatype=BACnetNS.datePattern)
+        return Literal(str(value), datatype=BACNET.datePattern)
     else:
         return Literal(value.date)
 
 
 def date_decode(graph: Graph, value):
     assert isinstance(value, Literal)
-    if value.datatype == BACnetNS.datePattern:
+    if value.datatype == BACNET.datePattern:
         return Date(str(value))
     elif value.datatype == XSD.date:
         return Date(value.value)
@@ -303,14 +303,14 @@ def date_decode(graph: Graph, value):
 
 def time_encode(graph: Graph, value):
     if value.is_special:
-        return Literal(str(value), datatype=BACnetNS.timePattern)
+        return Literal(str(value), datatype=BACNET.timePattern)
     else:
         return Literal(value.time)  # normalize=False?
 
 
 def time_decode(graph: Graph, value):
     assert isinstance(value, Literal)
-    if value.datatype == BACnetNS.timePattern:
+    if value.datatype == BACNET.timePattern:
         return Time(str(value))
     elif value.datatype == XSD.time:
         return Time(value.value)
@@ -321,26 +321,24 @@ def time_decode(graph: Graph, value):
 def objectidentifier_encode(graph: Graph, value):
     obj_type, obj_instance = value
     objectidentifier_string = "{},{}".format(obj_type, obj_instance)
-    # alternate datatype=BACnetNS.ObjectIdentifier
-    return Literal(objectidentifier_string)
+    return Literal(objectidentifier_string, datatype=BACNET.objectIdentifier)
 
 
 def objectidentifier_decode(graph: Graph, value):
-    # alternate (value.datatype == BACnetNS.ObjectIdentifier)
-    assert isinstance(value, Literal) and (value.datatype is None)
+    assert isinstance(value, Literal) and (value.datatype is BACNET.objectIdentifier)
     return ObjectIdentifier(str(value))
 
 
 def datetime_encode(graph: Graph, value):
     if value.is_special:
-        return Literal(str(value), datatype=BACnetNS.dateTimePattern)
+        return Literal(str(value), datatype=BACNET.dateTimePattern)
     else:
         return Literal(value.datetime)  # normalize=False?
 
 
 def datetime_decode(graph: Graph, value):
     assert isinstance(value, Literal)
-    if value.datatype == BACnetNS.dateTimePattern:
+    if value.datatype == BACNET.dateTimePattern:
         return DateTime(str(value))
     elif value.datatype == XSD.dateTime:
         return DateTime(value.value)
@@ -439,7 +437,7 @@ def sequence_to_graph(
     # make a graph if one wasn't provided
     if graph is None:
         graph = Graph()
-        graph.bind("bacnet", BACnetNS)
+        graph.bind("bacnet", BACNET)
 
     for attr, element in seq._elements.items():
         # ask the element to get the value
@@ -501,7 +499,7 @@ def graph_to_sequence(graph: Graph, node: URIRef, seq_class: type) -> Sequence:
         elif issubclass(element, ExtendedList):
             value = graph_to_extendedlist(graph, node, attr_to_predicate(attr), element)
         elif issubclass(element, (AnyAtomic, AnyAtomicExtended)):
-            if literal == BACnetNS.Null:
+            if literal == BACNET.Null:
                 value = Null(())
             elif isinstance(literal, Literal):
                 if literal.datatype == XSD.boolean:
@@ -520,13 +518,13 @@ def graph_to_sequence(graph: Graph, node: URIRef, seq_class: type) -> Sequence:
                     value = octetstring_decode(graph, literal)
                 elif literal.datatype is None:
                     value = characterstring_decode(graph, literal)
-                elif literal.datatype == BACnetNS.BitString:
+                elif literal.datatype == BACNET.bitString:
                     value = bitstring_decode(graph, literal)
-                elif literal.datatype in (BACnetNS.datePattern, XSD.date):
+                elif literal.datatype in (BACNET.datePattern, XSD.date):
                     value = date_decode(graph, literal)
-                elif literal.datatype in (BACnetNS.timePattern, XSD.time):
+                elif literal.datatype in (BACNET.timePattern, XSD.time):
                     value = time_decode(graph, literal)
-                elif literal.datatype == BACnetNS.ObjectIdentifier:
+                elif literal.datatype == BACNET.objectIdentifier:
                     value = objectidentifier_decode(graph, literal)
                 else:
                     raise ValueError(literal.datatype)
@@ -569,7 +567,7 @@ def extendedlist_to_graph(
     # make a graph if one wasn't provided
     if graph is None:
         graph = Graph()
-        graph.bind("bacnet", BACnetNS)
+        graph.bind("bacnet", BACNET)
 
     for value in xlist:
         if isinstance(value, Atomic):

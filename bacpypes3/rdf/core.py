@@ -33,7 +33,7 @@ _debug = 0
 _log = ModuleLogger(globals())
 
 
-BACnetNS = Namespace("http://data.ashrae.org/bacnet/")
+BACNET = Namespace("http://data.ashrae.org/bacnet/")
 BACnetURI = Namespace("bacnet:")
 
 #
@@ -104,7 +104,7 @@ def bacnet_query(query: str) -> Any:
     The prepared query is provided to the `BACnetGraph.query()` method
     along with initial variable bindings if they have been provided.
     """
-    return prepareQuery(query, initNs={"bacnet": BACnetNS})
+    return prepareQuery(query, initNs={"bacnet": BACNET})
 
 
 find_device_by_address = bacnet_query(
@@ -141,7 +141,7 @@ class BACnetGraph:
 
         # bind the BACnet namespace
         if hasattr(self.graph, "namespace_manager"):
-            self.graph.namespace_manager.bind("bacnet", URIRef(BACnetNS))
+            self.graph.namespace_manager.bind("bacnet", URIRef(BACNET))
 
     def bind_namespace(self, prefix: str, uri: str) -> Namespace:
         """
@@ -182,11 +182,11 @@ class BACnetGraph:
         create and return a DeviceGraph for the device.
         """
         device_iri = _device_node(device_identifier)
-        self.graph.add((device_iri, RDF.type, BACnetNS.Device))
+        self.graph.add((device_iri, RDF.type, BACNET.Device))
 
         if device_address is not None:
             device_address_iri = _blank_node()
-            self.graph.add((device_iri, BACnetNS["device-address"], device_address_iri))
+            self.graph.add((device_iri, BACNET["device-address"], device_address_iri))
 
             # encode the network portion, local stations are network 0
             self.graph.add(
@@ -207,7 +207,7 @@ class BACnetGraph:
 
         if device_identifier is not None:
             self.graph.add(
-                (device_iri, BACnetNS["device-instance"], Literal(device_identifier[1]))
+                (device_iri, BACNET["device-instance"], Literal(device_identifier[1]))
             )
 
         return DeviceGraph(self, device_iri)
@@ -262,7 +262,7 @@ class DeviceGraph:
         object_proxy.objectIdentifier = object_identifier
 
         # associate this object with its device -- layer hopping :-/
-        self.graph.graph.add((self.device_iri, BACnetNS.contains, object_iri))
+        self.graph.graph.add((self.device_iri, BACNET.contains, object_iri))
 
         return object_proxy
 
@@ -278,7 +278,7 @@ class DeviceGraph:
         object and delete all of its associated nodes.
         """
         # object_iri = _object_node(self.device_iri, object_identifier)
-        # self.graph.remove((self.device_iri, BACnetNS.contains, object_iri))
+        # self.graph.remove((self.device_iri, BACNET.contains, object_iri))
         pass
 
 
