@@ -24,7 +24,6 @@ from typing import (
     List,
     Optional,
     Tuple,
-    TypeAlias,
     Union,
 )
 
@@ -681,7 +680,7 @@ class TracerState(Enum):
     FINI = 2
 
 
-TracerMethod: TypeAlias = Callable[["Tracer", Frame | None], None]
+TracerMethod = Callable[["Tracer", Union[Frame, None]], None]
 
 
 @bacpypes_debugging
@@ -693,7 +692,7 @@ class Tracer:
     """
 
     _state: TracerState
-    _state_method: TracerMethod | None
+    _state_method: Optional[TracerMethod]
 
     @experimental
     def __init__(self) -> None:
