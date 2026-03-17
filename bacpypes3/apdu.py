@@ -864,12 +864,7 @@ class ErrorRejectAbortNack(BaseException):
 
     @property
     def reason(self) -> int:
-        if isinstance(self, ErrorPDU):
-            return self.errorCode  # type: ignore[attr-defined]
-        elif isinstance(self, (RejectPDU, AbortPDU)):
-            return self.apduAbortRejectReason
-        else:
-            raise TypeError("must be an ErrorPDU, RejectPDU or AbortPDU")
+        raise TypeError("must be an ErrorPDU, RejectPDU or AbortPDU")
 
     def __str__(self) -> str:
         return str(self.reason)
@@ -936,6 +931,10 @@ class RejectPDU(APDU, ErrorRejectAbortNack):
         if context is not None:
             self.set_context(context)
 
+    @property
+    def reason(self) -> int:
+        return self.apduAbortRejectReason
+
 
 #
 #   AbortPDU
@@ -972,6 +971,10 @@ class AbortPDU(APDU, ErrorRejectAbortNack):
         # use the context to fill in most of the fields
         if context is not None:
             self.set_context(context)
+
+    @property
+    def reason(self) -> int:
+        return self.apduAbortRejectReason
 
 
 #
@@ -1862,6 +1865,10 @@ class Error(ErrorSequence):
     errorClass = ErrorClass()
     errorCode = ErrorCode()
 
+    @property
+    def reason(self) -> int:
+        return self.errorCode
+
     def __str__(self):
         return str(self.errorClass) + ": " + str(self.errorCode)
 
@@ -1895,7 +1902,19 @@ for service_choice in {
     )
 
 
-class ChangeListError(ErrorSequence):
+class _ErrorSequence(ErrorSequence):
+    """
+    This class provides the error code for subclasses of ErrorPDU that are
+    not subclasses of Error.  In these special types below the error code is
+    nested inside an ErrorType instance.  This property is used to describe
+    the problem when errors, rejects, and aborts are used as exceptions.
+    """
+    @property
+    def reason(self) -> int:
+        return self.errorType.errorCode
+
+
+class ChangeListError(_ErrorSequence):
     _order = ("errorType", "firstFailedElementNumber")
     errorType = ErrorType(_context=0)
     firstFailedElementNumber = Unsigned(_context=1)
@@ -1906,7 +1925,7 @@ error_types[9] = ChangeListError
 
 
 @register_error_type
-class ConfirmedPrivateTransferError(ErrorSequence):
+class ConfirmedPrivateTransferError(_ErrorSequence):
     service_choice = ConfirmedServiceChoice.confirmedPrivateTransfer
     _order = ("errorType", "vendorID", "serviceNumber", "errorParameters")
     errorType = ErrorType(_context=0)
@@ -1919,7 +1938,7 @@ error_types[18] = ConfirmedPrivateTransferError
 
 
 @register_error_type
-class CreateObjectError(ErrorSequence):
+class CreateObjectError(_ErrorSequence):
     service_choice = ConfirmedServiceChoice.createObject
     _order = ("errorType", "firstFailedElementNumber")
     errorType = ErrorType(_context=0)
@@ -1930,7 +1949,7 @@ error_types[10] = CreateObjectError
 
 
 @register_error_type
-class VTCloseError(ErrorSequence):
+class VTCloseError(_ErrorSequence):
     service_choice = ConfirmedServiceChoice.vtClose
     _order = ("errorType", "listOfVTSessionIdentifiers")
     errorType = ErrorType(_context=0)
@@ -1941,7 +1960,7 @@ error_types[22] = VTCloseError
 
 
 @register_error_type
-class WritePropertyMultipleError(ErrorSequence):
+class WritePropertyMultipleError(_ErrorSequence):
     service_choice = ConfirmedServiceChoice.writePropertyMultiple
     _order = ("errorType", "firstFailedWriteAttempt")
     errorType = ErrorType(_context=0)
