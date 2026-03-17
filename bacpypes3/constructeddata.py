@@ -901,6 +901,17 @@ class Choice(Sequence):
         # return the sequence
         return result
 
+    def __repr__(self) -> str:
+        """
+        Provide a little more detail when dumping out a choice.
+        """
+        if not self._choice:
+            return f"<{self.__class__.__name__}(?)>"
+        else:
+            attr = self._choice
+            element = getattr(self, attr)
+            return f"<{self.__class__.__name__}({attr}) {element}>"
+
 
 @bacpypes_debugging
 class ExtendedListMetaclass(type):
