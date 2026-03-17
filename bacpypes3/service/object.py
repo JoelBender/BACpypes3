@@ -44,7 +44,7 @@ from ..errors import (
 )
 from ..object import DeviceObject
 from ..pdu import Address
-from ..primitivedata import Date, Null, ObjectIdentifier, Time, Unsigned
+from ..primitivedata import Atomic, Date, Null, ObjectIdentifier, Time, Unsigned
 from ..vendor import VendorInfo, get_vendor_info
 
 # some debugging
@@ -163,7 +163,10 @@ class ReadWritePropertyServices:
                 )
 
         # cast it out of the Any
-        property_value = response.propertyValue.cast_out(property_type, null=True)
+        # some devices return a Null https://github.com/JoelBender/BACpypes3/pull/101
+        property_value = response.propertyValue.cast_out(
+            property_type, null=issubclass(property_type, Atomic)
+        )
         if _debug:
             ReadWritePropertyServices._debug(
                 "    - property_value: %r %r", property_value, property_type.__class__
@@ -925,7 +928,9 @@ class ReadWritePropertyMultipleServices:
             obj = self.get_object_id(object_identifier)
             if not obj:
                 error_type = ErrorType(errorClass="object", errorCode="unknownObject")
-                obj_prop_ref = ObjectPropertyReference(objectIdentifier=object_identifier)
+                obj_prop_ref = ObjectPropertyReference(
+                    objectIdentifier=object_identifier
+                )
                 raise WritePropertyMultipleError(
                     errorType=error_type,
                     firstFailedWriteAttempt=obj_prop_ref,
