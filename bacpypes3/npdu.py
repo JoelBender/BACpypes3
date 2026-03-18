@@ -405,7 +405,9 @@ class NetworkCodec(Client[PDU], Server[NPDU]):
             try:
                 npdu_class = npdu_types[npdu.npduNetMessage]
             except KeyError:
-                raise RuntimeError(f"unrecognized NPDU type: {npdu.npduNetMessage}")
+                if _debug:
+                    NetworkCodec._debug("unrecognized NPDU type: %r", npdu)
+                return
             if _debug:
                 NetworkCodec._debug("    - npdu_class: %r", npdu_class)
 
