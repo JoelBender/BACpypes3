@@ -453,7 +453,9 @@ class Application(
                 raise RuntimeError("mismatched object type")
 
             # using vendor info get the appropriate class for this type
-            object_class = vendor_info.get_object_class(ObjectType(object_type))
+            object_class = vendor_info.get_object_class(
+                vendor_info.object_type(object_type)
+            )
             if _debug:
                 Application._debug("    - object_class: %r", object_class)
             if not object_class:
