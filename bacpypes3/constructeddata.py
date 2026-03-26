@@ -482,9 +482,13 @@ class Sequence(Element, DebugContents, metaclass=SequenceMetaclass):
             # this sequence so all of the rest of the elements must be optional
             if (not tag) or (tag.tag_class == TagClass.closing):
                 if not element._optional:
-                    raise AttributeError(
-                        f"{attr} is a required element of {cls.__name__}"
-                    )
+                    # a SequenceOf element that is required but not context
+                    # encoded can still be "decoded" from an empty list,
+                    # see AtomicReadFileACK, record-access, SequenceOf(OctetString)
+                    if not issubclass(element, ExtendedList):
+                        raise AttributeError(
+                            f"{attr} is a required element of {cls.__name__}"
+                        )
                 else:
                     continue
 

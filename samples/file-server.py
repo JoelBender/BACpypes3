@@ -8,12 +8,16 @@ from typing import Callable
 from bacpypes3.debugging import ModuleLogger, bacpypes_debugging
 from bacpypes3.argparse import SimpleArgumentParser
 from bacpypes3.ipv4.app import Application
-from bacpypes3.local.file import LocalRecordAccessFileObject, LocalStreamAccessFileObject
+from bacpypes3.local.file import (
+    LocalRecordAccessFileObject,
+    LocalStreamAccessFileObject,
+)
 from bacpypes3.service.file import FileServices
 
 # some debugging
 _debug = 0
 _log = ModuleLogger(globals())
+
 
 @bacpypes_debugging
 class CustomApplication(Application, FileServices):
@@ -21,6 +25,7 @@ class CustomApplication(Application, FileServices):
     Add file services to a custom application before rolling it into the rest of
     the included services for an Application.
     """
+
     _debug: Callable[..., None]
 
 
@@ -42,7 +47,7 @@ async def main() -> None:
             objectName="File 1",
         )
         if _debug:
-            _log.debug("file_object: %r", record_access_file_object)
+            _log.debug("record_access_file_object: %r", record_access_file_object)
 
         app.add_object(record_access_file_object)
 
@@ -52,7 +57,7 @@ async def main() -> None:
             objectName="File 2",
         )
         if _debug:
-            _log.debug("file_object: %r", stream_access_file_object)
+            _log.debug("stream_access_file_object: %r", stream_access_file_object)
 
         app.add_object(stream_access_file_object)
 

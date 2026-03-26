@@ -20,5 +20,6 @@ from . import analog
 from . import binary
 from . import event
 from . import fault
+from . import file
 from . import networkport
 from . import schedule

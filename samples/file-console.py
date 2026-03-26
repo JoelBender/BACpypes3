@@ -9,7 +9,7 @@ from bacpypes3.debugging import ModuleLogger, bacpypes_debugging
 from bacpypes3.argparse import SimpleArgumentParser
 
 from bacpypes3.pdu import Address
-from bacpypes3.primitivedata import ObjectIdentifier, Integer, Unsigned
+from bacpypes3.primitivedata import ObjectIdentifier, Integer, Unsigned, OctetString
 from bacpypes3.apdu import ErrorRejectAbortNack
 from bacpypes3.app import Application
 from bacpypes3.cmd import Cmd
@@ -31,6 +31,7 @@ class CustomApplication(Application, FileServices):
     Add file services to a custom application before rolling it into the rest of
     the included services for an Application.
     """
+
     _debug: Callable[..., None]
 
 
@@ -62,7 +63,12 @@ class SampleCmd(Cmd):
             )
 
         try:
-            end_of_file, file_start_record, returned_record_count, file_record_data = await app.read_record(
+            (
+                end_of_file,
+                file_start_record,
+                returned_record_count,
+                file_record_data,
+            ) = await app.read_record(
                 address,
                 object_identifier,
                 file_start_record,
@@ -73,7 +79,42 @@ class SampleCmd(Cmd):
                 SampleCmd._debug("    - exception: %r", err)
             return
 
-        await self.response(f"{end_of_file=}, {returned_record_count=}, {file_record_data=}")
+        await self.response(
+            f"{end_of_file=}, {returned_record_count=}, {file_record_data=}"
+        )
+
+    async def do_write_record(
+        self,
+        address: Address,
+        object_identifier: ObjectIdentifier,
+        file_start_record: Integer,
+        *record_data: str,
+    ) -> None:
+        """
+        usage: write_record address object_identifier file_start_record [ record ... ]
+        """
+        if _debug:
+            SampleCmd._debug(
+                "do_write_record %r %r %r %r",
+                address,
+                object_identifier,
+                file_start_record,
+                record_data,
+            )
+
+        try:
+            file_start_record = await app.write_record(
+                address,
+                object_identifier,
+                file_start_record,
+                [OctetString(record.encode() + b"\n") for record in record_data],
+            )
+        except ErrorRejectAbortNack as err:
+            if _debug:
+                SampleCmd._debug("    - exception: %r", err)
+            return
+
+        await self.response(f"{file_start_record=}")
 
     async def do_read_stream(
         self,
@@ -109,6 +150,39 @@ class SampleCmd(Cmd):
             return
 
         await self.response(f"{end_of_file=}, {file_start_position=}, {file_data=}")
+
+    async def do_write_stream(
+        self,
+        address: Address,
+        object_identifier: ObjectIdentifier,
+        file_start_position: Integer,
+        file_data: str,
+    ) -> None:
+        """
+        usage: write_stream address object_identifier file_start_record file_data
+        """
+        if _debug:
+            SampleCmd._debug(
+                "do_write_stream %r %r %r %r",
+                address,
+                object_identifier,
+                file_start_position,
+                file_data,
+            )
+
+        try:
+            file_start_position = await app.write_stream(
+                address,
+                object_identifier,
+                file_start_position,
+                OctetString(file_data.encode()),
+            )
+        except ErrorRejectAbortNack as err:
+            if _debug:
+                SampleCmd._debug("    - exception: %r", err)
+            return
+
+        await self.response(f"{file_start_position=}")
 
 
 async def main() -> None:
