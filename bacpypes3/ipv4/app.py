@@ -78,7 +78,7 @@ class NormalApplication(
 
         # a application service access point will be needed
         self.asap = ApplicationServiceAccessPoint(
-            self.device_object, self.device_info_cache
+            device_object, self.device_info_cache
         )
         if _debug:
             NormalApplication._debug("    - asap: %r", self.asap)
@@ -149,7 +149,7 @@ class ForeignApplication(
 
         # a application service access point will be needed
         self.asap = ApplicationServiceAccessPoint(
-            self.device_object, self.device_info_cache
+            device_object, self.device_info_cache
         )
 
         # a network service access point will be needed
@@ -225,7 +225,7 @@ class BBMDApplication(
 
         # a application service access point will be needed
         self.asap = ApplicationServiceAccessPoint(
-            self.device_object, self.device_info_cache
+            device_object, self.device_info_cache
         )
 
         # a network service access point will be needed
