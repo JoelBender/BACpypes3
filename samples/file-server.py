@@ -30,8 +30,8 @@ class CustomApplication(Application, FileServices):
 
 
 async def main() -> None:
+    app: Application | None = None
     try:
-        app = None
         args = SimpleArgumentParser().parse_args()
         if _debug:
             _log.debug("args: %r", args)

@@ -22,7 +22,7 @@ _debug = 0
 _log = ModuleLogger(globals())
 
 # globals
-app: Application
+app: Application | None = None
 
 
 @bacpypes_debugging
