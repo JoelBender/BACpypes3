@@ -248,8 +248,8 @@ class Tag:
             else:
                 # tag_lvt contains length
                 tag.tag_data = pdu_data.get_data(tag.tag_lvt)
-        except DecodingError:
-            raise InvalidTag("invalid tag encoding")
+        except DecodingError as err:
+            raise InvalidTag(f"invalid tag encoding: {err}") from err
 
         return tag
 
