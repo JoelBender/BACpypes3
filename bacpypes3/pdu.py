@@ -740,6 +740,16 @@ class RemoteStation(Address):
                     addrstr += ":" + str(port)
             else:
                 addrstr = "0x" + btox(self.addrAddr)
+        elif self.addrLen == 18:
+            port = struct.unpack(">H", self.addrAddr[-2:])[0]
+            if 47808 <= port <= 47810:
+                addrstr = (
+                    "[" + socket.inet_ntop(socket.AF_INET6, self.addrAddr[:16]) + "]"
+                )
+                if port != 47808:
+                    addrstr += ":" + str(port)
+            else:
+                addrstr = "0x" + btox(self.addrAddr)
         else:
             addrstr = "0x" + btox(self.addrAddr)
 

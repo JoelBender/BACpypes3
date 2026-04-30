@@ -118,6 +118,20 @@ class TestAddress(unittest.TestCase, MatchAddressMixin):
         assert str(test_addr) == "1.2.3.4"
         assert test_addr.addrBroadcastTuple == ("1.2.3.255", 47808)
 
+        # test IPv6 local station address
+        test_addr = Address("[fe80::67a9]")
+        self.match_address(
+            test_addr, 2, None, 18, "FE8000000000000000000000000067A9BAC0"
+        )
+        assert str(test_addr) == "[fe80::67a9]"
+
+        # test IPv6 local station address with non-standard port
+        test_addr = Address("[fe80::67a9]:47809")
+        self.match_address(
+            test_addr, 2, None, 18, "FE8000000000000000000000000067A9BAC1"
+        )
+        assert str(test_addr) == "[fe80::67a9]:47809"
+
     def test_address_eth_str(self):
         if _debug:
             TestAddress._debug("test_address_eth_str")
@@ -241,6 +255,16 @@ class TestAddress(unittest.TestCase, MatchAddressMixin):
         test_addr = Address("1:2.3.4.5:47809")
         self.match_address(test_addr, 4, 1, 6, "02030405BAC1")
         assert str(test_addr) == "1:2.3.4.5:47809"
+
+        # test IPv6 remote station address
+        test_addr = Address("1:[fe80::67a9]")
+        self.match_address(test_addr, 4, 1, 18, "FE8000000000000000000000000067A9BAC0")
+        assert str(test_addr) == "1:[fe80::67a9]"
+
+        # test IPv6 remote station address with non-standard port
+        test_addr = Address("1:[fe80::67a9]:47809")
+        self.match_address(test_addr, 4, 1, 18, "FE8000000000000000000000000067A9BAC1")
+        assert str(test_addr) == "1:[fe80::67a9]:47809"
 
     def test_address_global_broadcast_str(self):
         if _debug:
