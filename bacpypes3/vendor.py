@@ -81,7 +81,7 @@ class VendorInfo(DebugContents):
 
             # build an object identifier class with the specialized object type
             self.object_identifier = type(
-                "ObjectIdentifier!",
+                "ObjectIdentifier",
                 (ObjectIdentifier,),
                 {
                     "_vendor_id": vendor_identifier,
@@ -112,6 +112,13 @@ class VendorInfo(DebugContents):
                     f" already registered: {self.registered_object_classes[object_type]}"
                 )
             return
+
+        # make sure that the class that is going to be used to decode
+        # object identifiers of this object_class uses the same specialized
+        # version built in the __init__ above
+        object_type_class = object_class._elements["objectType"]
+        if object_type_class is not ObjectType:
+            object_class._elements['objectIdentifier'] = self.object_identifier
 
         self.registered_object_classes[object_type] = object_class
 

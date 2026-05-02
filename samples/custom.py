@@ -74,10 +74,10 @@ class ProprietaryObject(_Object):
     # object identifiers are interpreted from this customized subclass of the
     # standard ObjectIdentifier that leverages the ProprietaryObjectType
     # enumeration in the vendor information
-    objectIdentifier: custom_vendor_info.object_identifier
+    # objectIdentifier: custom_vendor_info.object_identifier
 
     # all objects get the object-type property to be this value
-    objectType = ProprietaryObjectType("custom_object")
+    objectType: ProprietaryObjectType = ProprietaryObjectType("custom_object")
 
     # all objects have an object-name property, provided by the parent class
     # with special hooks if an instance of this class is bound to an application

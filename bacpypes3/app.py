@@ -721,7 +721,7 @@ class Application(
                 Application._debug("     - link_layer: %r", link_layer)
             if link_layer:
                 link_layer.close()
-                del self.link_layers.get[obj.objectIdentifier]
+                del self.link_layers[obj.objectIdentifier]
 
     def get_object_id(self, objid):
         """Return a local object or None."""
