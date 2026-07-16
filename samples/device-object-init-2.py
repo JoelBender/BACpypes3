@@ -2,6 +2,7 @@
 Define a new device object for vendor identifier 888, create an instance of it,
 dump the contents as JSON, then round-trip the JSON back into a device object.
 """
+
 from pprint import pprint
 
 from bacpypes3.debugging import ModuleLogger

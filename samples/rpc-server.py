@@ -10,6 +10,7 @@ This application takes all of the usual BACpypes command line arguments and
 adds a `--host` and `--port` for the web service, and `--log-level` for
 uvicorn debugging.
 """
+
 from __future__ import annotations
 
 import asyncio

@@ -1159,6 +1159,7 @@ class NetworkType(Enumerated):
     virtual = 7
     ipv6 = 9
     serial = 10
+    secureConnect = 11
 
 
 class NodeType(Enumerated):
@@ -3633,6 +3634,95 @@ class RouterEntry(Sequence):
     macAddress = OctetString(_context=1)
     status = RouterEntryStatus(_context=2)
     performanceIndex = Unsigned8(_context=3, _optional=True)
+
+
+class SCConnectionState(Enumerated):
+    notConnected = 0
+    connected = 1
+    disconnectedWithErrors = 2
+    failedToConnect = 3
+
+
+class SCHubConnectorState(Enumerated):
+    noHubConnection = 0
+    connectedToPrimary = 1
+    connectedToFailover = 2
+
+
+class SCHubConnection(Sequence):
+    _order = (
+        "connectionState",
+        "connectTimestamp",
+        "disconnectTimestamp",
+        "error",
+        "errorDetails",
+    )
+    connectionState = SCConnectionState(_context=0)
+    connectTimestamp = DateTime(_context=1)
+    disconnectTimestamp = DateTime(_context=2)
+    error = ErrorType(_context=3, _optional=True)
+    errorDetails = CharacterString(_context=4, _optional=True)
+
+
+class SCDirectConnection(Sequence):
+    _order = (
+        "uri",
+        "connectionState",
+        "connectTimestamp",
+        "disconnectTimestamp",
+        "peerAddress",
+        "peerVMAC",
+        "peerUUID",
+        "error",
+        "errorDetails",
+    )
+    uri = CharacterString(_context=0)
+    connectionState = SCConnectionState(_context=1)
+    connectTimestamp = DateTime(_context=2)
+    disconnectTimestamp = DateTime(_context=3)
+    peerAddress = HostNPort(_context=4, _optional=True)
+    peerVMAC = OctetString(_context=5, _optional=True)  # SIZE(6)
+    peerUUID = OctetString(_context=6, _optional=True)  # SIZE(16)
+    error = ErrorType(_context=7, _optional=True)
+    errorDetails = CharacterString(_context=8, _optional=True)
+
+
+class SCFailedConnectionRequest(Sequence):
+    _order = (
+        "timestamp",
+        "peerAddress",
+        "peerVMAC",
+        "peerUUID",
+        "error",
+        "errorDetails",
+    )
+    timestamp = DateTime(_context=0)
+    peerAddress = HostNPort(_context=1)
+    peerVMAC = OctetString(_context=2, _optional=True)  # SIZE(6)
+    peerUUID = OctetString(_context=3, _optional=True)  # SIZE(16)
+    error = ErrorType(_context=4)
+    errorDetails = CharacterString(_context=5, _optional=True)
+
+
+class SCHubFunctionConnection(Sequence):
+    _order = (
+        "connectionState",
+        "connectTimestamp",
+        "disconnectTimestamp",
+        "peerAddress",
+        "peerVMAC",
+        "peerUUID",
+        "error",
+        "errorDetails",
+    )
+    connectionState = SCConnectionState(_context=0)
+    connectTimestamp = DateTime(_context=1)
+    disconnectTimestamp = DateTime(_context=2)
+    peerAddress = HostNPort(_context=3)
+    peerVMAC = OctetString(_context=4)  # SIZE(6)
+    peerUUID = OctetString(_context=5)  # SIZE(16)
+    error = ErrorType(_context=6, _optional=True)
+    errorDetails = CharacterString(_context=7, _optional=True)
 
 
 class SecurityKeySet(Sequence):

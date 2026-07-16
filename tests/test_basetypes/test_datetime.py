@@ -30,10 +30,22 @@ class TestDateTime(unittest.TestCase):
         assert obj.time is None
 
         # ctor simple parameters
-        assert DateTime("2025-01-01") == DateTime(date=(125, 1, 1, 3), time=(0, 0, 0, 0))
-        assert DateTime("2025-01-01 12:34:56") == DateTime(date=(125, 1, 1, 3), time=(12, 34, 56, 0))
-        assert DateTime("2025-01-01 12:34:56.7") == DateTime(date=(125, 1, 1, 3), time=(12, 34, 56, 70))
-        assert DateTime("2025-01-01 12:34:56.78") == DateTime(date=(125, 1, 1, 3), time=(12, 34, 56, 78))
-        assert DateTime("2025-01-01 12:34:56.789") == DateTime(date=(125, 1, 1, 3), time=(12, 34, 56, 78))
+        assert DateTime("2025-01-01") == DateTime(
+            date=(125, 1, 1, 3), time=(0, 0, 0, 0)
+        )
+        assert DateTime("2025-01-01 12:34:56") == DateTime(
+            date=(125, 1, 1, 3), time=(12, 34, 56, 0)
+        )
+        assert DateTime("2025-01-01 12:34:56.7") == DateTime(
+            date=(125, 1, 1, 3), time=(12, 34, 56, 70)
+        )
+        assert DateTime("2025-01-01 12:34:56.78") == DateTime(
+            date=(125, 1, 1, 3), time=(12, 34, 56, 78)
+        )
+        assert DateTime("2025-01-01 12:34:56.789") == DateTime(
+            date=(125, 1, 1, 3), time=(12, 34, 56, 78)
+        )
 
-        assert DateTime("2025-01-01 mon") == DateTime(date=(125, 1, 1, 1), time=(0, 0, 0, 0))
+        assert DateTime("2025-01-01 mon") == DateTime(
+            date=(125, 1, 1, 1), time=(0, 0, 0, 0)
+        )

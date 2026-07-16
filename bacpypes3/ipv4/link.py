@@ -44,7 +44,9 @@ class NormalLinkLayer(BIPNormal):
     multiplexer: UDPMultiplexer
     server: IPv4DatagramServer
 
-    def __init__(self, local_address: IPv4Address, bind_socket: Optional[socket]=None, **kwargs) -> None:
+    def __init__(
+        self, local_address: IPv4Address, bind_socket: Optional[socket] = None, **kwargs
+    ) -> None:
         if _debug:
             NormalLinkLayer._debug(
                 "__init__ %r %r",

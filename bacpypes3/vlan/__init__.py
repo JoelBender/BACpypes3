@@ -219,7 +219,6 @@ class Node(Generic[AddrType], Server[PDU]):
 
 @bacpypes_debugging
 class IPv4Network(Network[IPv4Address]):
-
     """
     IPNetwork instances are Network objects where the addresses on the
     network are instances of an IPv4Address.
@@ -260,7 +259,6 @@ class IPv4Network(Network[IPv4Address]):
 
 @bacpypes_debugging
 class IPv4Node(Node[IPv4Address]):
-
     """
     An IPNode is a Node where the address is an Address that has an address
     tuple and a broadcast tuple that would be used for socket communications.
@@ -386,7 +384,6 @@ class IPv4Router:
 
 @bacpypes_debugging
 class VirtualNetwork(Network[LocalStation]):
-
     """
     VirtualNetwork instances are Network objects where the addresses on the
     network are instances of a generic local station.
@@ -415,7 +412,6 @@ class VirtualNetwork(Network[LocalStation]):
 
 @bacpypes_debugging
 class VirtualNode(Node[LocalStation]):
-
     """
     An VirtualNode is a Node where the address is a generic local station.
     """

@@ -36,7 +36,6 @@ else:
 
 @bacpypes_debugging
 class Console(Client[ConsolePDU]):
-
     """
     A Console object sits at the top of a stack reading input from the
     interactive console (a.k.a. terminal), pipe input, or file input, and sends

@@ -191,7 +191,7 @@ class ServiceAccessPoint:
 
 
 def bind(
-    *args: Union[Client[T], Server[T], ApplicationServiceElement, ServiceAccessPoint]
+    *args: Union[Client[T], Server[T], ApplicationServiceElement, ServiceAccessPoint],
 ) -> None:
     """
     Bind a list of clients and servers together, top down.

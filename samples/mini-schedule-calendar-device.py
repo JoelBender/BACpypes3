@@ -108,16 +108,19 @@ UNOCCUPIED = Integer(0)
 # Custom Class: LocalCalendarObject
 # ---------------------------------------------------------------------------
 
+
 class LocalCalendarObject(CalendarObject, LocalObject):
     """
     A CalendarObject that can be added to a BACpypes3 Application as a local object.
     """
+
     notificationClass: Optional[Unsigned] = None
 
 
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
+
 
 def bacnet_date_tuple(year: int, month: int, day: int) -> tuple[int, int, int, int]:
     """
@@ -156,14 +159,18 @@ def build_weekly_schedule() -> list[DailySchedule]:
     Weekends:
         00:00 -> 0 (unoccupied)
     """
-    weekday = build_daily_schedule([
-        (OFFICE_OPEN, OCCUPIED),
-        (OFFICE_CLOSE, UNOCCUPIED),
-    ])
+    weekday = build_daily_schedule(
+        [
+            (OFFICE_OPEN, OCCUPIED),
+            (OFFICE_CLOSE, UNOCCUPIED),
+        ]
+    )
 
-    weekend = build_daily_schedule([
-        (START_OF_DAY, UNOCCUPIED),
-    ])
+    weekend = build_daily_schedule(
+        [
+            (START_OF_DAY, UNOCCUPIED),
+        ]
+    )
 
     schedule: list[DailySchedule] = [weekend] * 7
     for d in WEEKDAYS:
@@ -175,6 +182,7 @@ def build_weekly_schedule() -> list[DailySchedule]:
 # ---------------------------------------------------------------------------
 # BACnet application
 # ---------------------------------------------------------------------------
+
 
 @bacpypes_debugging
 class ScheduleCalendarApplication:

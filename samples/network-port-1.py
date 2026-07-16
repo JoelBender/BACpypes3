@@ -3,6 +3,7 @@ Create a network port object from an address, print some interesting stuff,
 convert it to JSON and YAML.  Variations of this sample are used to check the
 results of various patterns of addresses.
 """
+
 from pprint import pprint
 import yaml
 

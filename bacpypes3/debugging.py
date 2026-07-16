@@ -59,7 +59,6 @@ def xtob(data: str, sep: str = "") -> bytes:
 
 
 def ModuleLogger(globs: Dict[str, Any]) -> logging.Logger:
-
     """
     Create a module level logger.
 
@@ -245,7 +244,6 @@ class DebugContents:
 
 
 class LoggingFormatter(logging.Formatter):
-
     """
     A logging Formatter subclass that provides a specialized format routine
     and optionally wraps the output in escape codes for color.  This is used

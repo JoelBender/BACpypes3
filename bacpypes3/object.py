@@ -165,6 +165,12 @@ from .basetypes import (
     Reliability,
     RestartReason,
     RouterEntry,
+    SCConnectionState,
+    SCDirectConnection,
+    SCFailedConnectionRequest,
+    SCHubConnection,
+    SCHubConnectorState,
+    SCHubFunctionConnection,
     Scale,
     SecurityKeySet,
     SecurityLevel,
@@ -944,7 +950,7 @@ class AnalogValueObject(Object):
 
 class AuditLogObject(Object):
     _required = (
-        "statusFlags" "eventState",
+        "statusFlagseventState",
         "enable",
         "bufferSize",
         "logBuffer",
@@ -2365,6 +2371,32 @@ class NetworkPortObject(Object):
     slaveAddressBinding: ListOf(AddressBinding)
     virtualMACAddressTable: ListOf(VMACEntry)
     routingTable: ListOf(RouterEntry)
+    # BACnet Secure Connect (Annex AB)
+    maxBvlcLengthAccepted: Unsigned16
+    maxNpduLengthAccepted: Unsigned16
+    scMinimumReconnectTime: Unsigned
+    scMaximumReconnectTime: Unsigned
+    scConnectWaitTimeout: Unsigned
+    scDisconnectWaitTimeout: Unsigned
+    scHeartbeatTimeout: Unsigned
+    scHubConnectorState: SCHubConnectorState
+    scPrimaryHubURI: CharacterString
+    scFailoverHubURI: CharacterString
+    scPrimaryHubConnectionStatus: SCHubConnection
+    scFailoverHubConnectionStatus: SCHubConnection
+    scHubFunctionEnable: Boolean
+    scHubFunctionAcceptURIs: ArrayOf(CharacterString)
+    scHubFunctionBinding: CharacterString
+    scHubFunctionConnectionStatus: ListOf(SCHubFunctionConnection)
+    scDirectConnectInitiateEnable: Boolean
+    scDirectConnectAcceptEnable: Boolean
+    scDirectConnectAcceptURIs: ArrayOf(CharacterString)
+    scDirectConnectBinding: CharacterString
+    scDirectConnectConnectionStatus: ListOf(SCDirectConnection)
+    scFailedConnectionRequests: ListOf(SCFailedConnectionRequest)
+    operationalCertificateFile: ObjectIdentifier
+    issuerCertificateFiles: ArrayOf(ObjectIdentifier)
+    certificateSigningRequestFile: ObjectIdentifier
     eventDetectionEnable: Boolean
     notificationClass: Unsigned
     eventEnable: EventTransitionBits

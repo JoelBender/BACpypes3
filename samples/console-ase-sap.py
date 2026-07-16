@@ -49,7 +49,6 @@ class Echo(Server[ConsolePDU], ApplicationServiceElement):
 
 @bacpypes_debugging
 class EchoServiceAccessPoint(ServiceAccessPoint):
-
     _debug: Callable[..., None]
 
     async def sap_indication(self, pdu: str) -> None:

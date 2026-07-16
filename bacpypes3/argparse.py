@@ -255,7 +255,6 @@ def create_log_handlers(
 
 @bacpypes_debugging
 class ArgumentParser(argparse.ArgumentParser):
-
     """
     ArgumentParser extends the one with the same name from the argparse module
     by adding the common command line arguments found in BACpypes applications.
@@ -408,7 +407,6 @@ class ArgumentParser(argparse.ArgumentParser):
 
 @bacpypes_debugging
 class SimpleArgumentParser(ArgumentParser):
-
     """
     SimpleArgumentParser extends the ArgumentParser with the arguments for
     building simple applications.
@@ -486,7 +484,6 @@ class SimpleArgumentParser(ArgumentParser):
 
 @bacpypes_debugging
 class INIArgumentParser(ArgumentParser):
-
     """
     INIArgumentParser extends the ArgumentParser with the functionality to
     read in an INI configuration file.  The contents of the file
@@ -548,7 +545,6 @@ class INIArgumentParser(ArgumentParser):
 
 @bacpypes_debugging
 class JSONArgumentParser(ArgumentParser):
-
     """
     JSONArgumentParser extends the ArgumentParser with the functionality to
     read in a JSON configuration file.  The contents of the file will be in the
@@ -606,7 +602,6 @@ class JSONArgumentParser(ArgumentParser):
 
 @bacpypes_debugging
 class YAMLArgumentParser(ArgumentParser):
-
     """
     YAMLArgumentParser extends the ArgumentParser with the functionality to
     read in a YAML configuration file.  The contents of the "BACpypes" element

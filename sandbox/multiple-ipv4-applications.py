@@ -15,14 +15,10 @@ async def main() -> None:
         "vendoridentifier": 999,
     }
     app1 = Application.from_args(
-        Namespace(
-            name="App1", instance=1001, address="host:47808", **common_kwargs
-        )
+        Namespace(name="App1", instance=1001, address="host:47808", **common_kwargs)
     )
     app2 = Application.from_args(
-        Namespace(
-            name="App2", instance=1002, address="host:47809", **common_kwargs
-        )
+        Namespace(name="App2", instance=1002, address="host:47809", **common_kwargs)
     )
 
     # like running forever

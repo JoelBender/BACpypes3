@@ -3,6 +3,7 @@ This example uses a prepared query to find all of the BACnet
 devices in a graph, optionally with a specific device instance
 number.
 """
+
 import sys
 from rdflib import Graph, Literal
 from bacpypes3.rdf.core import find_device_by_instance

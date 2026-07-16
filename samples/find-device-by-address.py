@@ -4,6 +4,7 @@ devices in a graph, optionally with an address.  By specifying
 different initial bindings then different collections of
 devices can be found.
 """
+
 import sys
 from rdflib import Graph
 

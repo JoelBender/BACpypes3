@@ -61,7 +61,6 @@ def test_some_function(*args: Any, **kwargs: Any) -> None:
 
 @bacpypes_debugging
 class TestCaseTemplate(unittest.TestCase):
-
     _debug: Callable[..., None]
 
     @classmethod

@@ -3,6 +3,7 @@ Get the IPv4 address of an interface.
 
 https://gist.github.com/socketz/fc9bbbba7be561852ae8905e277402b8
 """
+
 import sys
 import socket
 import fcntl

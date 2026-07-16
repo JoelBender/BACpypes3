@@ -8,9 +8,7 @@ dynamic = ["version"]
 description = "BACnet Communications Library"
 readme = "README.md"
 license = "MIT"
-authors = [
-    { name = "Joel Bender", email = "joel@carrickbender.com" }
-]
+authors = [{ name = "Joel Bender", email = "joel@carrickbender.com" }]
 classifiers = [
     "Development Status :: 2 - Pre-Alpha",
     "Intended Audience :: Developers",
@@ -43,16 +41,10 @@ Repository = "https://github.com/JoelBender/bacpypes3"
 path = "bacpypes3/__init__.py"
 
 [tool.hatch.build.targets.sdist]
-include = [
-    "/bacpypes3",
-]
+include = ["/bacpypes3"]
 
 [tool.hatch.build.targets.wheel]
 packages = ["bacpypes3"]
 
 [dependency-groups]
-dev = [
-    "pytest>=8.3.5",
-    "pytest-asyncio>=0.24.0",
-    "ruff>=0.15.5",
-]
+dev = ["pytest>=8.3.5", "pytest-asyncio>=0.24.0", "ruff>=0.15.5"]

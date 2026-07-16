@@ -1,6 +1,7 @@
 """
 Change Of Value Services
 """
+
 from __future__ import annotations
 
 import asyncio

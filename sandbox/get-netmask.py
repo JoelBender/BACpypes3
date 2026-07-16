@@ -1,6 +1,7 @@
 """
 Get the network mask of the interface.
 """
+
 import sys
 import socket
 import fcntl

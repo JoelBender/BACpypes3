@@ -7,7 +7,7 @@ from __future__ import annotations
 from typing import Callable, Optional
 
 from ..debugging import bacpypes_debugging, ModuleLogger
-from ..pdu import Address, LocalStation, IPv4Address, IPv6Address
+from ..pdu import Address, LocalStation, IPv4Address, IPv6Address, SecureConnectAddress
 from ..primitivedata import CharacterString, ObjectType
 
 from ..basetypes import NetworkType, NetworkNumberQuality
@@ -91,8 +91,19 @@ class NetworkPortObject(_Object, _NetworkPortObject):
                 }
             )
 
+        elif isinstance(addr, SecureConnectAddress):
+            if _debug:
+                NetworkPortObject._debug("    - BACnet/SC")
+            default_kwargs.update(
+                {
+                    "macAddress": addr.addrAddr,
+                    "networkType": "secureConnect",
+                    "protocolLevel": "bacnet-application",
+                }
+            )
+
         else:
-            raise TypeError("addr: IPv4 or IPv6 address expected")
+            raise TypeError("addr: IPv4, IPv6 or Secure Connect address expected")
 
         if addr.addrNet is None:
             default_kwargs.update(

@@ -865,7 +865,13 @@ class ErrorRejectAbortNack(BaseException):
     @property
     def reason(self) -> int:
         if isinstance(self, ErrorPDU):
-            return self.errorCode  # type: ignore[attr-defined]
+            # Generic Error APDUs provide errorCode directly, while service-
+            # specific ErrorSequence classes provide errorType.errorCode.
+            if hasattr(self, "errorCode"):
+                return self.errorCode  # type: ignore[attr-defined]
+            if hasattr(self, "errorType") and (self.errorType is not None):  # type: ignore[attr-defined]
+                return self.errorType.errorCode  # type: ignore[attr-defined]
+            raise TypeError("error APDU has no error code")
         elif isinstance(self, (RejectPDU, AbortPDU)):
             return self.apduAbortRejectReason
         else:
@@ -1887,6 +1893,7 @@ for service_choice in {
     20,
     21,
     23,
+    28,
 }:
     error_types[service_choice] = type(
         f"Error({ConfirmedServiceChoice(service_choice)})",

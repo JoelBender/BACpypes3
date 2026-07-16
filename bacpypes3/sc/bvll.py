@@ -291,10 +291,12 @@ class LPCI(PCI, DebugContents):
 
         PCI.update(self, bvlci)
 
-        # skip over fields that aren't set
+        # skip over fields that aren't set, stripping the DebugContents
+        # suffixes (*, +, -) so list/dict attributes are copied too
         for k in LPCI._debug_contents:
-            if hasattr(bvlci, k):
-                setattr(self, k, getattr(bvlci, k))
+            attr = k.rstrip("*+-")
+            if hasattr(bvlci, attr):
+                setattr(self, attr, getattr(bvlci, attr))
 
     def encode(self) -> PDU:
         """Encode the contents of the LPCI into a PDU."""
@@ -362,7 +364,7 @@ class LPCI(PCI, DebugContents):
         has_originating_virtual_address = control_flags & 0x08
         has_destination_virtual_address = control_flags & 0x04
         has_destination_options = control_flags & 0x02
-        has_data_options = control_flags & 0x08
+        has_data_options = control_flags & 0x01
         lpci.bvlcControlFlags = control_flags
 
         lpci.bvlcMessageID = pdu.get_short()

@@ -2,6 +2,7 @@
 Create a local device object instance, convert it to JSON and print the result,
 then round-trip the JSON into another device object.
 """
+
 from pprint import pprint
 
 from bacpypes3.debugging import ModuleLogger

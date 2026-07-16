@@ -29,7 +29,6 @@ class ApplicationServiceElement:
 
 @bacpypes_debugging
 class Trapper:
-
     """
     This class provides a set of utility functions that keeps the
     latest copy of the pdu parameter in the before_send(), after_send(),
@@ -105,7 +104,6 @@ class Trapper:
 
 @bacpypes_debugging
 class TrappedState(Trapper, State):
-
     """
     This class is a simple wrapper around the State class that keeps the
     latest copy of the pdu parameter in the before_send(), after_send(),
@@ -126,7 +124,6 @@ class TrappedState(Trapper, State):
 
 @bacpypes_debugging
 class TrappedStateMachine(Trapper, StateMachine):
-
     """
     This class is a simple wrapper around the StateMachine class that keeps the
     latest copy of the pdu parameter in the before_send(), after_send(),
@@ -170,7 +167,6 @@ class TrappedStateMachine(Trapper, StateMachine):
 
 @bacpypes_debugging
 class TrappedClient(Client):
-
     """
     TrappedClient
     ~~~~~~~~~~~~~
@@ -207,7 +203,6 @@ class TrappedClient(Client):
 
 @bacpypes_debugging
 class TrappedServer(Server):
-
     """
     TrappedServer
     ~~~~~~~~~~~~~
@@ -244,7 +239,6 @@ class TrappedServer(Server):
 
 @bacpypes_debugging
 class TrappedClientStateMachine(TrappedClient, TrappedStateMachine):
-
     """
     TrappedClientStateMachine
     ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -268,7 +262,6 @@ class TrappedClientStateMachine(TrappedClient, TrappedStateMachine):
 
 @bacpypes_debugging
 class TrappedServerStateMachine(TrappedServer, TrappedStateMachine):
-
     """
     TrappedServerStateMachine
     ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -292,7 +285,6 @@ class TrappedServerStateMachine(TrappedServer, TrappedStateMachine):
 
 @bacpypes_debugging
 class TrappedServiceAccessPoint(ServiceAccessPoint):
-
     """
     TrappedServiceAccessPoint
     ~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -375,7 +367,6 @@ class TrappedServiceAccessPoint(ServiceAccessPoint):
 
 @bacpypes_debugging
 class TrappedApplicationServiceElement(ApplicationServiceElement):
-
     """
     TrappedApplicationServiceElement
     ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~

@@ -260,7 +260,7 @@ class AddressGroupWorker:
 
         i = 0
         while i < len(self.daopr_list):
-            chunk = self.daopr_list[i:i+chunk_size]
+            chunk = self.daopr_list[i : i + chunk_size]
             if _debug:
                 AddressGroupWorker._debug("    - chunk: %r", chunk)
             i += chunk_size

@@ -39,7 +39,6 @@ class TNetwork(StateMachineGroup):
 
         # add nodes to the networks
         for pattern in ("192.168.10.{}/24", "192.168.20.{}/24"):
-
             # make the network
             vlan = IPv4Network(ipaddress.IPv4Network(pattern.format(0)))
 

@@ -19,7 +19,13 @@ from bacpypes3.comm import Client, bind
 from bacpypes3.pdu import Address, LocalBroadcast, IPv4Address, PDU
 from bacpypes3.ipv4.link import NormalLinkLayer
 
-from bacpypes3.npdu import NPCI, NPDU, npdu_types, InitializeRoutingTable, InitializeRoutingTableAck
+from bacpypes3.npdu import (
+    NPCI,
+    NPDU,
+    npdu_types,
+    InitializeRoutingTable,
+    InitializeRoutingTableAck,
+)
 
 # some debugging
 _debug = 0
@@ -56,9 +62,7 @@ class SampleCmd(Cmd, Client[PDU]):
                 Address.globalBroadcastAddr,
             ):
                 if _debug:
-                    SampleCmd._debug(
-                        "    - continue DADR: %r", npdu.pduDestination
-                    )
+                    SampleCmd._debug("    - continue DADR: %r", npdu.pduDestination)
                 npdu.npduDADR = address
             npdu.pduDestination = address.addrRoute
 
@@ -83,14 +87,13 @@ class SampleCmd(Cmd, Client[PDU]):
         if (npdu.pduDestination.addrType != Address.remoteBroadcastAddr) and (
             npdu.pduDestination.addrType != Address.remoteStationAddr
         ):
-            raise RuntimeError(
-                "use route-aware for remote broadcast")
+            raise RuntimeError("use route-aware for remote broadcast")
 
     async def encode_and_request(self, npdu):
         pdu = npdu.encode()
         if _debug:
             SampleCmd._debug("    - pdu: %r", pdu)
-        
+
         await self.request(pdu)
 
     async def confirmation(self, pdu: PDU) -> None:
@@ -133,6 +136,7 @@ class SampleCmd(Cmd, Client[PDU]):
             )
 
         await self.response("\n".join(report))
+
 
 async def main() -> None:
     try:

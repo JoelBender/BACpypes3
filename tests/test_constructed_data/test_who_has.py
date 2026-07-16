@@ -16,6 +16,7 @@ from bacpypes3.apdu import WhoHasRequest
 _debug = 0
 _log = ModuleLogger(globals())
 
+
 @bacpypes_debugging
 class TestWhoHasRequest(unittest.TestCase):
     def test_endec_01(self):
@@ -27,9 +28,7 @@ class TestWhoHasRequest(unittest.TestCase):
                 deviceInstanceRangeLowLimit=0,
                 deviceInstanceRangeHighLimit=999,
             ),
-            object=WhoHasObject(
-                objectIdentifier='analog-value,1'
-            ),
+            object=WhoHasObject(objectIdentifier="analog-value,1"),
         )
         if _debug:
             TestWhoHasRequest._debug("    - x: %r", x)
@@ -47,9 +46,7 @@ class TestWhoHasRequest(unittest.TestCase):
             TestWhoHasRequest._debug("test_endec_02")
 
         x = WhoHasRequest(
-            object=WhoHasObject(
-                objectIdentifier='analog-value,1'
-            ),
+            object=WhoHasObject(objectIdentifier="analog-value,1"),
         )
         if _debug:
             TestWhoHasRequest._debug("    - x: %r", x)
@@ -61,4 +58,3 @@ class TestWhoHasRequest(unittest.TestCase):
         z = WhoHasRequest.decode(y)
         if _debug:
             TestWhoHasRequest._debug("    - z: %r", z)
-

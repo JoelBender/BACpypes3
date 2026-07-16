@@ -1147,6 +1147,12 @@ class NetworkServiceAccessPoint(ServiceAccessPoint, Server[PDU], DebugContents):
                     "    - found path: %r, %r", router_adapter, router_address
                 )
 
+            # *** Added guard to prevent forwarding back to arrival adapter ***
+            if router_adapter is adapter:
+                if _debug:
+                    NetworkServiceAccessPoint._debug("    - path error (5)")
+                return
+
             # the destination is the address of the router
             newpdu.pduDestination = router_address
 

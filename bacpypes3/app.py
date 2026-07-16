@@ -29,6 +29,7 @@ from .apdu import (
     UnconfirmedRequestPDU,
     confirmed_request_types,
     unconfirmed_request_types,
+    ErrorSequence,
 )
 from .appservice import ApplicationServiceAccessPoint
 from .basetypes import (
@@ -39,6 +40,7 @@ from .basetypes import (
     ObjectPropertyReference,
     PropertyReference,
     ProtocolLevel,
+    SCHubConnectorState,
     Segmentation,
     ServicesSupported,
 )
@@ -679,6 +681,72 @@ class Application(
                         link_layer, net=obj.networkNumber, address=link_address
                     )
 
+            elif obj.networkType == NetworkType.secureConnect:
+                # imported here so 'websockets' remains an optional dependency
+                import uuid as _uuid
+                from .pdu import SecureConnectAddress
+                from .sc.link import SCNodeLinkLayer
+
+                # the node VMAC, generated if not configured
+                if obj.macAddress:
+                    link_address = SecureConnectAddress(bytes(obj.macAddress))
+                else:
+                    link_address = SecureConnectAddress.random()
+                    obj.macAddress = link_address.addrAddr
+                if _debug:
+                    Application._debug("     - link_address: %r", link_address)
+
+                # every BACnet/SC device requires a device UUID (Clause YY.1.5.3)
+                device_uuid = None
+                if self.device_object is not None and self.device_object.deviceUUID:
+                    device_uuid = _uuid.UUID(bytes=bytes(self.device_object.deviceUUID))
+                if device_uuid is None:
+                    device_uuid = _uuid.uuid4()
+
+                # hub URIs
+                if not obj.scPrimaryHubURI:
+                    raise RuntimeError("scPrimaryHubURI is required for BACnet/SC")
+                primary_hub_uri = str(obj.scPrimaryHubURI)
+                failover_hub_uri = (
+                    str(obj.scFailoverHubURI) if obj.scFailoverHubURI else None
+                )
+
+                # the TLS context is supplied out-of-band on the network port
+                # object for initial bring-up (file-path credentials); a leading
+                # underscore stores it as plain data outside the property system
+                ssl_context = getattr(obj, "_ssl_context", None)
+
+                link_layer = SCNodeLinkLayer(
+                    link_address,
+                    device_uuid,
+                    primary_hub_uri,
+                    failover_hub_uri,
+                    ssl_context=ssl_context,
+                )
+                if _debug:
+                    Application._debug("     - link_layer: %r", link_layer)
+
+                # reflect the hub connector state on the network port object
+                obj.scHubConnectorState = SCHubConnectorState.noHubConnection
+
+                def _update_connector_state(code, _obj=obj):
+                    _obj.scHubConnectorState = SCHubConnectorState(code)
+
+                link_layer.connector.on_connector_state_change = _update_connector_state
+
+                self.link_layers[obj.objectIdentifier] = link_layer
+
+                # let the NSAP know about this link layer
+                if obj.networkNumber == 0:
+                    self.nsap.bind(link_layer, address=link_address)
+                else:
+                    self.nsap.bind(
+                        link_layer, net=obj.networkNumber, address=link_address
+                    )
+
+                # start maintaining the hub connection
+                link_layer.start()
+
             else:
                 raise NotImplementedError(f"{obj.networkType}")
 
@@ -1045,7 +1113,19 @@ class Application(
         for link_layer in self.link_layers.values():
             if _debug:
                 Application._debug("    - link_layer: %r", link_layer)
-            link_layer.close()
+            result = link_layer.close()
+
+            # some link layers (e.g. BACnet/SC) close asynchronously; make sure
+            # the returned coroutine is actually awaited rather than dropped
+            if asyncio.iscoroutine(result):
+                try:
+                    loop = asyncio.get_running_loop()
+                except RuntimeError:
+                    loop = None
+                if loop is not None:
+                    loop.create_task(result)
+                else:
+                    asyncio.run(result)
 
     # -----
 
@@ -1170,6 +1250,15 @@ class Application(
             if _debug:
                 Application._debug("    - abort exception: %r", err)
             error_pdu = AbortPDU(reason=err.abortReason, context=apdu)
+
+        # ErrorSequence instances are APDUs that still need response context
+        # (destination, invoke ID) from the incoming request.
+        except ErrorSequence as err:
+            if _debug:
+                Application._debug("    - error sequence: %r", err)
+            error_pdu = err
+            error_pdu.set_context(apdu)
+            error_pdu.apduService = apdu.apduService
 
         except ExecutionError as err:
             if _debug:

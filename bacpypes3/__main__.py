@@ -373,9 +373,9 @@ class CmdShell(Cmd):
             CmdShell._debug("do_wirtn %r %r", address, network)
         assert app.nse
 
-        result_list: List[Tuple[NetworkAdapter, IAmRouterToNetwork]] = (
-            await app.nse.who_is_router_to_network(destination=address, network=network)
-        )
+        result_list: List[
+            Tuple[NetworkAdapter, IAmRouterToNetwork]
+        ] = await app.nse.who_is_router_to_network(destination=address, network=network)
         if _debug:
             CmdShell._debug("    - result_list: %r", result_list)
         if not result_list:
@@ -419,9 +419,9 @@ class CmdShell(Cmd):
             CmdShell._debug("do_irt %r", address)
         assert app.nse
 
-        result_list: List[Tuple[NetworkAdapter, InitializeRoutingTableAck]] = (
-            await app.nse.initialize_routing_table(destination=address)
-        )
+        result_list: List[
+            Tuple[NetworkAdapter, InitializeRoutingTableAck]
+        ] = await app.nse.initialize_routing_table(destination=address)
         if _debug:
             CmdShell._debug("    - result_list: %r", result_list)
         if not result_list:
@@ -465,9 +465,9 @@ class CmdShell(Cmd):
             raise NotImplementedError("IPv4 only")
 
         try:
-            result_list: Optional[List[IPv4Address]] = (
-                await bvll_ase.read_broadcast_distribution_table(address)
-            )
+            result_list: Optional[
+                List[IPv4Address]
+            ] = await bvll_ase.read_broadcast_distribution_table(address)
             if result_list is None:
                 await self.response("No response")
             else:

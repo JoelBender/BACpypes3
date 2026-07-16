@@ -24,7 +24,6 @@ _log = ModuleLogger(globals())
 
 
 class Transition:
-
     """
     Transition
     ~~~~~~~~~~
@@ -186,7 +185,6 @@ class TimeoutTask:
 
 @bacpypes_debugging
 class State:
-
     """
     State
     ~~~~~
@@ -539,7 +537,7 @@ class State:
         fn: Callable[..., None],
         *args: Any,
         next_state: Optional["State"] = None,
-        **kwargs: Any
+        **kwargs: Any,
     ) -> "State":
         """Create a CallTransition from this state to another, possibly new,
         state.  The next state is returned for method chaining.
@@ -584,7 +582,6 @@ class State:
 
 @bacpypes_debugging
 class StateMachine:
-
     """
     StateMachine
     ~~~~~~~~~~~~
@@ -1201,7 +1198,6 @@ class StateMachine:
 
 @bacpypes_debugging
 class StateMachineGroup:
-
     """
     StateMachineGroup
     ~~~~~~~~~~~~~~~~~
@@ -1457,7 +1453,6 @@ class StateMachineGroup:
 
 @bacpypes_debugging
 class ClientStateMachine(Client, StateMachine):
-
     """
     ClientStateMachine
     ~~~~~~~~~~~~~~~~~~
@@ -1489,7 +1484,6 @@ class ClientStateMachine(Client, StateMachine):
 
 @bacpypes_debugging
 class ServerStateMachine(Server, StateMachine):
-
     """
     ServerStateMachine
     ~~~~~~~~~~~~~~~~~~

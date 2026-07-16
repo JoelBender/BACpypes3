@@ -18,7 +18,6 @@ _log = ModuleLogger(globals())
 
 @bacpypes_debugging
 class TestSomething(unittest.TestCase):
-
     _debug: Callable[..., None]
 
     def setUp(self) -> None:

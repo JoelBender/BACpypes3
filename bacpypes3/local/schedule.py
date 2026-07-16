@@ -538,7 +538,9 @@ class ScheduleObject(_Object, _ScheduleObject):
         self.presentValue = current_value
 
         # compute the time of the next transition
-        transition_time = datetime_to_time(current_date, next_transition) - datetime_to_time(current_date, current_time)
+        transition_time = datetime_to_time(
+            current_date, next_transition
+        ) - datetime_to_time(current_date, current_time)
 
         # schedule this to run
         try:

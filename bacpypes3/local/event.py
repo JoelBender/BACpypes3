@@ -1,6 +1,7 @@
 """
 Event
 """
+
 from __future__ import annotations
 
 import asyncio
@@ -569,8 +570,20 @@ class EventAlgorithm(Algorithm, DebugContents):
         }[new_state_group]
 
         # store the timestamp
-        time_stamp = TimeStamp.as_time()
+        time_stamp = TimeStamp.as_dateTime()
         event_initiating_object.eventTimeStamps[new_state_index] = time_stamp
+
+        # Per ASHRAE 135 §13.2.3: when a transition is reported and
+        # Ack_Required is TRUE for that transition, clear the corresponding
+        # flag in Acked_Transitions (FALSE = unacknowledged, pending ack).
+        # Transitions with Ack_Required=FALSE stay auto-acknowledged (TRUE).
+        ack_required = event_initiating_object._notification_class_object.ackRequired[
+            new_state_index
+        ]
+        if ack_required:
+            acked_bits = list(event_initiating_object.ackedTransitions)
+            acked_bits[new_state_index] = 0
+            event_initiating_object.ackedTransitions = EventTransitionBits(acked_bits)
 
         # store text in eventMessageTexts if present
         message_text: Optional[str]
@@ -594,12 +607,12 @@ class EventAlgorithm(Algorithm, DebugContents):
             "timeStamp": time_stamp,
             "notificationClass": event_initiating_object.notificationClass,
             "priority": event_initiating_object._notification_class_object.priority[
-                new_state_group
+                new_state_index
             ],
             "messageText": message_text,
             "notifyType": event_initiating_object.notifyType,
             "ackRequired": event_initiating_object._notification_class_object.ackRequired[
-                new_state_group
+                new_state_index
             ],
             "fromState": old_state,
             "toState": new_state,
@@ -611,14 +624,14 @@ class EventAlgorithm(Algorithm, DebugContents):
             # Notify Type will be ALARM or EVENT and not ACK_NOTIFICATION, so this
             # is always CHANGE_OF_RELIABILITY, Clause 13.9.1.1.7
             notification_parameters["eventType"] = EventType.changeOfReliability
-            notification_parameters[
-                "eventValues"
-            ] = self.fault_notification_parameters()
+            notification_parameters["eventValues"] = (
+                self.fault_notification_parameters()
+            )
         else:
             notification_parameters["eventType"] = self.event_type
-            notification_parameters[
-                "eventValues"
-            ] = self.event_notification_parameters()
+            notification_parameters["eventValues"] = (
+                self.event_notification_parameters()
+            )
 
         # pass these parameters to send out confirmed or unconfirmed event
         # notification requests
@@ -1200,9 +1213,7 @@ class CommandFailureEventAlgorithm(EventAlgorithm):
         super().__init__(monitoring_object, monitored_object)
 
         if monitoring_object:
-            fpr: DeviceObjectPropertyReference = (
-                monitoring_object.eventParameters.commandFailure.feedbackPropertyReference
-            )
+            fpr: DeviceObjectPropertyReference = monitoring_object.eventParameters.commandFailure.feedbackPropertyReference
 
             # resolve the fpr.objectIdentifier to point to an object
             fpr_object: Optional[Object] = None

@@ -995,7 +995,17 @@ class ServerSSM(SSM):
             pass
         else:
             # decode this now, the APDU is complete
-            apdu = APCISequence.decode(apdu)
+            try:
+                apdu = APCISequence.decode(apdu)
+            except Exception as err:
+                if _debug:
+                    ServerSSM._debug("    - decoding error: %r", err)
+                # send an abort back to the client
+                abort = AbortPDU(reason=AbortReason.other)
+                abort.pduSource = self.pdu_address
+                abort.pduDestination = None
+                await self.ssmSAP.sap_request(abort)
+                return
             if _debug:
                 ServerSSM._debug("    - apdu: %r", apdu)
 
@@ -1240,7 +1250,8 @@ class ServerSSM(SSM):
                 self.ssmSAP.device_info_cache.update_device_info(self.device_info)
 
             elif (
-                self.device_info.segmentation_supported == Segmentation.segmentedTransmit
+                self.device_info.segmentation_supported
+                == Segmentation.segmentedTransmit
             ):
                 if _debug:
                     ServerSSM._debug(
@@ -1499,7 +1510,16 @@ class ServerSSM(SSM):
         if self.segmentRetryCount < self.numberOfApduRetries:
             self.segmentRetryCount += 1
             self.start_timer(self.segmentTimeout)
-            await self.fill_window(self.initialSequenceNumber)
+
+            # if the client has not acknowledged the first segment yet the
+            # window size has not been negotiated (actualWindowSize is still
+            # None), so fill_window() would assert.  Mirror the client-side
+            # segmented_request_timeout() behaviour and simply resend the
+            # first segment until a SegmentAck sets the window size.
+            if self.initialSequenceNumber == 0:
+                await self.response(self.get_segment(0))
+            else:
+                await self.fill_window(self.initialSequenceNumber)
         else:
             # give up
             self.set_state(ABORTED)
@@ -1615,7 +1635,9 @@ class ApplicationServiceAccessPoint(Client[PDU], ServiceAccessPoint):
                     ApplicationServiceAccessPoint._debug("    - continue with Who-Is")
             else:
                 if _debug:
-                    ApplicationServiceAccessPoint._debug("    - not a Who-Has or Who-Is, dropped")
+                    ApplicationServiceAccessPoint._debug(
+                        "    - not a Who-Has or Who-Is, dropped"
+                    )
                 return
         elif self.dccEnableDisable == "disableInitiation":
             if _debug:
@@ -1645,7 +1667,7 @@ class ApplicationServiceAccessPoint(Client[PDU], ServiceAccessPoint):
                 apdu = APCISequence.decode(apdu)
                 if _debug:
                     ApplicationServiceAccessPoint._debug("    - apdu: %r", apdu)
-            except AttributeError as err:
+            except Exception as err:
                 if _debug:
                     ApplicationServiceAccessPoint._debug(
                         "    - decoding error: %r", err
