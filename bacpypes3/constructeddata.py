@@ -442,6 +442,11 @@ class Sequence(Element, DebugContents, metaclass=SequenceMetaclass):
             Sequence._debug("(%s).decode %r %r", cls.__name__, tag_list, class_)
             for i, tag in enumerate(tag_list):
                 Sequence._debug("    [%d] %r", i, tag)
+        elif class_ and hasattr(class_, '__name__') and class_.__name__ == 'AcknowledgeAlarmRequest':
+            Sequence._info("(%s).decode %r %r", cls.__name__, tag_list, class_)
+            for i, tag in enumerate(tag_list):
+                Sequence._info("    [%d] %r", i, tag)
+
 
         # override the cls parameter when necessary
         if class_:
@@ -483,7 +488,7 @@ class Sequence(Element, DebugContents, metaclass=SequenceMetaclass):
             if (not tag) or (tag.tag_class == TagClass.closing):
                 if not element._optional:
                     raise AttributeError(
-                        f"{attr} is a required element of {cls.__name__}"
+                        f"{attr} is a required element of {cls.__name__}, saw {tag_list}"
                     )
                 else:
                     continue
