@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Mini BACnet Device + Embedded MCP Server
 ========================================
@@ -38,14 +37,13 @@ Then::
 import asyncio
 import sys
 
+from bacpypes3 import mcp
 from bacpypes3.app import Application
 from bacpypes3.argparse import SimpleArgumentParser
 from bacpypes3.debugging import ModuleLogger, bacpypes_debugging
 from bacpypes3.local.analog import AnalogValueObject
 from bacpypes3.local.binary import BinaryValueObject
 from bacpypes3.local.cmd import Commandable
-
-from bacpypes3 import mcp
 
 _debug = 0
 _log = ModuleLogger(globals())

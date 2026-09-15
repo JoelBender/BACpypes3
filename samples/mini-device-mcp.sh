@@ -2,7 +2,7 @@
 # ---------------------------------------------------------------------------
 # mini-device-mcp.sh — drive an embedded BACpypes3 MCP server with curl.
 #
-# Pair this with ``samples/mini-device-with-mcp.py``: start that program in
+# Pair this with ``samples/mini-device-mcp.py``: start that program in
 # one terminal (it runs an embedded MCP HTTP server on 127.0.0.1:8765 in
 # addition to the BACnet server), then run this script from another. The
 # script performs the MCP handshake once and issues three tool calls —
