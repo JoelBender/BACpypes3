@@ -34,6 +34,10 @@ ifaddr = ["ifaddr"]
 yaml = ["PyYAML"]
 rdflib = ["rdflib"]
 pylibpcap = ["python-libpcap"]
+mcp = [
+    "mcp; python_version >= '3.10'",
+    "pydantic; python_version >= '3.10'",
+]
 
 [project.urls]
 Homepage = "https://github.com/JoelBender/bacpypes3"
