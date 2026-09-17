@@ -1152,10 +1152,19 @@ class Application(
         if _debug:
             Application._debug("    - helperFn: %r", helperFn)
 
+        # only a confirmed request can be given a response - building any
+        # of the error/reject/abort PDUs below calls context.apduInvokeID,
+        # which unconfirmed requests (e.g. IAmRequest) don't have, so it
+        # must not even be attempted for them. An exception raised while
+        # processing an unconfirmed request is logged and otherwise
+        # swallowed, matching the fact that BACnet has no way to reply to
+        # one.
+        is_confirmed_request = isinstance(apdu, ConfirmedRequestPDU)
+
         error_pdu: Optional[APDU] = None
         try:
             if not helperFn:
-                if isinstance(apdu, ConfirmedRequestPDU):
+                if is_confirmed_request:
                     raise UnrecognizedService("no function %s" % (helperName,))
                 return
 
@@ -1164,33 +1173,49 @@ class Application(
         except RejectException as err:
             if _debug:
                 Application._debug("    - reject exception: %r", err)
-            error_pdu = RejectPDU(reason=err.rejectReason, context=apdu)
+            if is_confirmed_request:
+                error_pdu = RejectPDU(reason=err.rejectReason, context=apdu)
+            else:
+                Application._exception(
+                    "reject exception processing unconfirmed request: %r", err
+                )
 
         except AbortException as err:
             if _debug:
                 Application._debug("    - abort exception: %r", err)
-            error_pdu = AbortPDU(reason=err.abortReason, context=apdu)
+            if is_confirmed_request:
+                error_pdu = AbortPDU(reason=err.abortReason, context=apdu)
+            else:
+                Application._exception(
+                    "abort exception processing unconfirmed request: %r", err
+                )
 
         except ExecutionError as err:
             if _debug:
                 Application._debug("    - execution error: %r", err)
-            error_pdu = Error(
-                service_choice=apdu.apduService,
-                errorClass=err.errorClass,
-                errorCode=err.errorCode,
-                context=apdu,
-            )
+            if is_confirmed_request:
+                error_pdu = Error(
+                    service_choice=apdu.apduService,
+                    errorClass=err.errorClass,
+                    errorCode=err.errorCode,
+                    context=apdu,
+                )
+            else:
+                Application._exception(
+                    "execution error processing unconfirmed request: %r", err
+                )
 
         except Exception as err:
             Application._exception("exception: %r", err)
-            error_pdu = Error(
-                service_choice=apdu.apduService,
-                errorClass="device",
-                errorCode="operationalProblem",
-                context=apdu,
-            )
+            if is_confirmed_request:
+                error_pdu = Error(
+                    service_choice=apdu.apduService,
+                    errorClass="device",
+                    errorCode="operationalProblem",
+                    context=apdu,
+                )
 
-        if error_pdu and isinstance(apdu, ConfirmedRequestPDU):
+        if error_pdu and is_confirmed_request:
             if _debug:
                 Application._debug("    - error_pdu: %r", error_pdu)
             await self.response(error_pdu)
