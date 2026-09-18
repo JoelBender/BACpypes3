@@ -120,6 +120,23 @@ Server Samples
     cov-server.rst
     router-json.rst
 
+MCP (Model Context Protocol) Samples
+------------------------------------
+
+The ``bacpypes3.mcp`` module exposes the CLI operations as MCP tools with
+JSON-serializable results, so an LLM agent can drive a BACpypes3
+application from outside the process. It can be used as an importable
+library, run stand-alone (stdio), or embedded in a long-running server
+(HTTP).
+
+.. toctree::
+    :maxdepth: 1
+
+    mcp.rst
+    mini-device-with-mcp.rst
+    mini-device-mcp.sh.rst
+    mini-device-ollama.rst
+
 Docker Samples
 --------------
 

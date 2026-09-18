@@ -18,7 +18,7 @@ if _sys.platform not in _supported_platforms:
 #
 #
 
-from .core import BACnetNS, BACnetGraph
+from .core import BACNET, BACnetGraph
 
 from . import core
 from . import util

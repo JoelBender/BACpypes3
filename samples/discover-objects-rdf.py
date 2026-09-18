@@ -1,256 +1,189 @@
+#!/usr/bin/env python
+
 """
-Simple example that sends a Who-Is request and for each device that responds,
-reads the object list and reads the object name, description, and present-value
-and units if applicable.
+Discover Devices and Object
 """
 
 import sys
 import asyncio
+import argparse
+import logging
+from typing import List
 
-from typing import List, Optional
+# --- RDF Imports ---
+from rdflib import Graph, Namespace  # type: ignore
+from bacpypes3.rdf import BACnetGraph
 
-from bacpypes3.debugging import bacpypes_debugging, ModuleLogger
+# --- BACpypes3 Imports ---
 from bacpypes3.argparse import SimpleArgumentParser
-
+from bacpypes3.app import Application
 from bacpypes3.pdu import Address
 from bacpypes3.primitivedata import ObjectIdentifier
 from bacpypes3.basetypes import PropertyIdentifier
-from bacpypes3.apdu import AbortReason, AbortPDU, ErrorRejectAbortNack
-from bacpypes3.app import Application
+from bacpypes3.apdu import AbortPDU, ErrorRejectAbortNack
 from bacpypes3.vendor import get_vendor_info
 
-from rdflib import Graph  # type: ignore
-from bacpypes3.rdf import BACnetGraph
-
-
-# some debugging
-_debug = 0
-_log = ModuleLogger(globals())
+# Setup basic logging
+log = logging.getLogger(__name__)
 
 # globals
-show_warnings: bool = False
+args: argparse.Namespace
 
 
-@bacpypes_debugging
-async def object_identifiers(
+def device_node(
+    device_identifier: ObjectIdentifier,
+) -> URIRef:
+    """Given a device identifer return a URI reference for the device, the
+    default function returns a value from Annex Q.8."""
+    return Namespace(args.namespace)[str(device_identifier[1])]
+
+
+# hack in the functions
+import bacpypes3.rdf.core
+
+bacpypes3.rdf.core._device_node = device_node
+
+
+async def get_device_object_list_robust(
     app: Application, device_address: Address, device_identifier: ObjectIdentifier
 ) -> List[ObjectIdentifier]:
     """
-    Read the entire object list from a device at once, or if that fails, read
-    the object identifiers one at a time.
+    Robustly reads object list.
     """
-    if _debug:
-        object_identifiers._debug("object_identifiers ...")
-
-    # try reading the whole thing at once, but it might be too big and
-    # segmentation isn't supported
+    # 1. Try reading entire array
     try:
-        object_list = await app.read_property(
+        obj_list = await app.read_property(
             device_address, device_identifier, "object-list"
         )
-        if _debug:
-            object_identifiers._debug("    - object_list: %r", object_list)
+        return obj_list
+    except (AbortPDU, ErrorRejectAbortNack):
+        pass
+    except Exception:
+        sys.stderr.write(
+            "error reading object-list from {device_identifier} at {device_address}: {e}\n"
+        )
 
-        return object_list
-    except AbortPDU as err:
-        if err.apduAbortRejectReason in (
-            AbortReason.bufferOverflow,
-            AbortReason.segmentationNotSupported,
-        ):
-            if _debug:
-                object_identifiers._debug("    - object_list err: %r", err)
-        else:
-            if show_warnings:
-                sys.stderr.write(f"{device_identifier} object-list abort: {err}\n")
-            return []
-    except ErrorRejectAbortNack as err:
-        if show_warnings:
-            sys.stderr.write(f"{device_identifier} object-list error/reject: {err}\n")
+    obj_list = []
+    try:
+        # Read the Length (Index 0)
+        list_len = await app.read_property(
+            device_address, device_identifier, "object-list", array_index=0
+        )
+
+        # Loop through indices
+        for i in range(list_len):
+            object_identifier = await app.read_property(
+                device_address, device_identifier, "object-list", array_index=i + 1
+            )
+            obj_list.append(object_identifier)
+    except Exception:
+        sys.stderr.write(
+            "error reading object-list element from {device_identifier} at {device_address}: {e}\n"
+        )
         return []
 
-    # fall back to reading the length and each element one at a time
-    object_list = []
-    try:
-        # read the length
-        object_list_length = await app.read_property(
-            device_address,
-            device_identifier,
-            "object-list",
-            array_index=0,
-        )
-        if _debug:
-            object_identifiers._debug(
-                "    - object_list_length: %r", object_list_length
-            )
-
-        # read each element individually
-        for i in range(object_list_length):
-            object_identifier = await app.read_property(
-                device_address,
-                device_identifier,
-                "object-list",
-                array_index=i + 1,
-            )
-            object_list.append(object_identifier)
-    except ErrorRejectAbortNack as err:
-        if show_warnings:
-            sys.stderr.write(
-                f"{device_identifier} object-list length error/reject: {err}\n"
-            )
-
-    return object_list
+    return obj_list
 
 
 async def main() -> None:
-    app = None
-    g = Graph()
-    bacnet_graph = BACnetGraph(g)
+    global args
+
+    # 1. Parse Arguments
+    parser = SimpleArgumentParser()
+    parser.add_argument("low", type=int, help="Device Instance Low Limit")
+    parser.add_argument("high", type=int, help="Device Instance High Limit")
+    parser.add_argument("--namespace", default="http://example.com/", help="Namespace")
+    args = parser.parse_args()
+
+    # 2. Setup App
+    app = Application.from_args(args)
 
     try:
-        parser = SimpleArgumentParser()
-        parser.add_argument(
-            "device_identifier",
-            type=int,
-            help="device identifier",
-        )
-        parser.add_argument(
-            "-o",
-            "--output",
-            help="output to a file",
-        )
-        parser.add_argument(
-            "-f",
-            "--format",
-            help="output format",
-            default="turtle",
-        )
-
-        # add an option to show warnings (argparse.BooleanOptionalAction is 3.9+)
-        warnings_parser = parser.add_mutually_exclusive_group(required=False)
-        warnings_parser.add_argument("--warnings", dest="warnings", action="store_true")
-        warnings_parser.add_argument(
-            "--no-warnings", dest="warnings", action="store_false"
-        )
-        parser.set_defaults(warnings=False)
-
-        args = parser.parse_args()
-        if _debug:
-            _log.debug("args: %r", args)
-
-        # percolate up to the global
-        show_warnings = args.warnings
-
-        # build an application
-        app = Application.from_args(args)
-        if _debug:
-            _log.debug("app: %r", app)
-
-        # look for the device
-        i_ams = await app.who_is(args.device_identifier, args.device_identifier)
+        i_ams = await app.who_is(args.low, args.high)
         if not i_ams:
-            sys.stderr.write("device not found\n")
-            sys.exit(1)
+            return
 
-        i_am = i_ams[0]
-        if _debug:
-            _log.debug("    - i_am: %r", i_am)
+        # Init RDF
+        g = Graph()
+        bacnet_graph = BACnetGraph(g)
+        bacnet_graph.bind_namespace("ns", args.namespace)
 
-        device_address: Address = i_am.pduSource
-        device_identifier: ObjectIdentifier = i_am.iAmDeviceIdentifier
-        vendor_info = get_vendor_info(i_am.vendorID)
-        if _debug:
-            _log.debug("    - vendor_info: %r", vendor_info)
+        for i_am in i_ams:
+            device_address = i_am.pduSource
+            device_identifier = i_am.iAmDeviceIdentifier
+            vendor_info = get_vendor_info(i_am.vendorID)
 
-        # create a device object in the graph and return it like a context
-        device_graph = bacnet_graph.create_device(device_address, device_identifier)
-        if _debug:
-            _log.debug("    - device_graph: %r", device_graph)
+            # RDF Device Node
+            dev_graph = bacnet_graph.create_device(device_address, device_identifier)
 
-        object_list = await object_identifiers(app, device_address, device_identifier)
-        for object_identifier in object_list:
-            if _debug:
-                _log.debug("    - object_identifier: %r", object_identifier)
+            # get at least the basic information from the device in case it
+            # doesn't support the object-list property
+            for property_name in ("object-name", "description", "vendor-identifier"):
+                try:
+                    property_value = await app.read_property(
+                        device_address, device_identifier, property_name
+                    )
+                    setattr(dev_graph, property_name, property_value)
+                except (ErrorRejectAbortNack, AttributeError):
+                    continue
+                except Exception as e:
+                    sys.stderr.write(
+                        "error reading {property_name} from {device_identifier} at {device_address}: {e}\n"
+                    )
+                    continue
 
-            # create an object relative to the device and return it like a context
-            object_proxy = device_graph.create_object(object_identifier)
-            if _debug:
-                _log.debug("    - object_proxy: %r", object_proxy)
-
-            # get the class so we know the datatypes of the properties
-            object_class = vendor_info.get_object_class(object_identifier[0])
-            if _debug:
-                _log.debug("    - object_class: %r", object_class)
-            if object_class is None:
-                if show_warnings:
-                    sys.stderr.write(f"unknown object type: {object_identifier}\n")
+            # get the object list, all at once if you can
+            obj_list = await get_device_object_list_robust(
+                app, device_address, device_identifier
+            )
+            if not obj_list:
                 continue
 
-            # read the property list
-            property_list: Optional[List[PropertyIdentifier]] = None
-            try:
-                property_list = await app.read_property(
-                    device_address, object_identifier, "property-list"
-                )
-                if _debug:
-                    _log.debug("    - property_list: %r", property_list)
-                assert isinstance(property_list, list)
+            for object_identifier in obj_list:
+                obj_proxy = dev_graph.create_object(object_identifier)
 
-                setattr(
-                    object_proxy,
-                    "property-list",
-                    property_list,
-                )
-            except ErrorRejectAbortNack as err:
-                if show_warnings:
-                    sys.stderr.write(
-                        f"{object_identifier} property-list error: {err}\n"
-                    )
+                # given the object type from its object id, see if the
+                # coorresponding class is supported
+                obj_class = vendor_info.get_object_class(object_identifier[0])
+                if not obj_class:
+                    continue
 
-            for property_name in (
-                "object-name",
-                "description",
-                "present-value",
-                "units",
-            ):
-                try:
-                    if _debug:
-                        _log.debug("    - property_name: %r", property_name)
+                props = [
+                    "object-name",
+                    "object-type",
+                    "description",
+                    "present-value",
+                    "units",
+                    "reliability",
+                    "out-of-service",
+                    # "priority-array",
+                ]
 
-                    # don't bother attempting to read the property if the object
-                    # doesn't say it exists
+                for property_name in props:
                     property_identifier = PropertyIdentifier(property_name)
-                    if property_list and property_identifier not in property_list:
+
+                    # given a property identifier, see if the property is
+                    # supported by checking the class
+                    if not obj_class.get_property_type(property_identifier):
                         continue
 
-                    # get the property class, if it doesn't exist then the
-                    # property isn't defined for this object type
-                    property_class = object_class.get_property_type(property_identifier)
-                    if property_class is None:
-                        if show_warnings:
-                            sys.stderr.write(
-                                f"{object_identifier} unknown property: {property_identifier}\n"
-                            )
-                        continue
-                    if _debug:
-                        _log.debug("    - property_class: %r", property_class)
-
-                    property_value = await app.read_property(
-                        device_address, object_identifier, property_identifier
-                    )
-                    setattr(object_proxy, property_name, property_value)
-
-                except ErrorRejectAbortNack as err:
-                    if show_warnings:
-                        sys.stderr.write(
-                            f"{object_identifier} {property_name} error: {err}\n"
+                    try:
+                        val = await app.read_property(
+                            device_address, object_identifier, property_identifier
                         )
 
-        # dump the graph
-        if args.output:
-            with open(args.output, "wb") as ttl_file:
-                g.serialize(ttl_file, format=args.format)
-        else:
-            g.serialize(sys.stdout.buffer, format=args.format)
+                        # Add to RDF
+                        setattr(obj_proxy, property_name, val)
+
+                    except (ErrorRejectAbortNack, AttributeError):
+                        continue
+                    except Exception:
+                        sys.stderr.write(
+                            "error reading {property_name} from {object_identifier} of {device_identifier}: {e}\n"
+                        )
+                        continue
+
+        print(g.serialize(format="turtle"))
 
     finally:
         if app:

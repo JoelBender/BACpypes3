@@ -60,3 +60,6 @@ docs/_build/
 
 # PyBuilder
 target/
+
+# Claude Code resume note (personal scratchpad)
+claude-resume-session

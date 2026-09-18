@@ -4,14 +4,13 @@ BACnet Secure Connect Virtual Link Layer Protocol Data Units
 
 from __future__ import annotations
 
-import socket
 from uuid import UUID
-from typing import Callable, List, Optional, Tuple, Union, cast
+from typing import Any, Dict, Callable, List, Optional, Tuple, Union, cast
 
-from ..errors import EncodingError, DecodingError
+from ..errors import DecodingError
 from ..debugging import ModuleLogger, DebugContents, bacpypes_debugging
 
-from ..pdu import IPv6Address, VirtualAddress, PCI, PDUData, PDU
+from ..pdu import VirtualAddress, PCI, PDUData, PDU
 from ..comm import Client, Server
 from ..basetypes import ErrorClass, ErrorCode
 
@@ -208,7 +207,6 @@ class SecurePathHeaderOption(HeaderOption):
 
 
 class ProprietaryHeaderOption(HeaderOption):
-
     _debug: Callable[..., None]
     _debug_contents: Tuple[str, ...] = ("vendor_identifier", "proprietary_option_type")
 
@@ -464,10 +462,24 @@ class LPDU(LPCI, PDUData):
 
         return lpdu
 
-    def lpdu_contents(self, use_dict=None, as_class=dict) -> dict:
-        return PDUData.pdudata_contents(self, use_dict=use_dict, as_class=as_class)
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ) -> dict:
+        return PDUData.pdudata_contents(
+            self, use_dict=use_dict, as_class=as_class, include_data=include_data
+        )
 
-    def dict_contents(self, use_dict=None, as_class=dict) -> dict:
+    def dict_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ) -> dict:
         """Return the contents of an object as a dict."""
         if _debug:
             LPDU._debug("dict_contents use_dict=%r as_class=%r", use_dict, as_class)
@@ -477,8 +489,10 @@ class LPDU(LPCI, PDUData):
             use_dict = as_class()
 
         # call the parent classes
-        self.lpci_contents(use_dict=use_dict, as_class=as_class)
-        self.lpdu_contents(use_dict=use_dict, as_class=as_class)
+        self.lpci_contents(use_dict=use_dict, as_class=as_class, include_data=False)
+        self.lpdu_contents(
+            use_dict=use_dict, as_class=as_class, include_data=include_data
+        )
 
         # return what we built/updated
         return use_dict
@@ -493,7 +507,6 @@ class LPDU(LPCI, PDUData):
 
 @bacpypes_debugging
 class BVLLCodec(Client[PDU], Server[LPDU]):
-
     _debug: Callable[..., None]
 
     def __init__(self, cid=None, sid=None) -> None:
@@ -581,7 +594,6 @@ def key_value_contents(use_dict=None, as_class=dict, key_values=()):
 
 @register_bvlpdu_type
 class Result(LPDU):
-
     _debug: Callable[..., None]
     _debug_contents: Tuple[str, ...] = (
         "result_function",
@@ -689,7 +701,13 @@ class Result(LPDU):
         else:
             raise RuntimeError(f"invalid result code: {result_code}")
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         return key_value_contents(
             use_dict=use_dict,
@@ -705,7 +723,6 @@ class Result(LPDU):
 
 @register_bvlpdu_type
 class EncapsulatedNPDU(LPDU):
-
     _debug: Callable[..., None]
     _debug_contents: Tuple[str, ...] = ()
 
@@ -735,7 +752,13 @@ class EncapsulatedNPDU(LPDU):
 
         return lpdu
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         return key_value_contents(
             use_dict=use_dict,
@@ -751,7 +774,6 @@ class EncapsulatedNPDU(LPDU):
 
 @register_bvlpdu_type
 class AddressResolution(LPDU):
-
     bvlcFunction = LPCI.addressResolution
 
     @classmethod
@@ -769,7 +791,6 @@ class AddressResolution(LPDU):
 
 @register_bvlpdu_type
 class AddressResolutionACK(LPDU):
-
     _debug: Callable[..., None]
     _debug_contents: Tuple[str, ...] = ("websocket_uris",)
 
@@ -809,7 +830,13 @@ class AddressResolutionACK(LPDU):
 
         return lpdu
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         return key_value_contents(
             use_dict=use_dict,
@@ -825,7 +852,6 @@ class AddressResolutionACK(LPDU):
 
 @register_bvlpdu_type
 class Advertisement(LPDU):
-
     _debug: Callable[..., None]
     _debug_contents: Tuple[str, ...] = (
         "hub_connection_status",
@@ -896,7 +922,13 @@ class Advertisement(LPDU):
             maximum_npdu_length=maximum_npdu_length,
         )
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         return key_value_contents(
             use_dict=use_dict,
@@ -912,7 +944,6 @@ class Advertisement(LPDU):
 
 @register_bvlpdu_type
 class AdvertisementSolicitation(LPDU):
-
     bvlcFunction = LPCI.advertisementSolicitation
 
     @classmethod
@@ -930,7 +961,6 @@ class AdvertisementSolicitation(LPDU):
 
 @register_bvlpdu_type
 class ConnectRequest(LPDU):
-
     _debug: Callable[..., None]
     _debug_contents: Tuple[str, ...] = (
         "vmac_address",
@@ -1001,7 +1031,13 @@ class ConnectRequest(LPDU):
             maximum_npdu_length=maximum_npdu_length,
         )
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         return key_value_contents(
             use_dict=use_dict,
@@ -1017,7 +1053,6 @@ class ConnectRequest(LPDU):
 
 @register_bvlpdu_type
 class ConnectAccept(LPDU):
-
     _debug: Callable[..., None]
     _debug_contents: Tuple[str, ...] = (
         "vmac_address",
@@ -1088,7 +1123,13 @@ class ConnectAccept(LPDU):
             maximum_npdu_length=maximum_npdu_length,
         )
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         return key_value_contents(
             use_dict=use_dict,
@@ -1104,7 +1145,6 @@ class ConnectAccept(LPDU):
 
 @register_bvlpdu_type
 class DisconnectRequest(LPDU):
-
     bvlcFunction = LPCI.disconnectRequest
 
     @classmethod
@@ -1122,7 +1162,6 @@ class DisconnectRequest(LPDU):
 
 @register_bvlpdu_type
 class DisconnectACK(LPDU):
-
     bvlcFunction = LPCI.disconnectACK
 
     @classmethod
@@ -1140,7 +1179,6 @@ class DisconnectACK(LPDU):
 
 @register_bvlpdu_type
 class HeartbeatRequest(LPDU):
-
     bvlcFunction = LPCI.heartbeatRequest
 
     @classmethod
@@ -1158,7 +1196,6 @@ class HeartbeatRequest(LPDU):
 
 @register_bvlpdu_type
 class HeartbeatACK(LPDU):
-
     bvlcFunction = LPCI.heartbeatACK
 
     @classmethod
@@ -1176,7 +1213,6 @@ class HeartbeatACK(LPDU):
 
 @register_bvlpdu_type
 class ProprietaryMessage(LPDU):
-
     _debug: Callable[..., None]
     _debug_contents: Tuple[str, ...] = (
         "vendor_identifier",
@@ -1224,7 +1260,13 @@ class ProprietaryMessage(LPDU):
             proprietary_data,
         )
 
-    def lpdu_contents(self, use_dict=None, as_class=dict):
+    def lpdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         return key_value_contents(
             use_dict=use_dict,

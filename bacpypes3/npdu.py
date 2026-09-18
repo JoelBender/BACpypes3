@@ -4,7 +4,7 @@ Network Layer Protocol Data Units
 
 from __future__ import annotations
 
-from typing import Callable, List, Optional, Tuple
+from typing import Any, Callable, Dict, List, Optional, Tuple, Union
 
 from .errors import DecodingError
 from .debugging import ModuleLogger, DebugContents, bacpypes_debugging, btox
@@ -40,7 +40,6 @@ def register_npdu_type(class_):
 
 @bacpypes_debugging
 class NPCI(PCI, DebugContents):
-
     _debug: Callable[..., None]
     _debug_contents: Tuple[str, ...] = (
         "npduVersion",
@@ -230,7 +229,7 @@ class NPCI(PCI, DebugContents):
 
         return npci
 
-    def npci_contents(self, use_dict=None, as_class=dict):
+    def npci_contents(self, use_dict=None, *, as_class=dict, include_data=False):
         """Return the contents of an object as a dict."""
         if _debug:
             NPCI._debug("npci_contents use_dict=%r as_class=%r", use_dict, as_class)
@@ -250,7 +249,7 @@ class NPCI(PCI, DebugContents):
             if self.npduDADR.addrType == Address.remoteStationAddr:
                 use_dict.__setitem__("dnet", self.npduDADR.addrNet)
                 use_dict.__setitem__("dlen", self.npduDADR.addrLen)
-                use_dict.__setitem__("dadr", btox(self.npduDADR.addrAddr or b""))
+                use_dict.__setitem__("dadr", btox(self.npduDADR.addrAddr or b"", ":"))
             elif self.npduDADR.addrType == Address.remoteBroadcastAddr:
                 use_dict.__setitem__("dnet", self.npduDADR.addrNet)
                 use_dict.__setitem__("dlen", 0)
@@ -264,16 +263,16 @@ class NPCI(PCI, DebugContents):
         if self.npduSADR is not None:
             use_dict.__setitem__("snet", self.npduSADR.addrNet)
             use_dict.__setitem__("slen", self.npduSADR.addrLen)
-            use_dict.__setitem__("sadr", btox(self.npduSADR.addrAddr or b""))
+            use_dict.__setitem__("sadr", btox(self.npduSADR.addrAddr or b"", ":"))
 
         # hop count
-        if self.npduHopCount is not None:
+        if hasattr(self, "npduHopCount"):
             use_dict.__setitem__("hop_count", self.npduHopCount)
 
         # network layer message name decoded
-        if self.npduNetMessage is not None:
+        if hasattr(self, "npduNetMessage") and (self.npduNetMessage is not None):
             use_dict.__setitem__("net_message", self.npduNetMessage)
-        if self.npduVendorID is not None:
+        if hasattr(self, "npduVendorID"):
             use_dict.__setitem__("vendor_id", self.npduVendorID)
 
         # return what we built/updated
@@ -330,10 +329,24 @@ class NPDU(NPCI, PDUData):
 
         return npdu
 
-    def npdu_contents(self, use_dict=None, as_class=dict):
-        return PDUData.pdudata_contents(self, use_dict=use_dict, as_class=as_class)
+    def npdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
+        return PDUData.pdudata_contents(
+            self, use_dict=use_dict, as_class=as_class, include_data=include_data
+        )
 
-    def dict_contents(self, use_dict=None, as_class=dict):
+    def dict_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         if _debug:
             NPDU._debug("dict_contents use_dict=%r as_class=%r", use_dict, as_class)
@@ -343,8 +356,10 @@ class NPDU(NPCI, PDUData):
             use_dict = as_class()
 
         # call the parent classes
-        self.npci_contents(use_dict=use_dict, as_class=as_class)
-        self.npdu_contents(use_dict=use_dict, as_class=as_class)
+        self.npci_contents(use_dict=use_dict, as_class=as_class, include_data=False)
+        self.npdu_contents(
+            use_dict=use_dict, as_class=as_class, include_data=include_data
+        )
 
         # return what we built/updated
         return use_dict
@@ -357,7 +372,6 @@ class NPDU(NPCI, PDUData):
 
 @bacpypes_debugging
 class NetworkCodec(Client[PDU], Server[NPDU]):
-
     _debug: Callable[..., None]
 
     def __init__(self, cid=None, sid=None):
@@ -442,7 +456,6 @@ def key_value_contents(use_dict=None, as_class=dict, key_values=()):
 
 @register_npdu_type
 class WhoIsRouterToNetwork(NPDU):
-
     _debug_contents: Tuple[str, ...] = ("wirtnNetwork",)
 
     pduType = 0x00
@@ -469,7 +482,13 @@ class WhoIsRouterToNetwork(NPDU):
             npdu.wirtnNetwork = None
         return npdu
 
-    def npdu_contents(self, use_dict=None, as_class=dict):
+    def npdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = False,
+    ):
         return key_value_contents(
             use_dict=use_dict,
             as_class=as_class,
@@ -487,7 +506,6 @@ class WhoIsRouterToNetwork(NPDU):
 
 @register_npdu_type
 class IAmRouterToNetwork(NPDU):
-
     _debug_contents: Tuple[str, ...] = ("iartnNetworkList",)
 
     pduType = 0x01
@@ -512,7 +530,13 @@ class IAmRouterToNetwork(NPDU):
             network_list.append(pdu.get_short())
         return IAmRouterToNetwork(network_list)
 
-    def npdu_contents(self, use_dict=None, as_class=dict):
+    def npdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = False,
+    ):
         return key_value_contents(
             use_dict=use_dict,
             as_class=as_class,
@@ -530,7 +554,6 @@ class IAmRouterToNetwork(NPDU):
 
 @register_npdu_type
 class ICouldBeRouterToNetwork(NPDU):
-
     _debug_contents: Tuple[str, ...] = ("icbrtnNetwork", "icbrtnPerformanceIndex")
 
     pduType = 0x02
@@ -556,7 +579,13 @@ class ICouldBeRouterToNetwork(NPDU):
         performance_index = pdu.get()
         return ICouldBeRouterToNetwork(network, performance_index)
 
-    def npdu_contents(self, use_dict=None, as_class=dict):
+    def npdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = False,
+    ):
         return key_value_contents(
             use_dict=use_dict,
             as_class=as_class,
@@ -575,7 +604,6 @@ class ICouldBeRouterToNetwork(NPDU):
 
 @register_npdu_type
 class RejectMessageToNetwork(NPDU):
-
     _debug_contents: Tuple[str, ...] = ("rmtnRejectReason", "rmtnDNET")
 
     pduType = 0x03
@@ -601,7 +629,13 @@ class RejectMessageToNetwork(NPDU):
         dnet = pdu.get_short()
         return RejectMessageToNetwork(reason, dnet)
 
-    def npdu_contents(self, use_dict=None, as_class=dict):
+    def npdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = False,
+    ):
         return key_value_contents(
             use_dict=use_dict,
             as_class=as_class,
@@ -620,7 +654,6 @@ class RejectMessageToNetwork(NPDU):
 
 @register_npdu_type
 class RouterBusyToNetwork(NPDU):
-
     _debug_contents: Tuple[str, ...] = ("rbtnNetworkList",)
 
     pduType = 0x04
@@ -645,7 +678,13 @@ class RouterBusyToNetwork(NPDU):
             network_list.append(pdu.get_short())
         return RouterBusyToNetwork(network_list)
 
-    def npdu_contents(self, use_dict=None, as_class=dict):
+    def npdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = False,
+    ):
         return key_value_contents(
             use_dict=use_dict,
             as_class=as_class,
@@ -663,7 +702,6 @@ class RouterBusyToNetwork(NPDU):
 
 @register_npdu_type
 class RouterAvailableToNetwork(NPDU):
-
     _debug_contents: Tuple[str, ...] = ("ratnNetworkList",)
 
     pduType = 0x05
@@ -688,7 +726,13 @@ class RouterAvailableToNetwork(NPDU):
             network_list.append(pdu.get_short())
         return RouterAvailableToNetwork(network_list)
 
-    def npdu_contents(self, use_dict=None, as_class=dict):
+    def npdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = False,
+    ):
         return key_value_contents(
             use_dict=use_dict,
             as_class=as_class,
@@ -705,7 +749,6 @@ class RouterAvailableToNetwork(NPDU):
 
 
 class RoutingTableEntry(DebugContents):
-
     _debug_contents: Tuple[str, ...] = ("rtDNET", "rtPortID", "rtPortInfo")
     rtDNET: int
     rtPortID: int
@@ -724,7 +767,13 @@ class RoutingTableEntry(DebugContents):
             and (self.rtPortInfo == other.rtPortInfo)
         )
 
-    def dict_contents(self, use_dict=None, as_class=dict):
+    def dict_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
         """Return the contents of an object as a dict."""
         # make/extend the dictionary of content
         if use_dict is None:
@@ -782,7 +831,13 @@ class InitializeRoutingTable(NPDU):
 
         return InitializeRoutingTable(routing_table)
 
-    def npdu_contents(self, use_dict=None, as_class=dict):
+    def npdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = False,
+    ):
         routing_table = []
         for rte in self.irtTable:
             routing_table.append(rte.dict_contents(as_class=as_class))
@@ -838,7 +893,13 @@ class InitializeRoutingTableAck(NPDU):
             routing_table.append(rte)
         return InitializeRoutingTableAck(routing_table)
 
-    def npdu_contents(self, use_dict=None, as_class=dict):
+    def npdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = False,
+    ):
         routing_table = []
         for rte in self.irtaTable:
             routing_table.append(rte.dict_contents(as_class=as_class))
@@ -860,7 +921,6 @@ class InitializeRoutingTableAck(NPDU):
 
 @register_npdu_type
 class EstablishConnectionToNetwork(NPDU):
-
     _debug_contents: Tuple[str, ...] = ("ectnDNET", "ectnTerminationTime")
 
     pduType = 0x08
@@ -886,7 +946,13 @@ class EstablishConnectionToNetwork(NPDU):
         termination_time = pdu.get()
         return EstablishConnectionToNetwork(dnet, termination_time)
 
-    def npdu_contents(self, use_dict=None, as_class=dict):
+    def npdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = False,
+    ):
         return key_value_contents(
             use_dict=use_dict,
             as_class=as_class,
@@ -905,7 +971,6 @@ class EstablishConnectionToNetwork(NPDU):
 
 @register_npdu_type
 class DisconnectConnectionToNetwork(NPDU):
-
     _debug_contents: Tuple[str, ...] = ("dctnDNET",)
 
     pduType = 0x09
@@ -927,7 +992,13 @@ class DisconnectConnectionToNetwork(NPDU):
         dnet = pdu.get_short()
         return DisconnectConnectionToNetwork(dnet)
 
-    def npdu_contents(self, use_dict=None, as_class=dict):
+    def npdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = False,
+    ):
         return key_value_contents(
             use_dict=use_dict,
             as_class=as_class,
@@ -945,7 +1016,6 @@ class DisconnectConnectionToNetwork(NPDU):
 
 @register_npdu_type
 class WhatIsNetworkNumber(NPDU):
-
     _debug_contents: Tuple[str, ...] = ()
 
     pduType = 0x12
@@ -963,7 +1033,13 @@ class WhatIsNetworkNumber(NPDU):
     def decode(class_, pdu: PDU) -> NPDU:
         return WhatIsNetworkNumber()
 
-    def npdu_contents(self, use_dict=None, as_class=dict):
+    def npdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = False,
+    ):
         return key_value_contents(
             use_dict=use_dict,
             as_class=as_class,
@@ -978,7 +1054,6 @@ class WhatIsNetworkNumber(NPDU):
 
 @register_npdu_type
 class NetworkNumberIs(NPDU):
-
     _debug_contents: Tuple[str, ...] = (
         "nniNet",
         "nniFlag",
@@ -1007,7 +1082,13 @@ class NetworkNumberIs(NPDU):
         flag = pdu.get()
         return NetworkNumberIs(net, flag)
 
-    def npdu_contents(self, use_dict=None, as_class=dict):
+    def npdu_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = False,
+    ):
         return key_value_contents(
             use_dict=use_dict,
             as_class=as_class,

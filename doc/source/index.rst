@@ -22,10 +22,10 @@ latest version from `GitHub <https://github.com/JoelBender/BACpypes3/>`_::
     $ git clone https://github.com/JoelBender/BACpypes3.git
     $ cd BACpypes3
 
-And then use the `pipenv <https://pypi.org/project/pipenv/>`_ utility to create
+And then use the `uv <https://docs.astral.sh/uv/getting-started/installation/>`_ utility to create
 a virtual environment, install all of the developer tools, then activate it::
 
-    $ pipenv install --dev
+    $ uv sync --all-extras
     $ pipenv shell
 
 .. note::
