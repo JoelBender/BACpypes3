@@ -228,8 +228,8 @@ class DeviceInfoCache(DebugContents):
             DeviceInfoCache._debug("update_device_info %r", device_info)
 
         # get the primary keys
-        device_address = device_info.address
-        device_instance = device_info.deviceIdentifier
+        device_address = device_info.device_address
+        device_instance = device_info.device_instance
 
         # check for existing references
         info1 = self.address_cache.get(device_address, None)
@@ -237,9 +237,14 @@ class DeviceInfoCache(DebugContents):
 
         # if any of these references are different the cache has been
         # updated while a segmentation state machine was running, just
-        # log it
-        if (device_info is not info1) or (device_info is not info2):
+        # log it, unless it was not populated
+        if (info1 is not None or info2 is not None) and (device_info is not info1) or (device_info is not info2):
             DeviceInfoCache._info(f"Cache update for device {device_instance}")
+
+        # put it in the cache, replacing possible existing instance(s)
+        self.address_cache[device_address] = device_info
+        self.instance_cache[device_instance] = device_info
+
 
     def acquire(self, device_info: DeviceInfo) -> None:
         """
