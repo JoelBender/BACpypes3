@@ -3107,15 +3107,20 @@ class EventParameterDoubleOutOfRange(Sequence):
 
 
 class EventParameterExtendedParameters(Choice):
-    null = Null(_context=0)
-    real = Real(_context=1)
-    integer = Unsigned(_context=2)
-    boolean = Boolean(_context=3)
-    double = Double(_context=4)
-    octet = OctetString(_context=5)
-    bitstring = BitString(_context=6)
-    enum = Enumerated(_context=7)
-    reference = DeviceObjectPropertyReference(_context=8)
+    null = Null()
+    real = Real()
+    unsigned = Unsigned()
+    boolean = Boolean()
+    integer = Integer()
+    double = Double()
+    octet = OctetString()
+    characterString = CharacterString()
+    bitstring = BitString()
+    enum = Enumerated()
+    date = Date()
+    time = Time()
+    objectIdentifier = ObjectIdentifier()
+    reference = DeviceObjectPropertyReference(_context=0)
 
 
 class SequenceOfEventParameterExtendedParameters(
