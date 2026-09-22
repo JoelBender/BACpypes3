@@ -1887,6 +1887,7 @@ for service_choice in {
     20,
     21,
     23,
+    28,
 }:
     error_types[service_choice] = type(
         f"Error({ConfirmedServiceChoice(service_choice)})",
