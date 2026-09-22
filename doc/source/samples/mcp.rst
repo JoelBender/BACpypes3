@@ -44,6 +44,7 @@ Tool                                    Underlying operation
 ``who_has``                             Who-Has broadcast; returns list of I-Have dicts
 ``i_have``                              Unconfirmed I-Have
 ``read_property``                       ReadProperty on a remote object
+``read_object_list``                    Whole object-list of a device (indexed fallback)
 ``write_property``                      WriteProperty on a remote object
 ``read_property_multiple``              ReadPropertyMultiple on one device
 ``who_is_router_to_network``            Who-Is-Router-To-Network NPDU

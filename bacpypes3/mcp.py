@@ -477,6 +477,66 @@ async def read_property(
 
 
 @bacpypes_debugging
+async def read_object_list(
+    address: str,
+    device_identifier: str,
+) -> Dict[str, Any]:
+    """
+    Read the complete object-list of a remote BACnet device, i.e. the
+    identifiers of every object the device contains.
+
+    Use this to enumerate a device in one call instead of reading
+    ``object-list[0]`` and then each ``object-list[i]`` with
+    :func:`read_property`. The whole list is requested first; if the
+    device aborts because the response is too big and cannot be segmented
+    (``buffer-overflow`` or ``segmentation-not-supported``, common on large
+    field panels) the elements are read one at a time with a small number
+    of requests in flight, so this can take a while for devices with
+    thousands of objects.
+
+    Parameters
+    ----------
+    address : str
+        The device's network address, usually the ``pduSource`` returned
+        from :func:`who_is`. See :func:`read_property` for formats.
+    device_identifier : str
+        The device object, as ``"device,<instance>"``, e.g.
+        ``"device,1234"``.
+
+    Returns
+    -------
+    dict
+        On success:
+        ``{"deviceIdentifier": str, "count": int, "objectList": [str, ...]}``
+        where each element of ``objectList`` is an object identifier such
+        as ``"analog-input,1"``, in the device's order.
+        On protocol error (device rejected, aborted, or timed out) the
+        dict instead has ``error`` and the error details alongside
+        ``deviceIdentifier``.
+    """
+    if _debug:
+        read_object_list._debug("read_object_list %r %r", address, device_identifier)
+    app = get_application()
+    addr = Address(address)
+
+    vendor_info = await app.get_vendor_info(device_address=addr)
+    objid = await app.parse_object_identifier(
+        device_identifier, vendor_info=vendor_info
+    )
+
+    try:
+        object_list = await app.read_object_list(addr, objid)
+    except ErrorRejectAbortNack as err:
+        return {"deviceIdentifier": str(objid), **_encode_error(err)}
+
+    return {
+        "deviceIdentifier": str(objid),
+        "count": len(object_list),
+        "objectList": [atomic_encode(oid) for oid in object_list],
+    }
+
+
+@bacpypes_debugging
 async def write_property(
     address: str,
     object_identifier: str,
@@ -977,6 +1037,7 @@ TOOLS: Tuple[Callable[..., Any], ...] = (
     who_has,
     i_have,
     read_property,
+    read_object_list,
     write_property,
     read_property_multiple,
     who_is_router_to_network,
