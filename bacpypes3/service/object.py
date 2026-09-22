@@ -4,11 +4,14 @@ Application Module
 
 from __future__ import annotations
 
+import asyncio
 import inspect
 from typing import Any as _Any
 from typing import Callable, Optional, Tuple, Union
 
 from ..apdu import (
+    AbortPDU,
+    AbortReason,
     ErrorRejectAbortNack,
     ReadPropertyACK,
     ReadPropertyMultipleACK,
@@ -173,6 +176,106 @@ class ReadWritePropertyServices:
             )
 
         return property_value
+
+    async def read_object_list(
+        self,
+        address: Union[Address, str],
+        device_identifier: Union[ObjectIdentifier, str],
+        *,
+        concurrency: int = 4,
+    ) -> List[ObjectIdentifier]:
+        """
+        Read the object-list of a device and return it as a list of object
+        identifiers.
+
+        The whole array is read first.  If that is aborted because the
+        response is too big and cannot be segmented (buffer-overflow or
+        segmentation-not-supported) the length is read from element zero
+        and then each element is read individually, at most `concurrency`
+        requests at a time, and returned in order.  Any other error,
+        reject, or abort is raised.
+        """
+        if _debug:
+            ReadWritePropertyServices._debug(
+                "read_object_list %r %r %r", address, device_identifier, concurrency
+            )
+        if concurrency < 1:
+            raise ValueError("concurrency")
+
+        # parse the address if needed
+        if isinstance(address, str):
+            address = Address(address)
+        elif not isinstance(address, Address):
+            raise TypeError("address")
+
+        # parse the device identifier if needed
+        if isinstance(device_identifier, str):
+            vendor_info = await self.get_vendor_info(device_address=address)
+            device_identifier = await self.parse_object_identifier(
+                device_identifier, vendor_info=vendor_info
+            )
+        elif not isinstance(device_identifier, ObjectIdentifier):
+            raise TypeError("device_identifier")
+
+        object_list_property = PropertyIdentifier("object-list")
+
+        async def read_element(array_index: Optional[int] = None) -> _Any:
+            # read_property raises or returns an error/reject/abort, so
+            # make it always raise
+            value = await self.read_property(
+                address,
+                device_identifier,
+                object_list_property,
+                array_index=array_index,
+            )
+            if isinstance(value, ErrorRejectAbortNack):
+                raise value
+            return value
+
+        # try reading the whole thing at once
+        try:
+            object_list = await read_element()
+            if not isinstance(object_list, list):
+                raise TypeError(f"unexpected object-list value: {object_list!r}")
+            return list(object_list)
+        except AbortPDU as err:
+            if err.apduAbortRejectReason not in (
+                AbortReason.bufferOverflow,
+                AbortReason.segmentationNotSupported,
+            ):
+                raise
+            if _debug:
+                ReadWritePropertyServices._debug("    - fall back: %r", err)
+
+        # read the length
+        object_list_length = int(await read_element(0))
+        if _debug:
+            ReadWritePropertyServices._debug(
+                "    - object_list_length: %r", object_list_length
+            )
+
+        # a small pool of workers reads the elements, filling in the results
+        # by position so the order is preserved
+        results: List[_Any] = [None] * object_list_length
+        indexes = iter(range(object_list_length))
+
+        async def worker() -> None:
+            for i in indexes:
+                results[i] = await read_element(i + 1)
+
+        tasks = [
+            asyncio.ensure_future(worker())
+            for _ in range(min(concurrency, object_list_length))
+        ]
+        try:
+            await asyncio.gather(*tasks)
+        except BaseException:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+            raise
+
+        return results
 
     async def write_property(
         self,
