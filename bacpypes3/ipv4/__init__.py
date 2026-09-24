@@ -110,7 +110,9 @@ class IPv4DatagramServer(Server[PDU]):
 
         # easy call to create a local endpoint
         local_endpoint_task = loop.create_task(
-            self.retrying_create_datagram_endpoint(loop, address.addrTuple, bind_socket=bind_socket)  # type: ignore[arg-type]
+            self.retrying_create_datagram_endpoint(
+                loop, address.addrTuple, bind_socket=bind_socket
+            )  # type: ignore[arg-type]
         )
         if _debug:
             IPv4DatagramServer._debug(
@@ -139,7 +141,7 @@ class IPv4DatagramServer(Server[PDU]):
                 if bind_socket:
                     broadcast_endpoint_task = loop.create_task(
                         self.retrying_create_datagram_endpoint(
-                            loop, address.addrBroadcastTuple, bind_socket=bind_socket 
+                            loop, address.addrBroadcastTuple, bind_socket=bind_socket
                         )
                     )
                 else:
@@ -158,21 +160,40 @@ class IPv4DatagramServer(Server[PDU]):
                 self._transport_tasks.append(broadcast_endpoint_task)
 
     async def retrying_create_datagram_endpoint(
-            self, loop: asyncio.events.AbstractEventLoop, addrTuple: Tuple[str, int], bind_socket: Optional[socket.socket] = None
+        self,
+        loop: asyncio.events.AbstractEventLoop,
+        addrTuple: Tuple[str, int],
+        bind_socket: Optional[socket.socket] = None,
     ):
         """
         Repeat attempts to create datagram endpoint, sometimes during boot
         the interface isn't ready.  Contributed by PretentiousPotatoPeeler.
         """
+
+        # Factory that wires .server on the protocol BEFORE the socket can
+        # deliver anything. create_datagram_endpoint calls this, then calls
+        # connection_made, then returns — so the first datagram_received
+        # always sees a fully-initialised protocol. Setting .server in the
+        # done_callback (set_local_transport_protocol) instead leaves a race
+        # window: any datagram arriving between the endpoint going live and
+        # the callback firing crashes with AttributeError on self.server.
+        def protocol_factory() -> "IPv4DatagramProtocol":
+            protocol = IPv4DatagramProtocol()
+            protocol.server = self
+            return protocol
+
         while True:
             try:
                 if bind_socket:
                     return await loop.create_datagram_endpoint(
-                        IPv4DatagramProtocol, sock=bind_socket
+                        protocol_factory, sock=bind_socket
                     )
                 reuse_port = "nt" not in os.name
                 return await loop.create_datagram_endpoint(
-                    IPv4DatagramProtocol, local_addr=addrTuple, allow_broadcast=True, reuse_port=reuse_port
+                    protocol_factory,
+                    local_addr=addrTuple,
+                    allow_broadcast=True,
+                    reuse_port=reuse_port,
                 )
             except OSError:
                 if _debug:
@@ -271,6 +292,35 @@ class IPv4DatagramServer(Server[PDU]):
             if _debug:
                 IPv4DatagramServer._debug("    - waiting for local transport")
         await self._local_transport_ready.wait()
+
+        # Self-addressed unicast: short-circuit up-stack instead of going on
+        # the wire. Two shapes count as self-addressed on our port:
+        #   1. an exact match on the bound (host, port), and
+        #   2. any 127.x.x.x on our port
+        # Broadcast destinations (LocalBroadcast) stay on the wire.
+        is_self = pdu_destination == self.local_address or (
+            pdu_destination[0].startswith("127.")
+            and pdu_destination[1] == self.local_address[1]
+        )
+        if is_self and not isinstance(pdu.pduDestination, LocalBroadcast):
+            loopback_pdu = PDU(
+                pdu.pduData,
+                source=pdu.pduDestination,
+                destination=pdu.pduSource,
+            )
+            if _debug:
+                IPv4DatagramServer._debug(
+                    "    - self-addressed, loopback: %r", loopback_pdu
+                )
+            try:
+                await self.response(loopback_pdu)
+            except Exception as err:
+                if _debug:
+                    IPv4DatagramServer._debug(
+                        "    - error processing loopback PDU: %r", err
+                    )
+                IPv4DatagramServer._exception("error processing loopback PDU: %r", err)
+            return
 
         # send it along
         self.local_transport.sendto(pdu.pduData, pdu_destination)
