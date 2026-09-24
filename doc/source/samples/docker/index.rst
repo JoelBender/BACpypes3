@@ -35,6 +35,7 @@ The docker samples are often used with unpublished versions of
 BACpypes3, so the build scripts include a local build of the
 package as a wheel.
 
-The root folder of the BACpypes3 project has a `bdist.sh` script
-which builds Python eggs and a wheel.
+Run ``uv build`` from the root folder of the BACpypes3 project to
+produce an sdist and a wheel in ``dist/``; copy the wheel into this
+directory before building the Docker image.
 

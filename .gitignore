@@ -63,3 +63,8 @@ target/
 
 # Claude Code resume note (personal scratchpad)
 claude-resume-session
+
+# Publishing credentials (should not be committed even if left in the tree
+# by mistake). The canonical location for both is $HOME.
+.pypirc
+.uv-publish.*.env

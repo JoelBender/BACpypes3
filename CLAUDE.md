@@ -40,7 +40,7 @@ python -m bacpypes3 --address 192.168.1.10/24 --instance 999
 python -m bacpypes3 -v                       # version + which optional deps are loaded
 ```
 
-Build a release (`bdist.sh`, `release_to_pypi.sh`, `release_to_testpypi.sh` are the scripts the author uses).
+Build a release with `uv build`; `release_to_pypi.sh` and `release_to_testpypi.sh` wrap that plus `uv publish --index …` for the two PyPI targets.
 
 ## Architecture
 
