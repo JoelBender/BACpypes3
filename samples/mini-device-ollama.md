@@ -61,7 +61,7 @@ see the read/write results come back.
 In terminal 1:
 
 ```
-python samples/mini-device-mcp.py --name Demo --instance 3456
+python samples/mini-device-mcp.py --name Demo --instance 999
 ```
 
 The sample builds an `Application`, adds four points (two read-only, two
@@ -79,7 +79,13 @@ you'll connect below drives it through the same in-process `Application`.
 
 *Sanity check:* from a third terminal, `samples/mini-device-mcp.sh` will
 handshake with the MCP server via `curl` and confirm tools are reachable
-before you bring the LLM into the picture.
+before you bring the LLM into the picture. Its default demo runs
+`list_tools`, `get_config` (network-free — reads the local app's
+identity and object list without emitting a BACnet PDU, so it works
+even when the environment blocks BACnet broadcasts),
+`who_is 999` (bounded to the instance you started with, to avoid a
+broadcast storm on a large site), `i_am`, and a loopback
+`read_property` on `analog-value,2`.
 
 ## Step 2 — start Ollama and confirm the model runs
 
@@ -143,9 +149,9 @@ result so you can see the model's plan unfold:
 
 > Find every BACnet device with an instance number between 1000 and 1999.
 
-> Find the BACnet device with instance number 3456 and tell me its address.
+> Find the BACnet device with instance number 999 and tell me its address.
 
-> Read the present value of analog-value,1 on device 3456.
+> Read the present value of analog-value,1 on device 999.
 
 > Show me the configuration of the local BACpypes3 server.
 
