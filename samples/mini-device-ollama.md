@@ -1,10 +1,10 @@
-# Driving `mini-device-with-mcp.py` from a local Ollama model
+# Driving `mini-device-mcp.py` from a local Ollama model
 
 `bacpypes3.mcp` speaks the Model Context Protocol over HTTP, so any MCP-aware
 LLM host can drive it — including a fully local one. This walkthrough runs
 three processes on the same laptop:
 
-1. **`mini-device-with-mcp.py`** — the BACpypes3 mini-device sample, with an
+1. **`mini-device-mcp.py`** — the BACpypes3 mini-device sample, with an
    embedded MCP HTTP server on `http://127.0.0.1:8765/mcp`.
 2. **Ollama** — serving a local model that supports tool calling.
 3. **`ollmcp`** — a small MCP host that connects the two: it pulls the tool
@@ -19,7 +19,7 @@ see the read/write results come back.
   You  ──►  ollmcp  ──►  Ollama (local model, decides which tools to call)
                  │
                  └──►  bacpypes3.mcp HTTP server  ──►  Application  ──►  BACnet network
-                       (mini-device-with-mcp.py)
+                       (mini-device-mcp.py)
 ```
 
 ---
@@ -61,7 +61,7 @@ see the read/write results come back.
 In terminal 1:
 
 ```
-python samples/mini-device-with-mcp.py --name Demo --instance 3456
+python samples/mini-device-mcp.py --name Demo --instance 3456
 ```
 
 The sample builds an `Application`, adds four points (two read-only, two
@@ -158,7 +158,7 @@ result so you can see the model's plan unfold:
 The last one is where hosting a small local model shines: the model plans
 the sequence of `read_property` calls itself, without you writing a client.
 
-Everything the model does is visible in the mini-device-with-mcp.py logs
+Everything the model does is visible in the mini-device-mcp.py logs
 too — you can watch it enumerate objects, read points, and write to the
 commandable ones.
 
@@ -172,7 +172,7 @@ tools even when they're listed. Try a larger tool-calling model
 window with `OLLAMA_CONTEXT_LENGTH=8192` before starting Ollama. Verify the
 model's Ollama page shows the **Tools** badge.
 
-**"connection refused" from `ollmcp`.** Check that `mini-device-with-mcp.py`
+**"connection refused" from `ollmcp`.** Check that `mini-device-mcp.py`
 is still running and that its logs show the MCP server listening. `curl
 http://127.0.0.1:8765/mcp` should respond (not connect-refused). If the
 error mentions the Ollama endpoint instead, confirm `ollama serve` is up
@@ -185,13 +185,14 @@ expected behavior — the `read_property` docstring for the target device
 may be helpful context, and the model will usually retry with a corrected
 `object_identifier` or `property_identifier` on its own.
 
-**Discovering other devices.** `mini-device-with-mcp.py` is a full BACnet
+**Discovering other devices.** `mini-device-mcp.py` is a full BACnet
 device on the local network. If other BACnet devices are reachable, the
 `who_is` tool will find them — the LLM can then read their properties too,
 using the returned `pduSource` addresses.
 
 **Exposing beyond localhost.** The `mcp.serve_http(host="127.0.0.1", ...)`
-default is loopback for a reason: FastMCP has no built-in authentication.
+default is loopback for a reason: the MCP server has no built-in
+authentication.
 If you need remote access, put an authenticating reverse proxy in front,
 or run the Ollama host on the same machine as the BACnet application and
 tunnel over SSH.
@@ -200,7 +201,7 @@ tunnel over SSH.
 
 ## Related
 
-- [`mini-device-with-mcp.py`](mini-device-with-mcp.py) — the BACpypes3
+- [`mini-device-mcp.py`](mini-device-mcp.py) — the BACpypes3
   server used above (BACnet server + embedded MCP server, one process).
 - [`mini-device-mcp.sh`](mini-device-mcp.sh) — minimal `curl`-based client
   that exercises the MCP wire protocol by hand; useful for debugging when

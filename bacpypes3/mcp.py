@@ -19,7 +19,8 @@ This module has three personalities:
 2. **Runnable stand-alone MCP server.** ``python -m bacpypes3.mcp
    <BACpypes flags>`` builds an :class:`Application` from
    :class:`SimpleArgumentParser` and serves the same tools over stdio
-   using FastMCP.
+   using ``mcp.server.mcpserver.MCPServer`` (formerly ``FastMCP`` in
+   the pre-2.0 mcp SDK).
 
 3. **Embedded in a larger application.** A user application that already
    builds its own :class:`Application` (for example a BACnet server with
@@ -34,12 +35,16 @@ This module has three personalities:
        mcp.set_application(self.app)
        asyncio.create_task(mcp.serve_http(host="127.0.0.1", port=8765))
 
-   Advanced callers who already have their own FastMCP instance can call
-   :func:`register_tools(server)` to add the BACpypes3 tools to it.
+   Advanced callers who already have their own :class:`MCPServer`
+   instance can call :func:`register_tools(server)` to add the
+   BACpypes3 tools to it.
 
-The ``mcp`` and ``pydantic`` packages are optional; they are only
-imported when a server is actually built. The tool functions themselves
-can be called without either installed.
+Requires ``mcp>=2`` (v1 renamed ``FastMCP`` to ``MCPServer`` and moved
+transport parameters from the constructor to the ``run_*`` methods; see
+https://py.sdk.modelcontextprotocol.io/v2/migration/ ). The ``mcp`` and
+``pydantic`` packages are optional; they are only imported when a
+server is actually built. The tool functions themselves can be called
+without either installed.
 """
 
 from __future__ import annotations
@@ -990,16 +995,17 @@ TOOLS: Tuple[Callable[..., Any], ...] = (
 
 def register_tools(server: Any) -> Any:
     """
-    Register every BACpypes3 tool on an existing FastMCP server instance.
+    Register every BACpypes3 tool on an existing :class:`MCPServer` instance.
 
-    Use this from an embedding application that already owns a FastMCP
+    Use this from an embedding application that already owns an MCP
     server (perhaps hosting other tools of its own): call
     :func:`register_tools` to add the BACpypes3 tools alongside them.
 
     Parameters
     ----------
-    server : mcp.server.fastmcp.FastMCP
-        The FastMCP server to register tools on.
+    server : mcp.server.mcpserver.MCPServer
+        The MCPServer instance to register tools on. (Renamed from
+        ``FastMCP`` in the mcp 2.x SDK.)
 
     Returns
     -------
@@ -1010,24 +1016,30 @@ def register_tools(server: Any) -> Any:
     return server
 
 
-def build_server(name: str = "bacpypes3", **fastmcp_kwargs: Any) -> Any:
+def build_server(name: str = "bacpypes3", **server_kwargs: Any) -> Any:
     """
-    Build a fresh FastMCP server with every BACpypes3 tool registered.
+    Build a fresh :class:`MCPServer` with every BACpypes3 tool registered.
 
     Prefer :func:`serve_stdio` or :func:`serve_http` if you just want to
     run a server; use :func:`build_server` only when you need to
-    customize the FastMCP instance before serving. Any additional keyword
-    arguments are forwarded to ``FastMCP(...)`` — useful for setting
-    ``host``, ``port``, ``streamable_http_path``, ``stateless_http``,
-    ``log_level``, etc.
+    customize the server instance before serving. Any additional keyword
+    arguments are forwarded to ``MCPServer(...)`` — for example
+    ``title``, ``description``, ``version``, ``log_level``, ``auth``.
 
-    The ``mcp`` package (and ``pydantic``) must be installed — the import
-    happens here, not at module import time, so the tool functions remain
-    usable without the extra.
+    Note that transport-specific parameters (``host``, ``port``,
+    ``streamable_http_path``, ``stateless_http``, …) were **removed**
+    from the constructor in mcp 2.x and are now arguments to the
+    ``run_*_async`` / ``*_app`` methods. Pass them to :func:`serve_http`
+    (or to ``server.run_streamable_http_async(...)`` on a built server)
+    rather than here.
+
+    Requires ``mcp>=2`` (and ``pydantic``). The import happens here, not
+    at module import time, so the tool functions remain usable without
+    the extra.
     """
-    from mcp.server.fastmcp import FastMCP  # type: ignore[import-not-found]
+    from mcp.server.mcpserver import MCPServer  # type: ignore[import-not-found]
 
-    server = FastMCP(name, **fastmcp_kwargs)
+    server = MCPServer(name, **server_kwargs)
     return register_tools(server)
 
 
@@ -1080,7 +1092,7 @@ async def serve_http(
     host : str
         Interface to bind. Defaults to loopback; set to ``"0.0.0.0"`` to
         accept remote connections (only do this behind an auth proxy —
-        FastMCP has no built-in authentication).
+        the MCP server has no built-in authentication).
     port : int
         TCP port to listen on. Default ``8765``.
     app : Application, optional
@@ -1090,8 +1102,10 @@ async def serve_http(
     """
     if app is not None:
         set_application(app)
-    server = build_server(host=host, port=port)
-    await server.run_streamable_http_async()
+    # mcp 2.x: host/port belong on run_streamable_http_async, not the
+    # MCPServer constructor.
+    server = build_server()
+    await server.run_streamable_http_async(host=host, port=port)
 
 
 async def _serve_cli() -> None:

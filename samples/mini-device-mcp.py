@@ -1,3 +1,4 @@
+#!/usr/bin/env python3
 """
 Mini BACnet Device + Embedded MCP Server
 ========================================
@@ -31,19 +32,21 @@ Install the ``mcp`` extra first::
 
 Then::
 
-    python samples/mini-device-with-mcp.py --name Demo --instance 3456
+    python samples/mini-device-mcp.py --name Demo --instance 3456
 """
 
 import asyncio
+import logging
 import sys
 
-from bacpypes3 import mcp
 from bacpypes3.app import Application
 from bacpypes3.argparse import SimpleArgumentParser
 from bacpypes3.debugging import ModuleLogger, bacpypes_debugging
 from bacpypes3.local.analog import AnalogValueObject
 from bacpypes3.local.binary import BinaryValueObject
 from bacpypes3.local.cmd import Commandable
+
+from bacpypes3 import mcp
 
 _debug = 0
 _log = ModuleLogger(globals())
@@ -121,7 +124,9 @@ class SampleApplication:
         #    coexists with the BACnet server and any other work.
         #    Loopback-only by default; put it behind an auth proxy if
         #    you need to expose it beyond the host.
-        self.mcp_task = asyncio.create_task(mcp.serve_http(host="127.0.0.1", port=8765))
+        self.mcp_task = asyncio.create_task(
+            mcp.serve_http(host="127.0.0.1", port=8765)
+        )
         _log.info("MCP server listening on http://127.0.0.1:8765/mcp")
 
     async def update_values(self) -> None:
@@ -141,7 +146,38 @@ class SampleApplication:
 
 async def main() -> None:
     parser = SimpleArgumentParser()
+    parser.add_argument(
+        "--mcp-debug",
+        action="store_true",
+        help=(
+            "Turn on DEBUG-level logging for the embedded MCP / uvicorn "
+            "transport. Surfaces per-request access lines, session-manager "
+            "routing, and lifecycle events. Note: the reason for a "
+            "Streamable-HTTP 400 is written into the response body, not "
+            "logged, so read it on the CLIENT side (curl prints it; "
+            "ollmcp needs -v / HTTPX_LOG_LEVEL=trace)."
+        ),
+    )
     args = parser.parse_args()
+
+    # When --mcp-debug is passed, wire up logging BEFORE serve_http runs.
+    # MCPServer.run_streamable_http_async() calls configure_logging(),
+    # which in turn calls logging.basicConfig(...); basicConfig is a
+    # no-op once the root logger already has handlers attached, so as
+    # long as we install ours first they survive and MCP does not clobber
+    # them. If we deferred this to after serve_http, MCP would win and
+    # only INFO would come through.
+    if args.mcp_debug:
+        logging.basicConfig(level=logging.DEBUG)
+        for name in (
+            "uvicorn",
+            "uvicorn.error",
+            "uvicorn.access",
+            "mcp",
+            "mcp.server",
+            "mcp.server.streamable_http",
+        ):
+            logging.getLogger(name).setLevel(logging.DEBUG)
 
     SampleApplication(args)
 

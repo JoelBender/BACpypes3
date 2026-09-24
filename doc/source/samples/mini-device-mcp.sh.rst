@@ -5,12 +5,12 @@
 mini-device-mcp.sh
 ==================
 
-Companion shell script for :ref:`mini-device-with-mcp.py`. Drives the
+Companion shell script for :ref:`mini-device-mcp.py`. Drives the
 embedded MCP HTTP server with ``curl`` — no Python client required. Useful
 for smoke-testing the server, seeing exactly what the MCP wire protocol
 looks like, and scripting BACpypes3 operations from any shell.
 
-Run ``mini-device-with-mcp.py`` in one terminal (it exposes an MCP server
+Run ``mini-device-mcp.py`` in one terminal (it exposes an MCP server
 on ``http://127.0.0.1:8765/mcp``), then in another terminal::
 
     ./samples/mini-device-mcp.sh                       # demo: who_is + i_am + read_property

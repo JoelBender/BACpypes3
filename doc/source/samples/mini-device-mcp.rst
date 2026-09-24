@@ -1,8 +1,8 @@
-.. mini-device-with-mcp.py sample application
+.. mini-device-mcp.py sample application
 
-.. _mini-device-with-mcp.py:
+.. _mini-device-mcp.py:
 
-mini-device-with-mcp.py
+mini-device-mcp.py
 =======================
 
 A minimal BACnet server (the same four points as ``mini-device-revisited.py``)
@@ -21,7 +21,7 @@ Two things make it work:
 Install the ``mcp`` extra first, then run::
 
     pip install -e ".[mcp]"
-    python samples/mini-device-with-mcp.py --name Demo --instance 3456
+    python samples/mini-device-mcp.py --name Demo --instance 3456
 
 The MCP client connects to ``http://127.0.0.1:8765/mcp`` and can call
 tools like ``who_is``, ``read_property``, ``write_property``, and

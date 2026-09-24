@@ -27,13 +27,31 @@
 #     ./mini-device-mcp.sh                          # default host/port + demo
 #     MCP_URL=http://host:port/mcp ./mini-device-mcp.sh
 #     ./mini-device-mcp.sh list_tools               # dump advertised tools
-#     ./mini-device-mcp.sh who_is                   # single tool
+#     ./mini-device-mcp.sh who_is 999               # single device (instance)
+#     ./mini-device-mcp.sh who_is 1000 1999          # instance range
+#     ./mini-device-mcp.sh get_config                # local app identity + objects
 #     ./mini-device-mcp.sh read_property 192.168.1.10 analog-input,1 present-value
+#     ./mini-device-mcp.sh read_broadcast_distribution_table 192.168.1.10
+#     ./mini-device-mcp.sh read_foreign_device_table 192.168.1.10
+#
+# Debugging:
+#     MCP_TRACE=1 (the default) prints each outgoing JSON-RPC payload and
+#     shows the raw response body when the HTTP call returns non-2xx. Set
+#     MCP_TRACE=0 to silence once things are working.
 # ---------------------------------------------------------------------------
 
 set -euo pipefail
 
 MCP_URL="${MCP_URL:-http://127.0.0.1:8765/mcp}"
+
+# MCP_TRACE=1 prints each outgoing JSON-RPC payload to stderr before it is
+# sent, and each raw response body before SSE unwrapping. Turn this on when
+# a call fails with an HTTP-level error (400/406/…): the response body
+# usually carries the reason (e.g. "Validation error: params.arguments must
+# be an object") but the SSE unwrap step throws away non-event-stream
+# bodies. On by default so you always see what the wire looks like — set
+# MCP_TRACE=0 to suppress once things are working.
+MCP_TRACE="${MCP_TRACE:-1}"
 
 # Temp files created below are cleaned up on any exit path.
 _TMPFILES=()
@@ -45,14 +63,60 @@ cleanup() {
 }
 trap cleanup EXIT
 
-# curl arg list shared by every request.
+# curl arg list shared by every request. NOTE: no --fail / --fail-with-body
+# here — we want the response body on 4xx/5xx so we can print the reason.
+# HTTP status is captured separately via --write-out below.
 CURL_COMMON=(
     --silent
     --show-error
-    --fail-with-body
     -H "Content-Type: application/json"
     -H "Accept: application/json, text/event-stream"
 )
+
+# Log a JSON blob to stderr (labeled), pretty-printed if jq is available.
+trace() {
+    [[ "$MCP_TRACE" != "1" ]] && return 0
+    local label="$1"
+    shift
+    printf '  [trace] %s: ' "$label" >&2
+    if command -v jq >/dev/null 2>&1; then
+        printf '%s' "$*" | jq -c . >&2 2>/dev/null \
+            || printf '%s\n' "$*" >&2
+    else
+        printf '%s\n' "$*" >&2
+    fi
+}
+
+# POST a JSON-RPC payload and print the reply. On 2xx, unwrap SSE framing
+# and pretty-print the JSON. On any other status, dump the raw body so the
+# reason for a 400 (e.g. "Validation error: ...") is visible instead of
+# being silently eaten by the SSE unwrap step.
+#
+# Args: PAYLOAD [extra curl args...]
+post() {
+    local payload="$1"; shift
+    local body_file status
+    body_file=$(mktemp)
+    _TMPFILES+=("$body_file")
+
+    trace "POST $MCP_URL" "$payload"
+    status=$(curl "${CURL_COMMON[@]}" \
+        -o "$body_file" \
+        -w '%{http_code}' \
+        -X POST "$MCP_URL" \
+        --data "$payload" \
+        "$@")
+
+    if [[ "$status" =~ ^2 ]]; then
+        sse_body < "$body_file" | pp
+        return 0
+    fi
+
+    echo "  [http $status] response body:" >&2
+    cat "$body_file" >&2
+    echo >&2
+    return 22   # match curl's --fail exit for scripts that check $?
+}
 
 # Pretty-print JSON if jq is available; otherwise echo the raw body.
 pp() {
@@ -74,25 +138,24 @@ sse_body() {
 # 1. initialize — first request; captures Mcp-Session-Id into $SID
 # ---------------------------------------------------------------------------
 init() {
-    local headers_file body_file
+    local headers_file
     headers_file=$(mktemp)
-    body_file=$(mktemp)
-    _TMPFILES+=("$headers_file" "$body_file")
+    _TMPFILES+=("$headers_file")
 
-    curl "${CURL_COMMON[@]}" \
-        -D "$headers_file" \
-        -o "$body_file" \
-        -X POST "$MCP_URL" \
-        --data '{
-            "jsonrpc": "2.0",
-            "id": 1,
-            "method": "initialize",
-            "params": {
-                "protocolVersion": "2025-06-18",
-                "capabilities": {},
-                "clientInfo": {"name": "mini-device-mcp.sh", "version": "1"}
-            }
-        }'
+    local payload='{
+        "jsonrpc": "2.0",
+        "id": 1,
+        "method": "initialize",
+        "params": {
+            "protocolVersion": "2025-06-18",
+            "capabilities": {},
+            "clientInfo": {"name": "mini-device-mcp.sh", "version": "1"}
+        }
+    }'
+
+    echo "[init] initialize"
+    # -D captures response headers so we can pluck Mcp-Session-Id.
+    post "$payload" -D "$headers_file"
 
     # Header name is case-insensitive per RFC 7230; server returns lowercase.
     SID=$(awk 'BEGIN{IGNORECASE=1} /^mcp-session-id:/ { sub(/\r$/, "", $2); print $2 }' \
@@ -103,8 +166,6 @@ init() {
         exit 1
     fi
     echo "[init] session id: $SID"
-    echo "[init] server info:"
-    sse_body < "$body_file" | pp
 }
 
 # ---------------------------------------------------------------------------
@@ -112,10 +173,12 @@ init() {
 #    response body). MCP requires this before tool calls.
 # ---------------------------------------------------------------------------
 initialized() {
+    local payload='{"jsonrpc": "2.0", "method": "notifications/initialized"}'
+    trace "POST $MCP_URL" "$payload"
     curl "${CURL_COMMON[@]}" \
         -H "Mcp-Session-Id: $SID" \
         -X POST "$MCP_URL" \
-        --data '{"jsonrpc": "2.0", "method": "notifications/initialized"}' \
+        --data "$payload" \
         -o /dev/null
 }
 
@@ -128,11 +191,8 @@ initialized() {
 list_tools() {
     echo
     echo "[list] tools/list"
-    curl "${CURL_COMMON[@]}" \
-        -H "Mcp-Session-Id: $SID" \
-        -X POST "$MCP_URL" \
-        --data '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
-    | sse_body | pp
+    post '{"jsonrpc":"2.0","id":2,"method":"tools/list","params":{}}' \
+        -H "Mcp-Session-Id: $SID"
 }
 
 # ---------------------------------------------------------------------------
@@ -143,26 +203,61 @@ list_tools() {
 call_tool() {
     local name="$1"
     local arguments="${2:-{\}}"
+
+    # Guard against the classic mistake: passing a bare scalar (an address,
+    # a number) where a JSON object is required. The streamable-http
+    # transport rejects such a payload with 400 "Validation error";
+    # catching it here gives a clearer message and avoids a wasted round
+    # trip.
+    if [[ "$arguments" != "{"*"}" && "$arguments" != "["*"]" ]]; then
+        echo "error: tool arguments must be a JSON object, got: $arguments" >&2
+        echo "hint:  wrap it, e.g. '{\"address\":\"$arguments\"}'" >&2
+        return 2
+    fi
+
     local payload
     payload=$(printf '{"jsonrpc":"2.0","id":%d,"method":"tools/call","params":{"name":"%s","arguments":%s}}' \
         "$RANDOM" "$name" "$arguments")
 
     echo
     echo "[call] $name $arguments"
-    curl "${CURL_COMMON[@]}" \
-        -H "Mcp-Session-Id: $SID" \
-        -X POST "$MCP_URL" \
-        --data "$payload" \
-    | sse_body | pp
+    post "$payload" -H "Mcp-Session-Id: $SID"
 }
 
 # ---------------------------------------------------------------------------
 # Convenience wrappers around the three demo tools.
 # ---------------------------------------------------------------------------
 who_is() {
-    # Local broadcast, no instance range — discovers every device that
-    # responds within the ~3-second default timeout.
-    call_tool who_is '{}'
+    # Usage: who_is LOW_LIMIT [HIGH_LIMIT]
+    #
+    # An unqualified who_is (no arguments) is a global broadcast that every
+    # BACnet device on the network answers to. On a large site that means
+    # a burst of hundreds or thousands of I-Am replies — a broadcast storm
+    # that can drop other traffic and briefly overwhelm the collector. This
+    # wrapper refuses that shape and requires a device-instance floor
+    # (``low_limit``) so the query reaches a bounded subset. If
+    # ``high_limit`` is omitted the MCP tool defaults it to ``low_limit``,
+    # so ``who_is 1234`` targets exactly instance 1234; pass an explicit
+    # ``high_limit`` for a range.
+    if [[ $# -lt 1 ]]; then
+        echo "error: who_is requires at least a low_limit argument" >&2
+        echo "hint:  an unqualified who_is broadcasts to every device on" >&2
+        echo "       the network and can cause a reply storm on large" >&2
+        echo "       sites. Pass a device-instance floor to bound it:" >&2
+        echo "         $0 who_is 999            # instance 999 only" >&2
+        echo "         $0 who_is 1000 1999      # range 1000..1999" >&2
+        return 2
+    fi
+
+    local low_limit="$1"
+    local high_limit="${2:-}"
+    local args
+    if [[ -n "$high_limit" ]]; then
+        args=$(printf '{"low_limit":%s,"high_limit":%s}' "$low_limit" "$high_limit")
+    else
+        args=$(printf '{"low_limit":%s}' "$low_limit")
+    fi
+    call_tool who_is "$args"
 }
 
 i_am() {
@@ -180,6 +275,31 @@ read_property() {
         "$address" "$object_identifier" "$property_identifier")"
 }
 
+read_broadcast_distribution_table() {
+    # Usage: read_broadcast_distribution_table ADDRESS
+    local address="$1"
+    call_tool read_broadcast_distribution_table \
+        "$(printf '{"address":"%s"}' "$address")"
+}
+
+read_foreign_device_table() {
+    # Usage: read_foreign_device_table ADDRESS
+    local address="$1"
+    call_tool read_foreign_device_table \
+        "$(printf '{"address":"%s"}' "$address")"
+}
+
+get_config() {
+    # No arguments. Returns the running application's own identity
+    # (bound address, device instance, vendor, etc.) plus every locally-
+    # registered BACnet object. Unlike every other tool in this script,
+    # get_config does NOT send a BACnet PDU — it reads the local
+    # application state directly — so it works even when the stack
+    # cannot talk to itself over the wire, and is a good end-to-end
+    # sanity check that the MCP transport is up.
+    call_tool get_config '{}'
+}
+
 # ---------------------------------------------------------------------------
 # main
 # ---------------------------------------------------------------------------
@@ -188,15 +308,27 @@ main() {
     initialized
 
     if [[ $# -eq 0 ]]; then
-        # Default demo: list the tools the server advertises (with their
-        # descriptions), discover devices, announce this side, then read a
-        # property from the embedded server's own commandable-av (which the
-        # mini-device-with-mcp.py sample registers as analog-value,2).
+        # Default demo, in order of increasing "how much of the stack is
+        # this really exercising":
+        #   1. list_tools — pure MCP transport, no application code.
+        #   2. get_config — MCP → application, no network. This is the
+        #      most robust end-to-end sanity check that both the MCP
+        #      server and the injected app are wired up.
+        #   3. who_is 999 — MCP → application → network layer, bounded
+        #      to a single instance (defaulting high_limit to low_limit)
+        #      to avoid a broadcast storm on a large site.
+        #   4. i_am — fire-and-forget broadcast.
+        #   5. read_property against 127.0.0.1 — MCP → application →
+        #      network → back up. IPv4DatagramServer.indication() has a
+        #      loopback shortcut for self-addressed unicasts (including
+        #      any 127.x.x.x on the app's port), so this reaches the
+        #      embedded server's own analog-value,2 in-process without
+        #      going on the wire. Adjust ADDRESS to any host discovered
+        #      by who_is above to exercise a real remote read.
         list_tools
-        who_is
+        get_config
+        who_is 999
         i_am
-        # Read from the embedded server itself. Adjust ADDRESS to any host
-        # discovered by who_is above.
         read_property "127.0.0.1" "analog-value,2" "present-value"
         return
     fi
@@ -209,8 +341,16 @@ main() {
         list_tools|tools|tools/list)
             list_tools
             ;;
-        who_is|i_am)
-            "$tool"
+        who_is)
+            # Pass through positional args (low_limit [high_limit]); the
+            # wrapper refuses a bare who_is with a broadcast-storm warning.
+            who_is "$@"
+            ;;
+        i_am)
+            i_am
+            ;;
+        get_config)
+            get_config
             ;;
         read_property)
             if [[ $# -ne 3 ]]; then
@@ -219,8 +359,16 @@ main() {
             fi
             read_property "$@"
             ;;
+        read_broadcast_distribution_table|read_foreign_device_table)
+            if [[ $# -ne 1 ]]; then
+                echo "usage: $0 $tool ADDRESS" >&2
+                exit 2
+            fi
+            "$tool" "$@"
+            ;;
         *)
-            # Fallback: raw tool call with a JSON argument object.
+            # Fallback: raw tool call with a JSON argument object. call_tool
+            # rejects a non-JSON-object argument before the round trip.
             call_tool "$tool" "${1:-{\}}"
             ;;
     esac

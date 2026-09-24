@@ -82,7 +82,7 @@ Every layer is one or more of:
   `_debug = 0` is a module-level toggle; `--debug bacpypes3.<module>` on the CLI flips it and routes `_log`/`Foo._debug` output. Follow this pattern in new modules rather than raw `logging.getLogger`.
 - `console.py` + `cmd.py` — line-oriented async shell used by `__main__.py` and many `samples/`.
 - `json/` and `rdf/` — bidirectional serialization of BACnet objects (`sequence_to_json`, `json_to_sequence`; `sequence_to_graph` for RDF). Used by `Application.from_args` to hydrate objects from config.
-- `mcp.py` — Model Context Protocol integration (optional `mcp` extra). Exposes each `__main__` CLI command as an async function returning JSON-serializable data; can also run as a stand-alone MCP server (stdio) or be embedded in a long-running application via `mcp.serve_http(...)` as a concurrent asyncio task. Reference embedding pattern: `samples/mini-device-with-mcp.py`.
+- `mcp.py` — Model Context Protocol integration (optional `mcp` extra). Exposes each `__main__` CLI command as an async function returning JSON-serializable data; can also run as a stand-alone MCP server (stdio) or be embedded in a long-running application via `mcp.serve_http(...)` as a concurrent asyncio task. Reference embedding pattern: `samples/mini-device-mcp.py`.
 - `analysis.py` — pcap decoding helpers (`pylibpcap` extra).
 
 ### Tests

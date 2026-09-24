@@ -21,7 +21,7 @@ The `bacpypes3.mcp` module exposes the BACpypes3 CLI commands (`whois`,
 3. **Embedded server.** A long-running BACnet server can inject its own
    `Application` and start `mcp.serve_http(...)` as a concurrent asyncio
    task, so an LLM agent can drive it over HTTP without fighting the host
-   application's stdout. See `samples/mini-device-with-mcp.py` for the
+   application's stdout. See `samples/mini-device-mcp.py` for the
    reference pattern.
 
 The `mcp` and `pydantic` packages are declared as an optional extra and are

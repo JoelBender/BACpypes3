@@ -114,7 +114,7 @@ MCP client (e.g. an LLM agent) that owns the stdio streams.
 Embedded server (HTTP)
 ----------------------
 
-A long-running BACnet server (such as :ref:`mini-device-with-mcp.py`) can
+A long-running BACnet server (such as :ref:`mini-device-mcp.py`) can
 add MCP at runtime by injecting its already-running ``Application`` and
 starting the HTTP transport as a concurrent asyncio task. HTTP is preferred
 here because stdio would clash with the host application's own stdout::
@@ -145,7 +145,7 @@ registered.
 The ``host`` defaults to loopback. Only bind to ``0.0.0.0`` behind an
 authenticating proxy — FastMCP has no built-in authentication.
 
-Reference: :ref:`mini-device-with-mcp.py`. For a shell-only client that
+Reference: :ref:`mini-device-mcp.py`. For a shell-only client that
 drives the same server with ``curl``, see :ref:`mini-device-mcp.sh`. To
 drive it from a fully local LLM (Ollama + ``mcphost``/``kit``), see
 :ref:`mini-device-ollama`.
