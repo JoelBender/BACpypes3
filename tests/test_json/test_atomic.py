@@ -39,6 +39,10 @@ class QuickBrownFox(Enumerated):
     fox = 2
 
 
+class EmptyEnumerated(Enumerated):
+    pass
+
+
 class SharedNameOne(Enumerated):
     shared = 4
 
@@ -107,6 +111,11 @@ def test_generic_enumerated_reconstructs_unique_symbolic_value():
     assert isinstance(decoded.logDatum, LogRecordLogDatum)
     assert isinstance(decoded.logDatum.enumValue, Enumerated)
     assert decoded.logDatum.enumValue == BinaryPV.inactive
+
+
+def test_empty_enumerated_subclass_does_not_use_generic_symbol_lookup():
+    with pytest.raises(ValueError, match="inactive"):
+        atomic_decode("inactive", EmptyEnumerated)
 
 
 def test_log_record_json_roundtrip():
