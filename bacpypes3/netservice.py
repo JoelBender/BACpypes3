@@ -98,6 +98,25 @@ class RouterInfoCache(DebugContents):
         self.path_info = {}
         self.router_dnets = {}
 
+        # lazily created on first use -- see _get_lock() below.  This
+        # serializes the read/modify/write mutators (update_path_info,
+        # remove_path_info, update_router_status, update_source_network).
+        # Two I-Am-Router-To-Network messages processed concurrently can
+        # otherwise interleave between the get_*/set_* awaits inside
+        # update_path_info and leave path_info pointing at a router whose
+        # router_dnets no longer contains that dnet -- the next update then
+        # raises "dnet X not in {...}".
+        self._lock: Optional[asyncio.Lock] = None
+
+    def _get_lock(self) -> asyncio.Lock:
+        # Lazy construction: on Python < 3.10 asyncio.Lock() binds to the
+        # running loop at creation, but RouterInfoCache instances can be
+        # created before the loop is running (e.g. at module import time in
+        # a sample), so defer until we're inside a coroutine.
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+        return self._lock
+
     async def get_path_info(
         self, snet: Optional[int], dnet: int
     ) -> Optional[Tuple[Address, int]]:
@@ -241,64 +260,72 @@ class RouterInfoCache(DebugContents):
         if _debug:
             RouterInfoCache._debug("update_path_info %r %r %r", snet, address, dnets)
 
-        # create/update the list of dnets for this router
-        router_dnets_key = (snet, address)
-        router_dnets = await self.get_router_dnets(*router_dnets_key)
-        new_dnets = _copy(dnets)
+        async with self._get_lock():
+            # create/update the list of dnets for this router
+            router_dnets_key = (snet, address)
+            router_dnets = await self.get_router_dnets(*router_dnets_key)
+            new_dnets = _copy(dnets)
 
-        if router_dnets is None:
-            if _debug:
-                RouterInfoCache._debug("    - new router: %r", address)
-            router_dnets: Set[int] = set()
-        else:
-            # just look for new dnets related to this router
-            new_dnets -= router_dnets
-            if not new_dnets:
-                # if there are no new dnets then the router_address is already
-                # correct and there are no others that need updating
+            if router_dnets is None:
                 if _debug:
-                    RouterInfoCache._debug("    - no changes")
-                return
-        if _debug:
-            RouterInfoCache._debug("    - router_dnets: %r", router_dnets)
-            RouterInfoCache._debug("    - new_dnets: %r", new_dnets)
-
-        # get the addresses of the routers that used to be the router to
-        # any of the dnets
-        for dnet in new_dnets:
-            path_info = await self.get_path_info(snet, dnet)
-            if not path_info:
-                continue
+                    RouterInfoCache._debug("    - new router: %r", address)
+                router_dnets: Set[int] = set()
+            else:
+                # just look for new dnets related to this router
+                new_dnets -= router_dnets
+                if not new_dnets:
+                    # if there are no new dnets then the router_address is
+                    # already correct and there are no others that need
+                    # updating
+                    if _debug:
+                        RouterInfoCache._debug("    - no changes")
+                    return
             if _debug:
-                RouterInfoCache._debug("    - old path: %r", path_info)
+                RouterInfoCache._debug("    - router_dnets: %r", router_dnets)
+                RouterInfoCache._debug("    - new_dnets: %r", new_dnets)
 
-            old_router_address = path_info[0]
-            old_router_dnets = await self.get_router_dnets(snet, old_router_address)
-            if old_router_dnets is None:
-                raise RuntimeError(f"routing cache: no router {old_router_address}")
-            if dnet not in old_router_dnets:
-                raise RuntimeError(
-                    f"routing cache: dnet {dnet} not in {old_router_dnets}"
+            # get the addresses of the routers that used to be the router to
+            # any of the dnets
+            for dnet in new_dnets:
+                path_info = await self.get_path_info(snet, dnet)
+                if not path_info:
+                    continue
+                if _debug:
+                    RouterInfoCache._debug("    - old path: %r", path_info)
+
+                old_router_address = path_info[0]
+                old_router_dnets = await self.get_router_dnets(
+                    snet, old_router_address
+                )
+                if old_router_dnets is None:
+                    raise RuntimeError(
+                        f"routing cache: no router {old_router_address}"
+                    )
+                if dnet not in old_router_dnets:
+                    raise RuntimeError(
+                        f"routing cache: dnet {dnet} not in {old_router_dnets}"
+                    )
+
+                # no longer a path through old router
+                old_router_dnets.remove(dnet)
+                await self.set_router_dnets(
+                    snet, old_router_address, old_router_dnets
                 )
 
-            # no longer a path through old router
-            old_router_dnets.remove(dnet)
-            await self.set_router_dnets(snet, old_router_address, old_router_dnets)
+                # if there are no more dnets remove the router reference
+                if not old_router_dnets:
+                    if _debug:
+                        RouterInfoCache._debug(
+                            "    - router abandoned: %r", old_router_address
+                        )
+                    await self.delete_router_dnets(snet, old_router_address)
 
-            # if there are no more dnets remove the router reference
-            if not old_router_dnets:
-                if _debug:
-                    RouterInfoCache._debug(
-                        "    - router abandoned: %r", old_router_address
-                    )
-                await self.delete_router_dnets(snet, old_router_address)
+            # add to the existing set with the new ones and set the path
+            router_dnets |= new_dnets
 
-        # add to the existing set with the new ones and set the path
-        router_dnets |= new_dnets
-
-        await self.set_router_dnets(snet, address, router_dnets)
-        for dnet in new_dnets:
-            await self.set_path_info(snet, dnet, address, ROUTER_AVAILABLE)
+            await self.set_router_dnets(snet, address, router_dnets)
+            for dnet in new_dnets:
+                await self.set_path_info(snet, dnet, address, ROUTER_AVAILABLE)
 
     async def remove_path_info(
         self,
@@ -313,65 +340,68 @@ class RouterInfoCache(DebugContents):
         if _debug:
             RouterInfoCache._debug("remove_path_info %r %r %r", snet, address, dnets)
 
-        if address is not None:
-            # get the list of dnets for this router
-            router_dnets = await self.get_router_dnets(snet, address)
-            if router_dnets is None:
-                if _debug:
-                    RouterInfoCache._debug("    - no known dnets")
-                return
-            if dnets is None:
-                if _debug:
-                    RouterInfoCache._debug("    - remove them all")
-                dnets = router_dnets
-            else:
-                if _debug:
-                    RouterInfoCache._debug("    - remove those in the router")
-                dnets &= router_dents
-
-            # remove the path info
-            for dnet in dnets:
-                await self.delete_path_info(snet, dnet)
-
-            # remove the dnets
-            router_dnets -= dnets
-
-            # if there are no more dnets remove the router reference
-            if not router_dnets:
-                if _debug:
-                    RouterInfoCache._debug("    - router abandoned: %r", address)
-                await self.delete_router_dnets(snet, address)
-            else:
-                await self.set_router_dnets(snet, address, router_dnets)
-        else:
-            if dnets is None:
-                raise RuntimeError("inconsistent parameters")
-
-            for dnet in dnets:
-                path_info = await self.get_path_info(snet, dnet)
-                if not path_info:
-                    continue
-
-                router_address, _ = path_info
-
+        async with self._get_lock():
+            if address is not None:
                 # get the list of dnets for this router
-                router_dnets = await self.get_router_dnets(snet, router_address)
+                router_dnets = await self.get_router_dnets(snet, address)
                 if router_dnets is None:
-                    raise RuntimeError("routing cache conflict")
-                if dnet not in router_dnets:
-                    raise RuntimeError("routing cache conflict")
+                    if _debug:
+                        RouterInfoCache._debug("    - no known dnets")
+                    return
+                if dnets is None:
+                    if _debug:
+                        RouterInfoCache._debug("    - remove them all")
+                    dnets = router_dnets
+                else:
+                    if _debug:
+                        RouterInfoCache._debug("    - remove those in the router")
+                    dnets &= router_dnets
 
-                router_dnets.remove(dnet)
-                await self.set_router_dnets(snet, router_address, router_dnets)
+                # remove the path info
+                for dnet in dnets:
+                    await self.delete_path_info(snet, dnet)
 
-                # delete the path info
-                await self.delete_path_info(snet, dnet)
+                # remove the dnets
+                router_dnets -= dnets
 
                 # if there are no more dnets remove the router reference
                 if not router_dnets:
                     if _debug:
                         RouterInfoCache._debug("    - router abandoned: %r", address)
                     await self.delete_router_dnets(snet, address)
+                else:
+                    await self.set_router_dnets(snet, address, router_dnets)
+            else:
+                if dnets is None:
+                    raise RuntimeError("inconsistent parameters")
+
+                for dnet in dnets:
+                    path_info = await self.get_path_info(snet, dnet)
+                    if not path_info:
+                        continue
+
+                    router_address, _ = path_info
+
+                    # get the list of dnets for this router
+                    router_dnets = await self.get_router_dnets(snet, router_address)
+                    if router_dnets is None:
+                        raise RuntimeError("routing cache conflict")
+                    if dnet not in router_dnets:
+                        raise RuntimeError("routing cache conflict")
+
+                    router_dnets.remove(dnet)
+                    await self.set_router_dnets(snet, router_address, router_dnets)
+
+                    # delete the path info
+                    await self.delete_path_info(snet, dnet)
+
+                    # if there are no more dnets remove the router reference
+                    if not router_dnets:
+                        if _debug:
+                            RouterInfoCache._debug(
+                                "    - router abandoned: %r", router_address
+                            )
+                        await self.delete_router_dnets(snet, router_address)
 
     async def update_router_status(
         self, snet: int, address: Address, status: RouterEntryStatus
@@ -381,16 +411,17 @@ class RouterInfoCache(DebugContents):
                 "update_router_status %r %r %r", snet, address, status
             )
 
-        # get the list of dnets for this router
-        router_dnets = await self.get_router_dnets(snet, address)
-        if router_dnets is None:
-            if _debug:
-                RouterInfoCache._debug("    - no known dnets")
-            return
+        async with self._get_lock():
+            # get the list of dnets for this router
+            router_dnets = await self.get_router_dnets(snet, address)
+            if router_dnets is None:
+                if _debug:
+                    RouterInfoCache._debug("    - no known dnets")
+                return
 
-        # save the status
-        for dnet in router_dnets:
-            await self.set_path_info(snet, dnet, address, status)
+            # save the status
+            for dnet in router_dnets:
+                await self.set_path_info(snet, dnet, address, status)
 
     async def update_source_network(self, old_snet: int, new_snet: int) -> None:
         """
@@ -400,17 +431,18 @@ class RouterInfoCache(DebugContents):
         if _debug:
             RouterInfoCache._debug("update_source_network %r %r", old_snet, new_snet)
 
-        router_dnets_items = list(self.router_dnets.items())
-        for (snet, router_address), router_dnets in router_dnets_items:
-            if snet == old_snet:
-                # out with the old, in with the new
-                del self.router_dnets[(old_snet, router_address)]
-                self.router_dnets[(new_snet, router_address)] = router_dnets
+        async with self._get_lock():
+            router_dnets_items = list(self.router_dnets.items())
+            for (snet, router_address), router_dnets in router_dnets_items:
+                if snet == old_snet:
+                    # out with the old, in with the new
+                    del self.router_dnets[(old_snet, router_address)]
+                    self.router_dnets[(new_snet, router_address)] = router_dnets
 
-                for dnet in router_dnets:
-                    path_info = self.path_info[(old_snet, dnet)]
-                    del self.path_info[(old_snet, dnet)]
-                    self.path_info[(new_snet, dnet)] = path_info
+                    for dnet in router_dnets:
+                        path_info = self.path_info[(old_snet, dnet)]
+                        del self.path_info[(old_snet, dnet)]
+                        self.path_info[(new_snet, dnet)] = path_info
 
 
 #
