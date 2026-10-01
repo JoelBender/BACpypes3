@@ -98,7 +98,7 @@ class NormalApplication(
         bind(self, self.asap, self.nsap)
 
         # create a "normal" virtual link layer
-        self.normal = NormalLinkLayer(local_address)
+        self.normal = NormalLinkLayer(local_address, bind_socket=bind_socket)
         if _debug:
             NormalApplication._debug("    - asap: %r", self.asap)
 
