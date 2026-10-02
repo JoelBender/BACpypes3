@@ -155,7 +155,7 @@ class BinaryValueObject(_Object, _BinaryValueObject):
 
 
 @bacpypes_debugging
-class BinaryValueObjectCmd(Commandable, _BinaryValueObject):
+class BinaryValueObjectCmd(Commandable, BinaryValueObject):
     """
     Commandable Binary Value Object
     """
