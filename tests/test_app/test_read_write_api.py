@@ -148,3 +148,100 @@ class TestReadPropertyMultipleAPI:
             "1.2.3.4", ("device,1", ("local-date", "local-time"))
         )
         app.close()
+
+    @pytest.mark.asyncio
+    async def test_read_property_multiple_forms(self):
+        """
+        The flat, alternating parameter list and the list of pairs from the
+        type annotation build the same request, see issue #145.
+        """
+        if _debug:
+            TestReadPropertyMultipleAPI._debug("test_read_property_multiple_forms")
+
+        # create an application to trap and test the APDU created
+        app = MatchApplication(
+            ReadPropertyMultipleRequest(
+                destination=Address("1.2.3.4"),
+                listOfReadAccessSpecs=[
+                    ReadAccessSpecification(
+                        objectIdentifier=ObjectIdentifier("analog-input,5"),
+                        listOfPropertyReferences=[
+                            PropertyIdentifier.objectName,
+                        ],
+                    ),
+                    ReadAccessSpecification(
+                        objectIdentifier=ObjectIdentifier("analog-input,6"),
+                        listOfPropertyReferences=[
+                            PropertyIdentifier.objectName,
+                            PropertyIdentifier.presentValue,
+                        ],
+                    ),
+                ],
+            )
+        )
+
+        # flat, alternating object identifiers and property lists
+        await app.read_property_multiple(
+            "1.2.3.4",
+            [
+                "analog-input,5",
+                ["object-name"],
+                "analog-input,6",
+                ["object-name", "present-value"],
+            ],
+        )
+        await app.read_property_multiple(
+            "1.2.3.4",
+            [
+                ObjectIdentifier("analog-input,5"),
+                ["object-name"],
+                ObjectIdentifier("analog-input,6"),
+                ["object-name", "present-value"],
+            ],
+        )
+
+        # list of (object identifier, property list) pairs
+        await app.read_property_multiple(
+            "1.2.3.4",
+            [
+                ("analog-input,5", ["object-name"]),
+                ("analog-input,6", ["object-name", "present-value"]),
+            ],
+        )
+        await app.read_property_multiple(
+            "1.2.3.4",
+            [
+                [ObjectIdentifier("analog-input,5"), ["object-name"]],
+                (ObjectIdentifier("analog-input,6"), ("object-name", "present-value")),
+            ],
+        )
+        app.close()
+
+    @pytest.mark.asyncio
+    async def test_read_property_multiple_single_pair(self):
+        """
+        A single (object identifier, property list) pair, see issue #145.
+        """
+        if _debug:
+            TestReadPropertyMultipleAPI._debug(
+                "test_read_property_multiple_single_pair"
+            )
+
+        # create an application to trap and test the APDU created
+        app = MatchApplication(
+            ReadPropertyMultipleRequest(
+                destination=Address("1.2.3.4"),
+                listOfReadAccessSpecs=[
+                    ReadAccessSpecification(
+                        objectIdentifier=ObjectIdentifier("analog-input,5"),
+                        listOfPropertyReferences=[
+                            PropertyIdentifier.objectName,
+                        ],
+                    ),
+                ],
+            )
+        )
+        await app.read_property_multiple(
+            "1.2.3.4", [("analog-input,5", ["object-name"])]
+        )
+        app.close()
