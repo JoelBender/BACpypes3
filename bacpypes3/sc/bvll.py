@@ -362,7 +362,7 @@ class LPCI(PCI, DebugContents):
         has_originating_virtual_address = control_flags & 0x08
         has_destination_virtual_address = control_flags & 0x04
         has_destination_options = control_flags & 0x02
-        has_data_options = control_flags & 0x08
+        has_data_options = control_flags & 0x01
         lpci.bvlcControlFlags = control_flags
 
         lpci.bvlcMessageID = pdu.get_short()
