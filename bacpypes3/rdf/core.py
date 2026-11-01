@@ -18,7 +18,7 @@ from ..primitivedata import (
     ObjectIdentifier,
 )
 from ..basetypes import PropertyIdentifier
-from ..constructeddata import Sequence
+from ..constructeddata import Sequence, ExtendedList
 
 from .util import (
     atomic_encode,
@@ -26,6 +26,7 @@ from .util import (
     octetstring_encode,
     attr_to_predicate,
     sequence_to_graph,
+    extendedlist_to_graph,
 )
 
 # some debugging
@@ -348,7 +349,15 @@ class ObjectProxy:
         if isinstance(value, Literal):
             o = value
         elif isinstance(value, Atomic):
-            o = atomic_encode(self._graph, value)
+            # the encoders add triples (bit strings as RDF lists), so they need
+            # the rdflib Graph, not the BACnetGraph wrapper
+            o = atomic_encode(g, value)
+        elif isinstance(value, ExtendedList):
+            # ArrayOf/ListOf/SequenceOf become RDF lists; extendedlist_to_graph
+            # adds the (s, p, list) triple itself, so replace any existing value
+            g.remove((s, p, None))
+            extendedlist_to_graph(value, s, p, g)
+            return
         elif isinstance(value, Sequence):
             o = _blank_node()
             sequence_to_graph(value, o, g)
