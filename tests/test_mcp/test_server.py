@@ -26,7 +26,7 @@ class TestBuildServer:
 
         tools = await server.list_tools()
         assert {tool.name for tool in tools} == TOOL_NAMES
-        assert len(tools) == 13
+        assert len(tools) == len(bacpypes_mcp.TOOLS)
 
         # parameters and docstrings come through as the tool schema
         by_name = {tool.name: tool for tool in tools}
