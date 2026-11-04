@@ -1273,7 +1273,7 @@ class BIPBBMD(BVLLServiceAccessPoint, DebugContents):
                     BIPBBMD._debug(
                         "    - sending local broadcast: %r", lpdu.pduDestination
                     )
-                await self.request(xpdu)
+                await self.request(lpdu)
 
                 # send it to the registered foreign devices
                 for fdte in self.bbmdFDT:
@@ -1400,6 +1400,10 @@ class BIPBBMD(BVLLServiceAccessPoint, DebugContents):
             else:
                 if _debug:
                     BIPBBMD._debug("    - not from a registered foreign device")
+                await self.request(Result(
+                    self.virtual_address, result_code=0x00C0,
+                    destination=lpdu.pduSource, user_data=lpdu.pduUserData,
+                ))
                 return
 
             # send it upstream if there is a network layer
@@ -1471,7 +1475,7 @@ class BIPBBMD(BVLLServiceAccessPoint, DebugContents):
             self.bbmdFDT.append(fdte)
 
         fdte.fdTTL = ttl
-        fdte.fdRemain = ttl + 5
+        fdte.fdRemain = ttl + 30
 
         # return success
         return 0
@@ -1487,7 +1491,7 @@ class BIPBBMD(BVLLServiceAccessPoint, DebugContents):
                 del self.bbmdFDT[i]
                 break
         else:
-            stat = 0x0050  # entry not found
+            stat = 0x00A0  # IPv6 Delete-Foreign-Device-Table-Entry NAK
 
         # return status
         return stat
