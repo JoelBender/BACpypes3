@@ -39,7 +39,7 @@ This module has three personalities:
    instance can call :func:`register_tools(server)` to add the
    BACpypes3 tools to it.
 
-Requires ``mcp>=2`` (v1 renamed ``FastMCP`` to ``MCPServer`` and moved
+Requires ``mcp>=2`` (v2 renamed ``FastMCP`` to ``MCPServer`` and moved
 transport parameters from the constructor to the ``run_*`` methods; see
 https://py.sdk.modelcontextprotocol.io/v2/migration/ ). The ``mcp`` and
 ``pydantic`` packages are optional; they are only imported when a
@@ -64,7 +64,13 @@ from .ipv4.bvll import Result as IPv4BVLLResult
 from .ipv4.service import BVLLServiceAccessPoint, BVLLServiceElement
 from .json.util import atomic_encode, extendedlist_to_json_list, sequence_to_json
 from .pdu import Address, IPv4Address
-from .primitivedata import Atomic, CharacterString, Null, ObjectIdentifier
+from .primitivedata import (
+    Atomic,
+    CharacterString,
+    Null,
+    ObjectIdentifier,
+    attr_to_asn1,
+)
 from .settings import settings
 
 # some debugging
@@ -123,8 +129,8 @@ def _encode_property_value(value: Any) -> Any:
     if isinstance(value, ErrorType):
         return {
             "error": str(value),
-            "errorClass": str(value.errorClass),
-            "errorCode": str(value.errorCode),
+            "error-class": str(value.errorClass),
+            "error-code": str(value.errorCode),
         }
     if isinstance(value, AnyAtomic):
         value = value.get_value()
@@ -140,12 +146,15 @@ def _encode_property_value(value: Any) -> Any:
 
 
 def _encode_error(err: Exception) -> Dict[str, Any]:
-    """Encode an ErrorRejectAbortNack (or other exception) as a dict."""
+    """
+    Encode an ErrorRejectAbortNack (or other exception) as a dict. Keys use
+    the same kebab-case ASN.1 style as ``sequence_to_json`` output.
+    """
     out: Dict[str, Any] = {"error": str(err), "type": type(err).__name__}
     for attr in ("errorClass", "errorCode", "reason", "abortReason", "rejectReason"):
         val = getattr(err, attr, None)
         if val is not None:
-            out[attr] = str(val)
+            out[attr_to_asn1(attr)] = str(val)
     return out
 
 
@@ -228,11 +237,11 @@ async def who_is(
     -------
     list of dict
         One dict per responding device. Fields:
-        ``iAmDeviceIdentifier`` (str, e.g. ``"device,1234"``),
-        ``maxAPDULengthAccepted`` (int),
-        ``segmentationSupported`` (str: ``"segmented-both"``, ``"no-segmentation"``, etc.),
-        ``vendorID`` (int),
-        ``pduSource`` (str: the responder's address — pass this to
+        ``i-am-device-identifier`` (str, e.g. ``"device,1234"``),
+        ``max-apdu-length-accepted`` (int),
+        ``segmentation-supported`` (str: ``"segmented-both"``, ``"no-segmentation"``, etc.),
+        ``vendor-id`` (int),
+        ``pdu-source`` (str: the responder's address — pass this to
         :func:`read_property` / :func:`write_property`).
         Empty list if no devices responded.
     """
@@ -256,7 +265,7 @@ def _i_am_to_json(i_am: Any) -> Dict[str, Any]:
     result = sequence_to_json(i_am)
     # sequence_to_json only covers the APDU body; add the source address so
     # callers can identify who responded.
-    result["pduSource"] = str(i_am.pduSource)
+    result["pdu-source"] = str(i_am.pduSource)
     return result
 
 
@@ -327,8 +336,8 @@ async def who_has(
     -------
     list of dict
         One entry per responding device holding a matching object. Fields:
-        ``deviceIdentifier`` (str), ``objectIdentifier`` (str),
-        ``objectName`` (str), and ``pduSource`` (str: the responder's
+        ``device-identifier`` (str), ``object-identifier`` (str),
+        ``object-name`` (str), and ``pdu-source`` (str: the responder's
         address, suitable for follow-up reads/writes). Empty list if
         nothing matched.
     """
@@ -352,7 +361,7 @@ async def who_has(
     result = []
     for ih in i_haves:
         entry = sequence_to_json(ih)
-        entry["pduSource"] = str(ih.pduSource)
+        entry["pdu-source"] = str(ih.pduSource)
         result.append(entry)
     return result
 
@@ -414,7 +423,7 @@ async def read_property(
     Parameters
     ----------
     address : str
-        The device's network address. Usually the ``pduSource`` returned
+        The device's network address. Usually the ``pdu-source`` returned
         from :func:`who_is`. Examples: ``"192.168.1.10"``,
         ``"192.168.1.10:47808"``, ``"2:5"`` (remote network 2, station 5).
     object_identifier : str
@@ -434,15 +443,15 @@ async def read_property(
     -------
     dict
         On success:
-        ``{"objectIdentifier": str, "propertyIdentifier": str,
-        "propertyArrayIndex": int|null, "value": <encoded>}``.
+        ``{"object-identifier": str, "property-identifier": str,
+        "property-array-index": int|null, "value": <encoded>}``.
         ``value`` is a JSON-serializable form of the decoded property:
         a scalar for atomic types (number, string, bool),
         a dict for a Sequence,
         a list for an Array/List,
         or a per-element dict/list recursively.
         On protocol error (device rejected, aborted, or timed out) the
-        dict instead has ``error``, ``errorClass``, ``errorCode`` (all
+        dict instead has ``error``, ``error-class``, ``error-code`` (all
         strings) alongside the identifier fields.
     """
     if _debug:
@@ -467,16 +476,16 @@ async def read_property(
         )
     except ErrorRejectAbortNack as err:
         return {
-            "objectIdentifier": str(opr.objectIdentifier),
-            "propertyIdentifier": str(opr.propertyIdentifier),
-            "propertyArrayIndex": opr.propertyArrayIndex,
+            "object-identifier": str(opr.objectIdentifier),
+            "property-identifier": str(opr.propertyIdentifier),
+            "property-array-index": opr.propertyArrayIndex,
             **_encode_error(err),
         }
 
     return {
-        "objectIdentifier": str(opr.objectIdentifier),
-        "propertyIdentifier": str(opr.propertyIdentifier),
-        "propertyArrayIndex": opr.propertyArrayIndex,
+        "object-identifier": str(opr.objectIdentifier),
+        "property-identifier": str(opr.propertyIdentifier),
+        "property-array-index": opr.propertyArrayIndex,
         "value": _encode_property_value(value),
     }
 
@@ -526,7 +535,7 @@ async def write_property(
     -------
     dict
         ``{"ok": true}`` on success. On protocol error, a dict with
-        ``error``, ``errorClass``, ``errorCode`` describing the failure.
+        ``error``, ``error-class``, ``error-code`` describing the failure.
     """
     if _debug:
         write_property._debug(
@@ -638,10 +647,10 @@ async def read_property_multiple(
     -------
     list of dict
         One entry per (object, property, array-index) triple in the
-        response. Each entry has ``objectIdentifier``,
-        ``propertyIdentifier``, ``propertyArrayIndex`` (int or null), and
+        response. Each entry has ``object-identifier``,
+        ``property-identifier``, ``property-array-index`` (int or null), and
         either ``value`` (encoded like :func:`read_property`) or
-        ``error``/``errorClass``/``errorCode`` for that specific
+        ``error``/``error-class``/``error-code`` for that specific
         property. If the whole request fails, a single-element list with
         an error dict is returned.
     """
@@ -674,14 +683,14 @@ async def read_property_multiple(
     results = []
     for object_identifier, property_identifier, array_index, property_value in response:
         entry: Dict[str, Any] = {
-            "objectIdentifier": str(object_identifier),
-            "propertyIdentifier": str(property_identifier),
-            "propertyArrayIndex": array_index,
+            "object-identifier": str(object_identifier),
+            "property-identifier": str(property_identifier),
+            "property-array-index": array_index,
         }
         if isinstance(property_value, ErrorType):
             entry["error"] = str(property_value)
-            entry["errorClass"] = str(property_value.errorClass)
-            entry["errorCode"] = str(property_value.errorCode)
+            entry["error-class"] = str(property_value.errorClass)
+            entry["error-code"] = str(property_value.errorCode)
         else:
             entry["value"] = _encode_property_value(property_value)
         results.append(entry)
@@ -772,7 +781,7 @@ async def initialize_routing_table(
     list of dict
         One entry per responding router, grouped by source address:
         ``source`` (str), ``entries`` (list of ``{"dnet": int,
-        "portId": int}``, one per routing-table entry the router
+        "port-id": int}``, one per routing-table entry the router
         advertises).
     """
     if _debug:
@@ -794,7 +803,7 @@ async def initialize_routing_table(
             grouped[key].append(
                 {
                     "dnet": int(entry.rtDNET),
-                    "portId": int(entry.rtPortID),
+                    "port-id": int(entry.rtPortID),
                 }
             )
     return [{"source": key, "entries": grouped[key]} for key in order]
@@ -1037,7 +1046,13 @@ def build_server(name: str = "bacpypes3", **server_kwargs: Any) -> Any:
     at module import time, so the tool functions remain usable without
     the extra.
     """
-    from mcp.server.mcpserver import MCPServer  # type: ignore[import-not-found]
+    try:
+        from mcp.server.mcpserver import MCPServer  # type: ignore[import-not-found]
+    except ImportError as err:
+        raise ImportError(
+            "bacpypes3.mcp requires the mcp SDK version 2 or later "
+            "(pip install 'bacpypes3[mcp]' or 'mcp>=2')"
+        ) from err
 
     server = MCPServer(name, **server_kwargs)
     return register_tools(server)

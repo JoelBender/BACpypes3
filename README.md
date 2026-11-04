@@ -17,7 +17,7 @@ The `bacpypes3.mcp` module exposes the BACpypes3 CLI commands (`whois`,
    tools directly.
 2. **Stand-alone MCP server.** `python -m bacpypes3.mcp <BACpypes flags>`
    builds an `Application` via `SimpleArgumentParser` and serves the tools
-   over stdio using FastMCP.
+   over stdio using the MCP Python SDK's `MCPServer` (`mcp>=2`).
 3. **Embedded server.** A long-running BACnet server can inject its own
    `Application` and start `mcp.serve_http(...)` as a concurrent asyncio
    task, so an LLM agent can drive it over HTTP without fighting the host

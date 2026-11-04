@@ -185,7 +185,7 @@ error mentions the Ollama endpoint instead, confirm `ollama serve` is up
 and that `--host` matches the port it's listening on.
 
 **Tool call succeeds but returns an error dict.** BACpypes3 wraps protocol
-errors as `{"error": "...", "errorClass": "...", "errorCode": "..."}`
+errors as `{"error": "...", "error-class": "...", "error-code": "..."}`
 rather than raising, so the model sees the failure and can adapt. That is
 expected behavior — the `read_property` docstring for the target device
 may be helpful context, and the model will usually retry with a corrected
@@ -194,7 +194,7 @@ may be helpful context, and the model will usually retry with a corrected
 **Discovering other devices.** `mini-device-mcp.py` is a full BACnet
 device on the local network. If other BACnet devices are reachable, the
 `who_is` tool will find them — the LLM can then read their properties too,
-using the returned `pduSource` addresses.
+using the returned `pdu-source` addresses.
 
 **Exposing beyond localhost.** The `mcp.serve_http(host="127.0.0.1", ...)`
 default is loopback for a reason: the MCP server has no built-in

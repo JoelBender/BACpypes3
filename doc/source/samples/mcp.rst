@@ -19,13 +19,16 @@ The module has three personalities:
    been injected.
 2. **Stand-alone MCP server.** ``python -m bacpypes3.mcp <BACpypes flags>``
    builds an ``Application`` via :class:`~bacpypes3.argparse.SimpleArgumentParser`
-   and serves the tools over stdio using FastMCP.
+   and serves the tools over stdio using the MCP Python SDK's
+   ``MCPServer`` (``mcp>=2``).
 3. **Embedded server.** A long-running BACnet server can inject its own
    ``Application`` and start ``mcp.serve_http(...)`` as a concurrent
    asyncio task so it coexists with the host application's own stdout.
 
 The ``mcp`` and ``pydantic`` packages are declared as an optional extra and
-are only imported when a server is actually built. Install the extra to run
+are only imported when a server is actually built. Version 2 or later of
+the ``mcp`` SDK is required (v2 renamed ``FastMCP`` to ``MCPServer`` and
+moved transport settings out of the constructor). Install the extra to run
 the server::
 
     pip install -e ".[mcp]"
@@ -68,11 +71,14 @@ The importable surface is:
   Do **not** use from an embedded application whose own stdout carries
   other output.
 * ``register_tools(server)`` — register the BACpypes3 tools on an existing
-  ``FastMCP`` instance you already own.
-* ``build_server(name="bacpypes3", **fastmcp_kwargs)`` — build a fresh
-  ``FastMCP`` server with every tool registered. Additional kwargs
-  (``host``, ``port``, ``streamable_http_path``, ``stateless_http``,
-  ``log_level``, ...) are forwarded to ``FastMCP(...)``.
+  ``MCPServer`` instance you already own.
+* ``build_server(name="bacpypes3", **server_kwargs)`` — build a fresh
+  ``MCPServer`` with every tool registered. Additional kwargs
+  (``title``, ``description``, ``version``, ``log_level``, ``auth``, ...)
+  are forwarded to ``MCPServer(...)``. Transport settings (``host``,
+  ``port``, ``streamable_http_path``, ``stateless_http``, ...) are not
+  constructor arguments in ``mcp>=2``; pass them to
+  ``server.run_streamable_http_async(...)`` instead.
 * ``main()`` — the ``python -m bacpypes3.mcp`` entry point.
 * ``TOOLS`` — tuple of the tool functions in registration order.
 
@@ -108,7 +114,7 @@ Install the extra and run the module::
     pip install -e ".[mcp]"
     python -m bacpypes3.mcp --address 192.168.1.10/24 --instance 999
 
-The process serves FastMCP over stdio, so it is intended to be launched by an
+The process serves MCP over stdio, so it is intended to be launched by an
 MCP client (e.g. an LLM agent) that owns the stdio streams.
 
 Embedded server (HTTP)
@@ -143,7 +149,7 @@ clients can independently poll and command the local objects the host
 registered.
 
 The ``host`` defaults to loopback. Only bind to ``0.0.0.0`` behind an
-authenticating proxy — FastMCP has no built-in authentication.
+authenticating proxy — ``serve_http`` does not configure any authentication.
 
 Reference: :ref:`mini-device-mcp.py`. For a shell-only client that
 drives the same server with ``curl``, see :ref:`mini-device-mcp.sh`. To
