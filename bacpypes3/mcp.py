@@ -39,7 +39,7 @@ This module has three personalities:
    instance can call :func:`register_tools(server)` to add the
    BACpypes3 tools to it.
 
-Requires ``mcp>=2`` (v1 renamed ``FastMCP`` to ``MCPServer`` and moved
+Requires ``mcp>=2`` (v2 renamed ``FastMCP`` to ``MCPServer`` and moved
 transport parameters from the constructor to the ``run_*`` methods; see
 https://py.sdk.modelcontextprotocol.io/v2/migration/ ). The ``mcp`` and
 ``pydantic`` packages are optional; they are only imported when a
@@ -228,10 +228,10 @@ async def who_is(
     -------
     list of dict
         One dict per responding device. Fields:
-        ``iAmDeviceIdentifier`` (str, e.g. ``"device,1234"``),
-        ``maxAPDULengthAccepted`` (int),
-        ``segmentationSupported`` (str: ``"segmented-both"``, ``"no-segmentation"``, etc.),
-        ``vendorID`` (int),
+        ``i-am-device-identifier`` (str, e.g. ``"device,1234"``),
+        ``max-apdu-length-accepted`` (int),
+        ``segmentation-supported`` (str: ``"segmented-both"``, ``"no-segmentation"``, etc.),
+        ``vendor-id`` (int),
         ``pduSource`` (str: the responder's address — pass this to
         :func:`read_property` / :func:`write_property`).
         Empty list if no devices responded.
@@ -327,8 +327,8 @@ async def who_has(
     -------
     list of dict
         One entry per responding device holding a matching object. Fields:
-        ``deviceIdentifier`` (str), ``objectIdentifier`` (str),
-        ``objectName`` (str), and ``pduSource`` (str: the responder's
+        ``device-identifier`` (str), ``object-identifier`` (str),
+        ``object-name`` (str), and ``pduSource`` (str: the responder's
         address, suitable for follow-up reads/writes). Empty list if
         nothing matched.
     """
@@ -1037,7 +1037,13 @@ def build_server(name: str = "bacpypes3", **server_kwargs: Any) -> Any:
     at module import time, so the tool functions remain usable without
     the extra.
     """
-    from mcp.server.mcpserver import MCPServer  # type: ignore[import-not-found]
+    try:
+        from mcp.server.mcpserver import MCPServer  # type: ignore[import-not-found]
+    except ImportError as err:
+        raise ImportError(
+            "bacpypes3.mcp requires the mcp SDK version 2 or later "
+            "(pip install 'bacpypes3[mcp]' or 'mcp>=2')"
+        ) from err
 
     server = MCPServer(name, **server_kwargs)
     return register_tools(server)
