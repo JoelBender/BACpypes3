@@ -183,7 +183,7 @@ class ReadWritePropertyServices:
         device_identifier: Union[ObjectIdentifier, str],
         *,
         concurrency: int = 4,
-    ) -> List[ObjectIdentifier]:
+    ) -> list[ObjectIdentifier]:
         """
         Read the object-list of a device and return it as a list of object
         identifiers.
@@ -256,7 +256,7 @@ class ReadWritePropertyServices:
 
         # a small pool of workers reads the elements, filling in the results
         # by position so the order is preserved
-        results: List[_Any] = [None] * object_list_length
+        results: list[_Any] = [None] * object_list_length
         indexes = iter(range(object_list_length))
 
         async def worker() -> None:

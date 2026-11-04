@@ -507,12 +507,12 @@ async def read_object_list(
     -------
     dict
         On success:
-        ``{"deviceIdentifier": str, "count": int, "objectList": [str, ...]}``
-        where each element of ``objectList`` is an object identifier such
+        ``{"device-identifier": str, "count": int, "object-list": [str, ...]}``
+        where each element of ``object-list`` is an object identifier such
         as ``"analog-input,1"``, in the device's order.
         On protocol error (device rejected, aborted, or timed out) the
         dict instead has ``error`` and the error details alongside
-        ``deviceIdentifier``.
+        ``device-identifier``.
     """
     if _debug:
         read_object_list._debug("read_object_list %r %r", address, device_identifier)
@@ -527,12 +527,12 @@ async def read_object_list(
     try:
         object_list = await app.read_object_list(addr, objid)
     except ErrorRejectAbortNack as err:
-        return {"deviceIdentifier": str(objid), **_encode_error(err)}
+        return {"device-identifier": str(objid), **_encode_error(err)}
 
     return {
-        "deviceIdentifier": str(objid),
+        "device-identifier": str(objid),
         "count": len(object_list),
-        "objectList": [atomic_encode(oid) for oid in object_list],
+        "object-list": [atomic_encode(oid) for oid in object_list],
     }
 
 

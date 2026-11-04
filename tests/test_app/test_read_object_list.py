@@ -254,9 +254,9 @@ class TestReadObjectListMCP:
         try:
             result = await mcp.read_object_list("1.2.3.4", "device,7780")
             assert result == {
-                "deviceIdentifier": "device,7780",
+                "device-identifier": "device,7780",
                 "count": 4,
-                "objectList": [
+                "object-list": [
                     "device,7780",
                     "analog-value,0",
                     "analog-value,1",
@@ -272,9 +272,9 @@ class TestReadObjectListMCP:
         mcp.set_application(app)
         try:
             result = await mcp.read_object_list("1.2.3.4", "device,7780")
-            assert result["deviceIdentifier"] == "device,7780"
+            assert result["device-identifier"] == "device,7780"
             assert result["type"] == "AbortPDU"
-            assert "objectList" not in result
+            assert "object-list" not in result
         finally:
             mcp._application = None
             app.close()
