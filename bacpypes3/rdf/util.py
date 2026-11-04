@@ -66,6 +66,18 @@ def attr_to_predicate(k: str):
     return BACNET[k]
 
 
+def element_predicate(seq: Sequence, attr: str):
+    """
+    Given a sequence and one of its element attribute names, return the URI
+    of the predicate, which might be a standard name that cannot be derived
+    from the attribute name.
+    """
+    name = seq._element_names.get(attr)
+    if name:
+        return BACNET[name]
+    return attr_to_predicate(attr)
+
+
 #
 #   Primitive Data
 #
@@ -456,7 +468,7 @@ def sequence_to_graph(
             literal = BNode()
             sequence_to_graph(value, literal, graph)
         elif isinstance(value, ExtendedList):
-            extendedlist_to_graph(value, node, attr_to_predicate(attr), graph)
+            extendedlist_to_graph(value, node, element_predicate(seq, attr), graph)
             continue
         elif isinstance(value, (AnyAtomic, AnyAtomicExtended)):
             value = value.get_value()
@@ -465,7 +477,7 @@ def sequence_to_graph(
         else:
             raise TypeError(value)
 
-        graph.add((node, attr_to_predicate(attr), literal))
+        graph.add((node, element_predicate(seq, attr), literal))
 
     return graph
 
@@ -484,7 +496,7 @@ def graph_to_sequence(graph: Graph, node: URIRef, seq_class: type) -> Sequence:
         if _debug:
             Sequence._debug("    - attr, element: %r, %r", attr, element)
 
-        literal = graph.value(subject=node, predicate=attr_to_predicate(attr))
+        literal = graph.value(subject=node, predicate=element_predicate(seq, attr))
         if _debug:
             Sequence._debug("    - literal: %r", literal)
         if literal is None:
@@ -497,7 +509,9 @@ def graph_to_sequence(graph: Graph, node: URIRef, seq_class: type) -> Sequence:
         elif issubclass(element, Sequence):
             value = graph_to_sequence(graph, literal, element)
         elif issubclass(element, ExtendedList):
-            value = graph_to_extendedlist(graph, node, attr_to_predicate(attr), element)
+            value = graph_to_extendedlist(
+                graph, node, element_predicate(seq, attr), element
+            )
         elif issubclass(element, (AnyAtomic, AnyAtomicExtended)):
             if literal == BACNET.Null:
                 value = Null(())

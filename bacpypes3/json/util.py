@@ -399,7 +399,7 @@ def sequence_to_json(seq: Sequence) -> JSONDict:
         else:
             raise TypeError(value)
 
-        json[attr_to_asn1(attr)] = json_value
+        json[seq._element_names.get(attr) or attr_to_asn1(attr)] = json_value
 
     return json
 
@@ -418,7 +418,7 @@ def json_to_sequence(json: JSONDict, seq_class: type) -> Sequence:
         if _debug:
             json_to_sequence._debug("    - attr, element: %r, %r", attr, element)
 
-        value = json.pop(attr_to_asn1(attr), None)
+        value = json.pop(seq._element_names.get(attr) or attr_to_asn1(attr), None)
         if _debug:
             json_to_sequence._debug("    - value: %r", value)
         if value is None:

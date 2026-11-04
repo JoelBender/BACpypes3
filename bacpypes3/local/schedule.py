@@ -206,8 +206,8 @@ def date_in_calendar_entry(date: Date, calendar_entry: CalendarEntry) -> bool:
         match = match_date(date, calendar_entry.date)
     elif calendar_entry.dateRange:
         match = match_date_range(date, calendar_entry.dateRange)
-    elif calendar_entry.weekNDay:
-        match = match_weeknday(date, calendar_entry.weekNDay)
+    elif calendar_entry.weeknday:
+        match = match_weeknday(date, calendar_entry.weeknday)
     else:
         raise RuntimeError("")
     if _debug:

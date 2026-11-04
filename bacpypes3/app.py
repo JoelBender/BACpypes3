@@ -27,6 +27,7 @@ from .apdu import (
     RejectPDU,
     SimpleAckPDU,
     UnconfirmedRequestPDU,
+    UnconfirmedServiceChoice,
     confirmed_request_types,
     unconfirmed_request_types,
 )
@@ -238,13 +239,16 @@ class DeviceInfoCache(DebugContents):
         # if any of these references are different the cache has been
         # updated while a segmentation state machine was running, just
         # log it, unless it was not populated
-        if (info1 is not None or info2 is not None) and (device_info is not info1) or (device_info is not info2):
+        if (
+            (info1 is not None or info2 is not None)
+            and (device_info is not info1)
+            or (device_info is not info2)
+        ):
             DeviceInfoCache._info(f"Cache update for device {device_instance}")
 
         # put it in the cache, replacing possible existing instance(s)
         self.address_cache[device_address] = device_info
         self.instance_cache[device_instance] = device_info
-
 
     def acquire(self, device_info: DeviceInfo) -> None:
         """
@@ -748,20 +752,26 @@ class Application(
 
         services_supported = ServicesSupported([])
 
-        # look through the confirmed services
-        for service_choice, service_request_class in confirmed_request_types.items():
-            service_helper = "do_" + service_request_class.__name__
-            if hasattr(self, service_helper):
-                _key = ConfirmedServiceChoice(service_choice).attr
-                choice = getattr(services_supported, _key)
-                services_supported[choice] = 1
+        # the confirmed and unconfirmed service choices overlap, so each one
+        # is translated into a bit by the name of the service
+        for service_types, service_choice_class in (
+            (confirmed_request_types, ConfirmedServiceChoice),
+            (unconfirmed_request_types, UnconfirmedServiceChoice),
+        ):
+            for service_choice, service_request_class in service_types.items():
+                service_helper = "do_" + service_request_class.__name__
+                if not hasattr(self, service_helper):
+                    continue
 
-        # look through the unconfirmed services
-        for service_choice, service_request_class in unconfirmed_request_types.items():
-            service_helper = "do_" + service_request_class.__name__
-            if hasattr(self, service_helper):
-                _key = ConfirmedServiceChoice(service_choice).attr
-                choice = getattr(services_supported, _key)
+                # services removed from the standard (like authenticate) do
+                # not have a bit
+                _key = service_choice_class(service_choice).attr
+                choice = getattr(services_supported, _key, None)
+                if choice is None:
+                    if _debug:
+                        Application._debug("    - no bit for %r", _key)
+                    continue
+
                 services_supported[choice] = 1
 
         # return the bit list

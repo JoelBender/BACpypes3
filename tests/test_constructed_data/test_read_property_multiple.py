@@ -67,7 +67,7 @@ class TestReadPropertyMultipleRequest(unittest.TestCase):
         # encode and decode
         sequence_of_endec(
             ReadPropertyMultipleRequest,
-            listOfReadAccessSpecs=[
+            listOfReadAccessSpecifications=[
                 ReadAccessSpecification(
                     objectIdentifier="analog-input,1",
                     listOfPropertyReferences=[
@@ -86,7 +86,7 @@ class TestReadPropertyMultipleRequest(unittest.TestCase):
         # encode and decode
         sequence_of_endec(
             ReadPropertyMultipleRequest,
-            listOfReadAccessSpecs=[
+            listOfReadAccessSpecifications=[
                 ReadAccessSpecification(
                     objectIdentifier="analog-input,1",
                     listOfPropertyReferences=[

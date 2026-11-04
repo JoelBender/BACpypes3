@@ -685,7 +685,7 @@ class ReadWritePropertyMultipleServices:
             raise TypeError("read access specification expected")
 
         read_property_multiple_request = ReadPropertyMultipleRequest(
-            listOfReadAccessSpecs=SequenceOf(ReadAccessSpecification)(
+            listOfReadAccessSpecifications=SequenceOf(ReadAccessSpecification)(
                 list_of_read_access_specs
             ),
             destination=address,
@@ -810,7 +810,7 @@ class ReadWritePropertyMultipleServices:
 
         # first pass - make sure all of the objects exist
         object_reference_exists = False
-        for read_access_spec in apdu.listOfReadAccessSpecs:
+        for read_access_spec in apdu.listOfReadAccessSpecifications:
             # get the object identifier
             object_identifier = read_access_spec.objectIdentifier
             if _debug:
@@ -846,7 +846,7 @@ class ReadWritePropertyMultipleServices:
         read_access_result_list = []
 
         # loop through the request
-        for read_access_spec in apdu.listOfReadAccessSpecs:
+        for read_access_spec in apdu.listOfReadAccessSpecifications:
             # get the object identifier
             object_identifier = read_access_spec.objectIdentifier
             if _debug:
@@ -1004,7 +1004,7 @@ class ReadWritePropertyMultipleServices:
 
         # make sure at least one object reference exists
         object_reference_exists = False
-        for write_access_spec in apdu.listOfWriteAccessSpecs:
+        for write_access_spec in apdu.listOfWriteAccessSpecifications:
             object_identifier = write_access_spec.objectIdentifier
 
             # wildcard device identifier resolves to the application device object
@@ -1020,7 +1020,7 @@ class ReadWritePropertyMultipleServices:
             raise ObjectError("unknown-object")
 
         # process each write access specification in order
-        for write_access_spec in apdu.listOfWriteAccessSpecs:
+        for write_access_spec in apdu.listOfWriteAccessSpecifications:
             object_identifier = write_access_spec.objectIdentifier
 
             if (
@@ -1069,7 +1069,7 @@ class ReadWritePropertyMultipleServices:
                         property_type = property_type._subtype
 
                 try:
-                    value = prop_value.value.cast_out(
+                    value = prop_value.propertyValue.cast_out(
                         property_type, null=(priority is not None)
                     )
                     await obj.write_property(

@@ -38,6 +38,7 @@ from .primitivedata import (
     Double,
     Enumerated,
     Integer,
+    Integer32,
     Null,
     ObjectType,
     ObjectIdentifier,
@@ -48,6 +49,7 @@ from .primitivedata import (
     Unsigned,
     Unsigned8,
     Unsigned16,
+    Unsigned32,
     TagClass,
     TagNumber,
     Tag,
@@ -88,6 +90,7 @@ class AccessCredentialDisable(Enumerated):
 
 
 class AccessCredentialDisableReason(Enumerated):
+    _vendor_range = (64, 65535)
     disabled = 0
     disabledNeedsProvisioning = 1
     disabledUnassigned = 2
@@ -118,6 +121,7 @@ class AccessEvent(Enumerated):
     authenticationFactorRead = 13
     authorizationDelayed = 14
     verificationRequired = 15
+    noEntryAfterGranted = 16
     deniedDenyAll = 128
     deniedUnknownCredential = 129
     deniedAuthenticationUnavailable = 130
@@ -232,7 +236,22 @@ class AuditOperation(Enumerated):
     general = 15
 
 
+class AuthenticationDecision(Enumerated):
+    allowMatch = 0
+    denyMismatch = 1
+    denyNonRelay = 2
+
+
 class AuthenticationFactorType(Enumerated):
+    _asn1_overrides = {
+        13: "fasc-n",
+        14: "fasc-n-bcd",
+        15: "fasc-n-large",
+        16: "fasc-n-large-bcd",
+        21: "cbeff-a",
+        22: "cbeff-b",
+        23: "cbeff-c",
+    }
     undefined = 0
     error = 1
     custom = 2
@@ -243,9 +262,9 @@ class AuthenticationFactorType(Enumerated):
     abaTrack2 = 7
     wiegand26 = 8
     wiegand37 = 9
-    wiegand37facility = 10
-    facility16card32 = 11
-    facility32card32 = 12
+    wiegand37Facility = 10
+    facility16Card32 = 11
+    facility32Card32 = 12
     fascN = 13
     fascNbcd = 14
     fascNlarge = 15
@@ -270,7 +289,36 @@ class AuthenticationStatus(Enumerated):
     inProgress = 6
 
 
-class AuthorizationException(Enumerated):
+class AuthorizationConstraintAuthentication(Enumerated):
+    certified = 0
+    securePath = 1
+    anyMethod = 2
+
+
+class AuthorizationConstraintOrigin(Enumerated):
+    directConnect = 0
+    sameNetwork = 1
+    anyNetwork = 2
+
+
+class AuthorizationDecision(Enumerated):
+    allowByToken = 0
+    allowByLocalPolicy = 1
+    denyNoTokenOrPolicy = 2
+    denyNotBefore = 3
+    denyNotAfter = 4
+    denyTargetDevice = 5
+    denyTargetGroup = 6
+    denyClientDevice = 7
+    denyClientMethod = 8
+    denyScope = 9
+    denyIssuer = 10
+    denyRevoked = 11
+    denySignature = 12
+    denyOther = 13
+
+
+class AuthorizationExemption(Enumerated):
     _vendor_range = (64, 255)
     passback = 0
     occupancyCheck = 1
@@ -282,7 +330,7 @@ class AuthorizationException(Enumerated):
 
 
 class AuthorizationMode(Enumerated):
-    _vendor_range = (64, 65536)
+    _vendor_range = (64, 65535)
     authorize = 0
     grantActive = 1
     denyAll = 2
@@ -291,7 +339,16 @@ class AuthorizationMode(Enumerated):
     none = 5
 
 
+class AuthorizationPosture(Enumerated):
+    open = 0
+    proprietary = 1
+    configured = 2
+    misconfiguredPartial = 3
+    misconfiguredTotal = 4
+
+
 class BackupState(Enumerated):
+    _asn1_overrides = {3: "performing-a-backup", 4: "performing-a-restore"}
     idle = 0
     preparingForBackup = 1
     preparingForRestore = 2
@@ -309,11 +366,36 @@ class BinaryLightingPV(Enumerated):
     warnOff = 3
     warnRelinquish = 4
     stop = 5
+    toggle = 6
 
 
 class BinaryPV(Enumerated):
     inactive = 0
     active = 1
+
+
+class ColorOperation(Enumerated):
+    none = 0
+    fadeToColor = 1
+    fadeToCct = 2
+    rampToCct = 3
+    stepUpCct = 4
+    stepDownCct = 5
+    stop = 6
+
+
+class ColorOperationInProgress(Enumerated):
+    idle = 0
+    fadeActive = 1
+    rampActive = 2
+    notControlled = 3
+    other = 4
+
+
+class ColorTransition(Enumerated):
+    none = 0
+    fade = 1
+    ramp = 2
 
 
 class ConfirmedTextMessageRequestMessagePriority(Enumerated):
@@ -337,6 +419,13 @@ class DeviceStatus(Enumerated):
     backupInProgress = 5
 
 
+class DiscoveryState(Enumerated):
+    unconfigured = 0
+    inProgress = 1
+    complete = 2
+    disabled = 3
+
+
 class DoorAlarmState(Enumerated):
     _vendor_range = (256, 65535)
     normal = 0
@@ -357,9 +446,17 @@ class DoorSecuredStatus(Enumerated):
 
 
 class DoorStatus(Enumerated):
+    _vendor_range = (1024, 65535)
     closed = 0
+    closing = 6
+    doorFault = 3
+    limitedOpened = 9
+    none = 5
     opened = 1
+    opening = 7
+    safetyLocked = 8
     unknown = 2
+    unused = 4
 
 
 class DoorValue(Enumerated):
@@ -371,28 +468,44 @@ class DoorValue(Enumerated):
 
 class EngineeringUnits(Enumerated):
     _vendor_range = (256, 65535)  # reserved: 47808...49999
+    _asn1_overrides = {232: "decibels-a"}
+    activeEnergyPulseValue = 47918  # CSML dataRev 24 lists 47910, a duplicate
+    alcoholByVolume = 47817
     amperes = 3
     ampereSeconds = 238
     amperesPerMeter = 167
     amperesPerSquareMeter = 168
+    ampereSquaredHourPulseValue = 47922
     ampereSquareHours = 246
     ampereSquareMeters = 169
+    apparentEnergyPulseValue = 47920
     bars = 55
     becquerels = 222
+    becquerelsPerCubicMeter = 47971
+    bitsPerSecond = 47929
+    btuPerHourPerWatt = 47898
+    btuPerWattHourSeasonal = 47899
     btus = 20
+    btusPerDay = 47850
     btusPerHour = 50
+    btusPerMinute = 47849
     btusPerPound = 117
     btusPerPoundDryAir = 24
+    btusPerSecond = 47848
+    bytesPerSecond = 47933
     candelas = 179
     candelasPerSquareMeter = 180
     centimeters = 118
     centimetersOfMercury = 60
     centimetersOfWater = 57
+    coefficientOfPerformance = 47900
+    coefficientOfPerformanceSeasonal = 47901
     cubicFeet = 79
     cubicFeetPerDay = 248
     cubicFeetPerHour = 191
     cubicFeetPerMinute = 84
     cubicFeetPerSecond = 142
+    cubicMeterPulseValue = 47923
     cubicMeters = 80
     cubicMetersPerDay = 249
     cubicMetersPerHour = 135
@@ -417,29 +530,48 @@ class EngineeringUnits(Enumerated):
     decibelsVolt = 201
     degreeDaysCelsius = 65
     degreeDaysFahrenheit = 66
+    degreeHoursCelsius = 47973
+    degreeHoursFahrenheit = 47974
+    degreeMinutesCelsius = 47975
+    degreeMinutesFahrenheit = 47976
     degreesAngular = 90
     degreesCelsius = 62
+    degreesCelsiusPerDay = 47869
     degreesCelsiusPerHour = 91
     degreesCelsiusPerMinute = 92
+    degreeSecondsCelsius = 47977
+    degreeSecondsFahrenheit = 47978
     degreesFahrenheit = 64
+    degreesFahrenheitPerDay = 47871
     degreesFahrenheitPerHour = 93
     degreesFahrenheitPerMinute = 94
-    degreesKelvin = 63
-    degreesKelvinPerHour = 181
-    degreesKelvinPerMinute = 182
+    kelvin = 63
+    kelvinPerHour = 181
+    kelvinPerMinute = 182
+    degreesLovibond = 47816
     degreesPhase = 14
+    degreesPlato = 47820
+    deltaDegreesCelsius = 47872
     deltaDegreesFahrenheit = 120
-    deltaDegreesKelvin = 121
+    deltaKelvin = 121
+    europeanBitternessUnits = 47819
+    europeanBrewingConvention = 47822
     farads = 170
     feet = 33
     feetPerMinute = 77
     feetPerSecond = 76
     footCandles = 38
+    gigabitsPerSecond = 47932
+    gigabytesPerSecond = 47936
+    gigawatts = 47924
+    grainsOfWaterPerPoundDryAir = 47972
     grams = 195
     gramsOfWaterPerKilogramDryAir = 28
     gramsPerCubicCentimeter = 221
     gramsPerCubicMeter = 217
+    gramsPerDay = 47834
     gramsPerGram = 208
+    gramsPerHour = 47833
     gramsPerKilogram = 210
     gramsPerLiter = 214
     gramsPerMilliliter = 213
@@ -455,31 +587,47 @@ class EngineeringUnits(Enumerated):
     hundredthsSeconds = 158
     imperialGallons = 81
     imperialGallonsPerMinute = 86
+    imperialGallonsPerSecond = 47875
     inches = 32
     inchesOfMercury = 61
     inchesOfWater = 58
+    internationalBitteringUnits = 47818
     joules = 16
     jouleSeconds = 183
     joulesPerCubicMeter = 251
-    joulesPerDegreeKelvin = 127
-    joulesPerHours = 247
-    joulesPerKilogramDegreeKelvin = 128
+    joulesPerDay = 47860
+    joulesPerKelvin = 127
+    joulesPerHour = 247
+    joulesPerKilogramKelvin = 128
     joulesPerKilogramDryAir = 23
+    joulesPerMinute = 47859
+    joulesPerSecond = 47858
     kilobecquerels = 223
+    kilobitsPerSecond = 47930
     kiloBtus = 147
+    kiloBtusPerDay = 47853
     kiloBtusPerHour = 157
+    kiloBtusPerMinute = 47852
+    kiloBtusPerSecond = 47851
+    kilobytesPerSecond = 47934
     kilograms = 39
     kilogramsPerCubicMeter = 186
+    kilogramsPerDay = 47835
     kilogramsPerHour = 44
     kilogramsPerKilogram = 209
+    kilogramsPerLiter = 47893
     kilogramsPerMinute = 43
     kilogramsPerSecond = 42
     kilohertz = 129
-    kilohms = 122
+    kiloohms = 122
     kilojoules = 17
-    kilojoulesPerDegreeKelvin = 151
+    kilojoulesPerDay = 47864
+    kilojoulesPerKelvin = 151
+    kilojoulesPerHour = 47863
     kilojoulesPerKilogram = 125
     kilojoulesPerKilogramDryAir = 149
+    kilojoulesPerMinute = 47862
+    kilojoulesPerSecond = 47861
     kilometers = 193
     kilometersPerHour = 75
     kilopascals = 54
@@ -492,19 +640,37 @@ class EngineeringUnits(Enumerated):
     kilowattHoursPerSquareFoot = 138
     kilowattHoursPerSquareMeter = 137
     kilowattHoursReactive = 204
+    kilowattPerTonRefrigeration = 47902
     kilowatts = 48
     liters = 82
+    litersPerDay = 47878
     litersPerHour = 136
     litersPerMinute = 88
     litersPerSecond = 87
+    longTons = 47832
+    longTonsPerDay = 47847
+    longTonsPerHour = 47846
+    longTonsPerMinute = 47845
+    longTonsPerSecond = 47844
     lumens = 36
+    lumensPerWatt = 47903
     luxes = 37
     megabecquerels = 224
+    megabitsPerSecond = 47931
     megaBtus = 148
+    megaBtusPerDay = 47857
+    megaBtusPerHour = 47856
+    megaBtusPerMinute = 47855
+    megaBtusPerSecond = 47854
+    megabytesPerSecond = 47935
     megahertz = 130
     megajoules = 126
-    megajoulesPerDegreeKelvin = 152
+    megajoulesPerDay = 47868
+    megajoulesPerKelvin = 152
+    megajoulesPerHour = 47867
     megajoulesPerKilogramDryAir = 150
+    megajoulesPerMinute = 47866
+    megajoulesPerSecond = 47865
     megajoulesPerSquareFoot = 140
     megajoulesPerSquareMeter = 139
     megavoltAmpereHours = 241
@@ -515,118 +681,214 @@ class EngineeringUnits(Enumerated):
     megawattHours = 146
     megawattHoursReactive = 205
     megawatts = 49
-    megohms = 123
+    megaohms = 123
     meters = 31
     metersPerHour = 164
     metersPerMinute = 163
     metersPerSecond = 74
     metersPerSecondPerSecond = 166
+    metricTonnes = 47830
+    metricTonnesPerDay = 47843
+    metricTonnesPerHour = 47842
+    metricTonnesPerMinute = 47841
+    metricTonnesPerSecond = 47840
+    microgramsPerCubicCentimeter = 47896
     microgramsPerCubicMeter = 219
+    microgramsPerKilogram = 47888
     microgramsPerLiter = 216
+    microgramsPerMilliliter = 47891
     microgray = 227
     micrometers = 194
-    microSiemens = 190
+    microseconds = 47979
+    microsiemens = 190
+    microsiemensPerCentimeter = 47909
     microsieverts = 230
     microsievertsPerHour = 231
+    miles = 47826
     milesPerHour = 78
     milliamperes = 2
     millibars = 134
     milligrams = 196
+    milligramsPerCubicCentimeter = 47895
     milligramsPerCubicMeter = 218
     milligramsPerGram = 211
     milligramsPerKilogram = 212
     milligramsPerLiter = 215
+    milligramsPerMilliliter = 47890
     milligray = 226
     milliliters = 197
+    millilitersPerMinute = 47914
     millilitersPerSecond = 198
     millimeters = 30
     millimetersOfMercury = 59
     millimetersOfWater = 206
     millimetersPerMinute = 162
     millimetersPerSecond = 161
+    millimetersPerYear = 47916
     milliohms = 145
+    millionCubicFeetPerDay = 47874
+    millionCubicFeetPerMinute = 47873
+    millionsOfImperialGallons = 47913
+    millionsOfUsGallons = 47912
+    millionStandardCubicFeetPerDay = 47809
+    millionStandardCubicFeetPerMinute = 254
+    millirems = 47814
+    milliremsPerHour = 47815
     milliseconds = 159
     millisiemens = 202
+    millisiemensPerCentimeter = 47910
+    millisiemensPerMeter = 47911
     millisieverts = 229
     millivolts = 124
     milliwatts = 132
+    milsPerYear = 47915
     minutes = 72
-    minutesPerDegreeKelvin = 236
+    minutesPerKelvin = 236
+    molePercent = 252
     months = 68
+    nanogramsPerCubicCentimeter = 47897
     nanogramsPerCubicMeter = 220
+    nanogramsPerKilogram = 47889
+    nanogramsPerLiter = 47894
+    nanogramsPerMilliliter = 47892
+    nanoseconds = 47980
+    nauticalMiles = 47827
     nephelometricTurbidityUnit = 233
     newton = 153
     newtonMeters = 160
     newtonSeconds = 187
     newtonsPerMeter = 188
     noUnits = 95
-    ohmMeterPerSquareMeter = 237
+    ohmMeterSquaredPerMeter = 237
     ohmMeters = 172
     ohms = 4
+    ounceForceInches = 47906
+    particlesPerCubicFoot = 47968
+    particlesPerCubicMeter = 47969
     partsPerBillion = 97
     partsPerMillion = 96
     pascals = 53
     pascalSeconds = 253
+    perBillion = 47885
     percent = 98
     percentObscurationPerFoot = 143
     percentObscurationPerMeter = 144
+    percentPerDay = 47883
+    percentPerHour = 47882
+    percentPerMinute = 47881
     percentPerSecond = 99
     percentRelativeHumidity = 29
+    perDay = 47823
     perHour = 131
     perMille = 207
+    perMillion = 47884
+    perMillisecond = 47824
     perMinute = 100
     perSecond = 101
-    pH = 234
+    ph = 234
+    picocuriesPerLiter = 47970
+    picoseconds = 47981
+    poundForceFeet = 47904
+    poundForceInches = 47905
     poundsForcePerSquareInch = 56
+    poundsForcePerSquareInchAbsolute = 47907
+    poundsForcePerSquareInchGauge = 47908
     poundsMass = 40
+    poundsMassPerDay = 47812
     poundsMassPerHour = 46
     poundsMassPerMinute = 45
     poundsMassPerSecond = 119
     powerFactor = 15
     psiPerDegreeFahrenheit = 102
+    pulsesPerMinute = 47917
     radians = 103
     radiansPerSecond = 184
+    reactiveEnergyPulseValue = 47919
     revolutionsPerMinute = 104
     seconds = 73
+    shortTons = 47831
+    shortTonsPerDay = 47839
+    shortTonsPerHour = 47838
+    shortTonsPerMinute = 47837
+    shortTonsPerSecond = 47836
     siemens = 173
     siemensPerMeter = 174
     sieverts = 228
+    siteUnit1 = 47958
+    siteUnit10 = 47967
+    siteUnit2 = 47959
+    siteUnit3 = 47960
+    siteUnit4 = 47961
+    siteUnit5 = 47962
+    siteUnit6 = 47963
+    siteUnit7 = 47964
+    siteUnit8 = 47965
+    siteUnit9 = 47966
+    specificGravity = 47821
     squareCentimeters = 116
     squareFeet = 1
     squareInches = 115
     squareMeters = 0
     squareMetersPerNewton = 185
+    standardCubicFeetPerDay = 47808
     teslas = 175
     therms = 21
+    thousandCubicFeetPerDay = 47810
+    thousandStandardCubicFeetPerDay = 47811
     tonHours = 22
     tons = 41
     tonsPerHour = 156
     tonsRefrigeration = 52
     usGallons = 83
+    usGallonsPerDay = 47880
     usGallonsPerHour = 192
     usGallonsPerMinute = 89
+    usGallonsPerSecond = 47879
     voltAmpereHours = 239
     voltAmpereHoursReactive = 242
     voltAmperes = 8
     voltAmperesReactive = 11
     volts = 5
-    voltsPerDegreeKelvin = 176
+    voltsPerKelvin = 176
     voltsPerMeter = 177
-    voltsSquareHours = 245
+    voltSquaredHourPulseValue = 47921
+    voltSquareHours = 245
+    volume1 = 47937
+    volume10 = 47946
+    volume2 = 47938
+    volume3 = 47939
+    volume4 = 47940
+    volume5 = 47941
+    volume6 = 47942
+    volume7 = 47943
+    volume8 = 47944
+    volume9 = 47945
+    volumetricFlow1 = 47947
+    volumetricFlow10 = 47956
+    volumetricFlow2 = 47948
+    volumetricFlow3 = 47949
+    volumetricFlow4 = 47950
+    volumetricFlow5 = 47951
+    volumetricFlow6 = 47952
+    volumetricFlow7 = 47953
+    volumetricFlow8 = 47954
+    volumetricFlow9 = 47955
     wattHours = 18
     wattHoursPerCubicMeter = 250
     wattHoursReactive = 203
     watts = 47
-    wattsPerMeterPerDegreeKelvin = 189
+    wattsPerMeterPerKelvin = 189
     wattsPerSquareFoot = 34
     wattsPerSquareMeter = 35
-    wattsPerSquareMeterDegreeKelvin = 141
+    wattsPerSquareMeterPerKelvin = 141
     webers = 178
     weeks = 69
+    yards = 47825
     years = 67
 
 
 class ErrorClass(Enumerated):
+    _vendor_range = (64, 65535)
     device = 0
     object = 1
     property = 2
@@ -638,6 +900,12 @@ class ErrorClass(Enumerated):
 
 
 class ErrorCode(Enumerated):
+    _vendor_range = (256, 65535)
+    _asn1_overrides = {
+        22: "property-is-not-a-list",
+        148: "not-a-bacnet-sc-hub",
+        164: "http-not-a-server",
+    }
     abortApduTooLong = 123
     abortApplicationExceededReplyTime = 124
     abortBufferOverflow = 51
@@ -653,25 +921,36 @@ class ErrorCode(Enumerated):
     abortWindowSizeOutOfRange = 127
     accessDenied = 85
     addressingError = 115
+    adjustScopeRequired = 207
+    authScopeRequired = 208
     badDestinationAddress = 86
     badDestinationDeviceId = 87
     badSignature = 88
     badSourceAddress = 89
     badTimestamp = 90  # removed revision 22
+    bindScopeRequired = 209
     busy = 82
     bvlcFunctionUnknown = 143
     bvlcProprietaryFunctionUnknown = 144
     cannotUseKey = 91  # removed revision 22
     cannotVerifyMessageId = 92  # removed revision 22
+    certificateExpired = 200
+    certificateInvalid = 201
+    certificateMalformed = 202
+    certificateRevoked = 203
     characterSetNotSupported = 41
     communicationDisabled = 83
+    configScopeRequired = 210
     configurationInProgress = 2
+    controlScopeRequired = 211
     correctKeyRevision = 93  # removed revision 22
     covSubscriptionFailed = 43
     datatypeNotSupported = 47
     deleteFdtEntryFailed = 120
     destinationDeviceIdRequired = 94  # removed revision 22
     deviceBusy = 3
+    directoryDisabled = 230
+    directoryQueryFailed = 231
     distributeBroadcastFailed = 121
     dnsError = 192
     dnsNameResolutionFailed = 190
@@ -684,6 +963,7 @@ class ErrorCode(Enumerated):
     dynamicCreationNotSupported = 4
     encryptionNotConfigured = 96
     encryptionRequired = 97
+    extendedScopeRequired = 212
     fileAccessDenied = 5
     fileFull = 128
     headerEncodingError = 145
@@ -702,23 +982,34 @@ class ErrorCode(Enumerated):
     httpUpgradeError = 162
     httpUpgradeRequired = 161
     httpWebsocketHeaderError = 160
+    inactiveToken = 220
     inconsistentConfiguration = 129
     inconsistentObjectType = 130
     inconsistentParameters = 7
     inconsistentSelectionCriterion = 8
+    incorrectAudience = 225
+    incorrectClient = 213
+    incorrectClientOrigin = 226
+    incorrectIssuer = 228
     incorrectKey = 98  # removed revision 22
+    installScopeRequired = 214
+    insufficientScope = 215
     internalError = 131
     invalidArrayIndex = 42
+    invalidArraySize = 227
     invalidConfigurationData = 46
+    invalidCursor = 232
     invalidDataEncoding = 142
     invalidDataType = 9
     invalidEventState = 73
     invalidFileAccessMethod = 10
     invalidFileStartPosition = 11
     invalidKeyData = 99  # removed revision 22
+    invalidOperationInThisState = 139
     invalidParameterDataType = 13
     invalidTag = 57
-    invalidTimeStamp = 14
+    invalidTimestamp = 14
+    invalidToken = 229
     invalidValueInThisState = 138
     ipAddressNotReachable = 198
     ipError = 199
@@ -735,7 +1026,9 @@ class ErrorCode(Enumerated):
     networkDown = 58
     noAlarmConfigured = 74
     nodeDuplicateVmac = 151
+    noDefaultScope = 216
     noObjectsOfSpecifiedType = 17
+    noPolicy = 217
     noPropertySpecified = 77
     noSpaceForObject = 18
     noSpaceToAddListElement = 19
@@ -744,6 +1037,7 @@ class ErrorCode(Enumerated):
     notConfigured = 132
     notConfiguredForTriggeredLogging = 78
     notCovProperty = 44
+    notEnabled = 206
     notKeyServer = 102  # removed revision 22
     notRouterToDnet = 110
     noVtSessionsAvailable = 21
@@ -753,6 +1047,7 @@ class ErrorCode(Enumerated):
     optionalFunctionalityNotSupported = 45
     other = 0
     outOfMemory = 133
+    overrideScopeRequired = 219
     parameterOutOfRange = 80
     passwordFailure = 26
     payloadExpected = 149
@@ -761,6 +1056,7 @@ class ErrorCode(Enumerated):
     readAccessDenied = 27
     readBdtFailed = 117
     readFdtFailed = 119
+    referencedPortInError = 205
     registerForeignDeviceFailed = 118
     rejectBufferOverflow = 59
     rejectInconsistentParameters = 60
@@ -773,6 +1069,7 @@ class ErrorCode(Enumerated):
     rejectTooManyArguments = 65
     rejectUndefinedEnumeration = 66
     rejectUnrecognizedService = 67
+    revokedToken = 218
     routerBusy = 111
     securityError = 114
     securityNotConfigured = 103
@@ -785,7 +1082,7 @@ class ErrorCode(Enumerated):
     tcpConnectTimeout = 193
     tcpError = 197
     timeout = 30
-    tleError = 188
+    tlsError = 188
     tlsClientAuthenticationFailed = 182
     tlsClientCertificateError = 180
     tlsClientCertificateExpired = 184
@@ -796,7 +1093,10 @@ class ErrorCode(Enumerated):
     tlsServerCertificateRevoked = 187
     tooManyKeys = 105  # removed revision 22
     unexpectedData = 150
+    unknownAudience = 221
     unknownAuthenticationType = 106
+    unknownCertificateKey = 204
+    unknownClient = 222
     unknownDevice = 70
     unknownFileSize = 122
     unknownKey = 107  # removed revision 22
@@ -805,6 +1105,7 @@ class ErrorCode(Enumerated):
     unknownObject = 31
     unknownProperty = 32
     unknownRoute = 71
+    unknownScope = 223
     unknownSourceMessage = 109  # removed revision 22
     unknownSubscription = 79
     unknownVtClass = 34
@@ -813,6 +1114,7 @@ class ErrorCode(Enumerated):
     valueNotInitialized = 72
     valueOutOfRange = 37
     valueTooLong = 134
+    viewScopeRequired = 224
     vtSessionAlreadyClosed = 38
     vtSessionTerminationFailure = 39
     websocketClosedAbnormally = 173
@@ -953,6 +1255,11 @@ class LifeSafetyMode(Enumerated):
     disabled = 12
     automaticReleaseDisabled = 13
     default = 14
+    activatedOeoAlarm = 15
+    activatedOeoEvacuate = 16
+    activatedOeoPhase1Recall = 17
+    activatedOeoUnavailable = 18
+    deactivated = 19
 
 
 class LifeSafetyOperation(Enumerated):
@@ -995,6 +1302,17 @@ class LifeSafetyState(Enumerated):
     generalAlarm = 21
     supervisory = 22
     testSupervisory = 23
+    nonDefaultMode = 24
+    oeoUnavailable = 25
+    oeoAlarm = 26
+    oeoPhase1Recall = 27
+    oeoEvacuate = 28
+    oeoUnaffected = 29
+    testOeoUnavailable = 30
+    testOeoAlarm = 31
+    testOeoPhase1Recall = 32
+    testOeoEvacuate = 33
+    testOeoUnaffected = 34
 
 
 class LiftCarDirection(Enumerated):
@@ -1082,6 +1400,7 @@ class LightingInProgress(Enumerated):
     rampActive = 2
     notControlled = 3
     other = 4
+    trimActive = 5
 
 
 class LightingOperation(Enumerated):
@@ -1097,6 +1416,10 @@ class LightingOperation(Enumerated):
     warnOff = 8
     warnRelinquish = 9
     stop = 10
+    restoreOn = 11
+    defaultOn = 12
+    toggleRestore = 13
+    toggleDefault = 14
 
 
 class LightingTransition(Enumerated):
@@ -1109,8 +1432,9 @@ class LightingTransition(Enumerated):
 class LockStatus(Enumerated):
     locked = 0
     unlocked = 1
-    fault = 2
-    unknown = 3
+    lockFault = 2
+    unused = 3
+    unknown = 4
 
 
 class LoggingType(Enumerated):
@@ -1139,12 +1463,15 @@ class NetworkPortCommand(Enumerated):
     _vendor_range = (128, 255)
     idle = 0
     discardChanges = 1
-    renewFdDRegistration = 2
-    restartSlaveDiscovery = 3
+    renewFdRegistration = 2
+    restartSubordinateDiscovery = 3
     renewDHCP = 4
     restartAutonegotiation = 5
     disconnect = 6
     restartPort = 7
+    generateCsrFile = 8
+    validateChanges = 9
+    restartDeviceDiscovery = 10
 
 
 class NetworkType(Enumerated):
@@ -1159,6 +1486,7 @@ class NetworkType(Enumerated):
     virtual = 7
     ipv6 = 9
     serial = 10
+    secureConnect = 11
 
 
 class NodeType(Enumerated):
@@ -1305,6 +1633,14 @@ class Reliability(Enumerated):
     multiStateOutOfRange = 25
 
 
+class ResponseIncludes(Enumerated):
+    instances = 0
+    basicDetails = 1
+    fullDetails = 2
+    basicObjects = 3
+    fullObjects = 4
+
+
 class RestartReason(Enumerated):
     _vendor_range = (64, 255)
     unknown = 0
@@ -1324,13 +1660,26 @@ class RouterEntryStatus(Enumerated):
     disconnected = 2
 
 
+class SCConnectionState(Enumerated):
+    notConnected = 0
+    connected = 1
+    disconnectedWithErrors = 2
+    failedToConnect = 3
+
+
+class SCHubConnectorState(Enumerated):
+    noHubConnection = 0
+    connectedToPrimary = 1
+    connectedToFailover = 2
+
+
 class SecurityLevel(Enumerated):
     incapable = 0
     plain = 1
     signed = 2
     encrypted = 3
     signedEndToEnd = 4
-    encryptedEndToEnd = 4
+    encryptedEndToEnd = 5
 
 
 class SecurityPolicy(Enumerated):
@@ -1362,6 +1711,12 @@ class SilencedState(Enumerated):
     allSilenced = 3
 
 
+class SuccessFilter(Enumerated):
+    all = 0
+    successesOnly = 1
+    failuresOnly = 2
+
+
 class TimerState(Enumerated):
     idle = 0
     running = 1
@@ -1385,7 +1740,13 @@ class UnconfirmedTextMessageRequestMessagePriority(Enumerated):
 
 
 class VTClass(Enumerated):
+    """
+    The virtual terminal services were removed in protocol revision 29, this
+    is kept for older devices.
+    """
+
     _vendor_range = (64, 65535)
+    _asn1_overrides = {1: "ansi-x3-64", 5: "hp-700-94", 6: "ibm-3130"}
     defaultTerminal = 0
     ansiX364 = 1
     decVt52 = 2
@@ -1427,6 +1788,50 @@ class AuditOperationFlags(BitString):
     general = 15
 
 
+class AuthorizationScopeStandard(BitString):
+    _asn1_overrides = {
+        9: "reserved-9",
+        10: "reserved-10",
+        11: "reserved-11",
+        12: "reserved-12",
+        13: "reserved-13",
+        14: "reserved-14",
+        15: "reserved-15",
+        16: "reserved-16",
+        17: "reserved-17",
+        18: "reserved-18",
+        19: "reserved-19",
+        20: "reserved-20",
+        21: "reserved-21",
+        22: "reserved-22",
+        23: "reserved-23",
+    }
+    view = 0
+    adjust = 1
+    control = 2
+    override = 3
+    config = 4
+    bind = 5
+    install = 6
+    auth = 7
+    infrastructure = 8
+    reserved9 = 9
+    reserved10 = 10
+    reserved11 = 11
+    reserved12 = 12
+    reserved13 = 13
+    reserved14 = 14
+    reserved15 = 15
+    reserved16 = 16
+    reserved17 = 17
+    reserved18 = 18
+    reserved19 = 19
+    reserved20 = 20
+    reserved21 = 21
+    reserved22 = 22
+    reserved23 = 23
+
+
 class DaysOfWeek(BitString):
     monday = 0
     tuesday = 1
@@ -1464,6 +1869,7 @@ class ObjectTypesSupported(BitString):
     calendar = 6
     command = 7
     device = 8
+    directory = 65
     eventEnrollment = 9
     file = 10
     group = 11
@@ -1486,6 +1892,7 @@ class ObjectTypesSupported(BitString):
     loadControl = 28
     structuredView = 29
     accessDoor = 30
+    timer = 31
     accessCredential = 32
     accessPoint = 33
     accessRights = 34
@@ -1496,15 +1903,15 @@ class ObjectTypesSupported(BitString):
     networkSecurity = 38  # removed revision 22
     bitstringValue = 39
     characterstringValue = 40
-    datePatternValue = 41
+    datepatternValue = 41
     dateValue = 42
-    datetimePatternValue = 43
+    datetimepatternValue = 43
     datetimeValue = 44
     integerValue = 45
     largeAnalogValue = 46
     octetstringValue = 47
     positiveIntegerValue = 48
-    timePatternValue = 49
+    timepatternValue = 49
     timeValue = 50
     notificationForwarder = 51
     alertEnrollment = 52
@@ -1518,9 +1925,24 @@ class ObjectTypesSupported(BitString):
     staging = 60
     auditLog = 61
     auditReporter = 62
+    color = 63
+    colorTemperature = 64
 
 
 class PriorityFilter(BitString):
+    _asn1_overrides = {
+        2: "priority-3",
+        3: "priority-4",
+        6: "priority-7",
+        8: "priority-9",
+        9: "priority-10",
+        10: "priority-11",
+        11: "priority-12",
+        12: "priority-13",
+        13: "priority-14",
+        14: "priority-15",
+        15: "priority-16",
+    }
     manualLifeSafety = 0
     automaticLifeSafety = 1
     priority3 = 2
@@ -1546,6 +1968,7 @@ class ResultFlags(BitString):
 
 
 class ServicesSupported(BitString):
+    _asn1_overrides = {47: "who-am-i"}
     acknowledgeAlarm = 0
     confirmedCOVNotification = 1
     confirmedEventNotification = 2
@@ -1595,6 +2018,8 @@ class ServicesSupported(BitString):
     unconfirmedAuditNotification = 46
     whoAmI = 47
     youAre = 48
+    authRequest = 49
+    directoryQuery = 50
 
 
 class StatusFlags(BitString):
@@ -1694,6 +2119,7 @@ class IPv6OctetString(OctetString):
 property_index_re = re.compile(r"^([0-9A-Za-z-]+)(?:\[([0-9]+)\])?$")
 
 
+@bacpypes_debugging
 class PropertyReference(Sequence):
     _order = ("propertyIdentifier", "propertyArrayIndex")
     propertyIdentifier = PropertyIdentifier(_context=0)
@@ -1701,7 +2127,7 @@ class PropertyReference(Sequence):
 
     def __init__(
         self,
-        arg: Union[int, str, tuple, None] = None,
+        arg: Union[int, str, tuple, PropertyReference, None] = None,
         *,
         vendor_info: Optional[VendorInfo] = None,
         vendor_identifier: Optional[int] = 0,
@@ -1713,6 +2139,12 @@ class PropertyReference(Sequence):
         # nothing provided
         if arg is None:
             pass
+
+        # copy of another reference
+        elif isinstance(arg, PropertyReference):
+            kwargs["propertyIdentifier"] = arg.propertyIdentifier
+            if arg.propertyArrayIndex is not None:
+                kwargs["propertyArrayIndex"] = arg.propertyArrayIndex
 
         # specific property enumeration
         elif isinstance(arg, int):
@@ -1780,19 +2212,19 @@ class PropertyReference(Sequence):
     @classmethod
     def cast(cls, arg):
         if _debug:
-            HostAddress._debug("DeviceAddress.cast %r", arg)
+            PropertyReference._debug("PropertyReference.cast %r", arg)
 
-        if isinstance(arg, (int, str, tuple)):
+        if isinstance(arg, (int, str, tuple, PropertyReference)):
             return arg
         else:
             raise TypeError(type(arg))
 
 
 class PropertyValue(Sequence):
-    _order = ("propertyIdentifier", "propertyArrayIndex", "value", "priority")
+    _order = ("propertyIdentifier", "propertyArrayIndex", "propertyValue", "priority")
     propertyIdentifier = PropertyIdentifier(_context=0)
     propertyArrayIndex = Unsigned(_context=1, _optional=True)
-    value = Any(_context=2)
+    propertyValue = Any(_context=2)
     priority = Unsigned(_context=3, _optional=True)
 
 
@@ -1808,13 +2240,13 @@ class ObjectPropertyValue(Sequence):
         "objectIdentifier",
         "propertyIdentifier",
         "propertyArrayIndex",
-        "value",
+        "propertyValue",
         "priority",
     )
     objectIdentifier = ObjectIdentifier(_context=0)
     propertyIdentifier = PropertyIdentifier(_context=1)
     propertyArrayIndex = Unsigned(_context=2, _optional=True)
-    value = Any(_context=3)
+    propertyValue = Any(_context=3)
     priority = Unsigned(_context=4, _optional=True)
 
 
@@ -1836,14 +2268,14 @@ class DeviceObjectPropertyValue(Sequence):
         "deviceIdentifier",
         "objectIdentifier",
         "propertyIdentifier",
-        "arrayIndex",
-        "value",
+        "propertyArrayIndex",
+        "propertyValue",
     )
     deviceIdentifier = ObjectIdentifier(_context=0)
     objectIdentifier = ObjectIdentifier(_context=1)
     propertyIdentifier = PropertyIdentifier(_context=2)
-    arrayIndex = Unsigned(_context=3, _optional=True)
-    value = Any(_context=4)
+    propertyArrayIndex = Unsigned(_context=3, _optional=True)
+    propertyValue = Any(_context=4)
 
 
 class DeviceObjectReference(Sequence):
@@ -2039,7 +2471,7 @@ _sequence_number = 0
 class TimeStamp(Choice):
     time = Time(_context=0)
     sequenceNumber = Unsigned(_context=1)
-    dateTime = DateTime(_context=2)
+    datetime = DateTime(_context=2)
 
     @classmethod
     def as_time(cls: type, when: Optional[float] = None) -> TimeStamp:
@@ -2054,8 +2486,8 @@ class TimeStamp(Choice):
         return cls(sequenceNumber=now)
 
     @classmethod
-    def as_dateTime(cls: type, when: Optional[float] = None) -> TimeStamp:
-        return cls(dateTime=DateTime.now(when))
+    def as_datetime(cls: type, when: Optional[float] = None) -> TimeStamp:
+        return cls(datetime=DateTime.now(when))
 
     def __str__(self) -> str:
         return str(getattr(self, self._choice, "None"))
@@ -2257,6 +2689,12 @@ class AccumulatorRecord(Sequence):
     accumulatorStatus = AccumulatorRecordAccumulatorStatus(_context=3)
 
 
+class AcknowledgeAlarmInfo(Sequence):
+    _order = ("eventStateAcknowledged", "timestamp")
+    eventStateAcknowledged = EventState(_context=0)
+    timestamp = TimeStamp(_context=1)
+
+
 class ActionCommand(Sequence):
     _order = (
         "deviceIdentifier",
@@ -2267,7 +2705,7 @@ class ActionCommand(Sequence):
         "priority",
         "postDelay",
         "quitOnFailure",
-        "writeSuccessFul",
+        "writeSuccessful",
     )
     deviceIdentifier = ObjectIdentifier(_context=0, _optional=True)
     objectIdentifier = ObjectIdentifier(_context=1)
@@ -2277,7 +2715,7 @@ class ActionCommand(Sequence):
     priority = Unsigned(_context=5, _optional=True)
     postDelay = Unsigned(_context=6, _optional=True)
     quitOnFailure = Boolean(_context=7)
-    writeSuccessFul = Boolean(_context=8)
+    writeSuccessful = Boolean(_context=8)
 
 
 class SequenceOfActionCommand(SequenceOf(ActionCommand)):
@@ -2300,8 +2738,8 @@ class Address(Sequence):
 
 
 class AddressBinding(Sequence):
-    _order = ("deviceObjectIdentifier", "deviceAddress")
-    deviceObjectIdentifier = ObjectIdentifier()
+    _order = ("deviceIdentifier", "deviceAddress")
+    deviceIdentifier = ObjectIdentifier()
     deviceAddress = DeviceAddress()
 
 
@@ -2390,7 +2828,7 @@ class AuditLogQueryParametersBySource(Sequence):
     sourceDeviceAddress = Address(_context=1, _optional=True)
     sourceObjectIdentifier = ObjectIdentifier(_context=2, _optional=True)
     operations = AuditOperationFlags(_context=3, _optional=True)
-    successfulActionsOnly = Boolean(_context=4)
+    successfulActionsOnly = SuccessFilter(_context=4)
 
 
 class AuditLogQueryParametersByTarget(Sequence):
@@ -2411,7 +2849,7 @@ class AuditLogQueryParametersByTarget(Sequence):
     targetArrayIndex = Unsigned(_context=4, _optional=True)
     targetPriority = Unsigned(_context=5, _optional=True)
     operations = AuditOperationFlags(_context=6, _optional=True)
-    successfulActionsOnly = Boolean(_context=7)
+    successfulActionsOnly = SuccessFilter(_context=7)
 
 
 class AuditNotification(Sequence):
@@ -2456,7 +2894,7 @@ class AuditNotification(Sequence):
 class AuditLogRecordLogDatum(Choice):
     logStatus = LogStatus(_context=0)
     auditNotification = AuditNotification(_context=1)
-    timeChange = Real()
+    timeChange = Real(_context=2)
 
 
 class AuditLogRecord(Sequence):
@@ -2473,6 +2911,139 @@ class AuditLogRecordResult(Sequence):
     _order = ("sequenceNumber", "logRecord")
     sequenceNumber = Unsigned(_context=0)
     logRecord = AuditLogRecord(_context=1)
+
+
+class AuthorizationConstraint(Sequence):
+    _order = ("origin", "authentication")
+    origin = AuthorizationConstraintOrigin()
+    authentication = AuthorizationConstraintAuthentication()
+
+
+class AuthorizationScope(Sequence):
+    _order = ("standard", "extended")
+    standard = AuthorizationScopeStandard()
+    extended = SequenceOf(CharacterString, _context=0, _optional=True)
+
+
+class AccessToken(Sequence):
+    _order = (
+        "issuer",
+        "issued",
+        "audience",
+        "notBefore",
+        "notAfter",
+        "client",
+        "constraint",
+        "scope",
+        "keyId",
+        "signature",
+    )
+    issuer = Unsigned32(_context=0)
+    issued = DateTime(_context=1)
+    audience = SequenceOf(Integer32, _context=2)
+    notBefore = DateTime(_context=3, _optional=True)
+    notAfter = DateTime(_context=4, _optional=True)
+    client = Unsigned32(_context=5)
+    constraint = AuthorizationConstraint(_context=6)
+    scope = AuthorizationScope(_context=7, _optional=True)
+    keyId = Unsigned8(_context=8)
+    signature = OctetString(_context=9)
+
+
+class AuthenticationClient(Sequence):
+    _order = ("authenticated", "device")
+    authenticated = Boolean()
+    device = Unsigned32()
+
+
+class AuthenticationPeer(Sequence):
+    _order = ("host", "device", "authAware", "router", "hub")
+    host = HostNPort(_context=0)
+    device = Unsigned32()
+    authAware = Boolean()
+    router = Boolean()
+    hub = Boolean()
+
+
+class AuthenticationEvent(Sequence):
+    _order = ("timestamp", "peer", "client", "decision", "decisionDetails")
+    timestamp = DateTime(_context=0)
+    peer = AuthenticationPeer(_context=1)
+    client = AuthenticationClient(_context=2)
+    decision = AuthenticationDecision(_context=3)
+    decisionDetails = CharacterString(_context=4, _optional=True)
+
+
+class AuthorizationEvent(Sequence):
+    _order = (
+        "timestamp",
+        "address",
+        "client",
+        "token",
+        "decision",
+        "decisionDetails",
+    )
+    timestamp = DateTime(_context=0)
+    address = DeviceAddress(_context=1)
+    client = AuthenticationClient(_context=2, _optional=True)
+    token = AccessToken(_context=3, _optional=True)
+    decision = AuthorizationDecision(_context=4)
+    decisionDetails = CharacterString(_context=5, _optional=True)
+
+
+class AuthorizationPolicy(Sequence):
+    _order = ("notBefore", "notAfter", "clients", "constraint", "scope")
+    notBefore = DateTime(_context=0, _optional=True)
+    notAfter = DateTime(_context=1, _optional=True)
+    clients = SequenceOf(Unsigned32, _context=2)
+    constraint = AuthorizationConstraint(_context=3)
+    scope = AuthorizationScope(_context=4)
+
+
+class AuthorizationScopeDescription(Sequence):
+    _order = ("name", "description")
+    name = CharacterString()
+    description = CharacterString()
+
+
+class AuthorizationServer(Sequence):
+    _order = ("authServer", "signingKey1", "signingKey2")
+    _element_names = {"signingKey1": "signing-key-1", "signingKey2": "signing-key-2"}
+    authServer = Unsigned32(_context=0)
+    signingKey1 = OctetString(_context=1, _optional=True)
+    signingKey2 = OctetString(_context=2, _optional=True)
+
+
+class AuthorizationStatus(Sequence):
+    _order = (
+        "posture",
+        "error",
+        "errorSource",
+        "errorDetails",
+        "authenticationSuccess",
+        "authenticationFailure",
+        "authorizationSuccess",
+        "authorizationFailure",
+    )
+    posture = AuthorizationPosture(_context=0)
+    error = ErrorType(_context=1, _optional=True)
+    errorSource = ObjectPropertyReference(_context=2, _optional=True)
+    errorDetails = CharacterString(_context=3, _optional=True)
+    authenticationSuccess = SequenceOf(AuthenticationEvent, _context=4, _optional=True)
+    authenticationFailure = SequenceOf(AuthenticationEvent, _context=5, _optional=True)
+    authorizationSuccess = SequenceOf(AuthorizationEvent, _context=6, _optional=True)
+    authorizationFailure = SequenceOf(AuthorizationEvent, _context=7, _optional=True)
+
+
+class AuthRequestRequestTokenRequest(Sequence):
+    """
+    The token-request choice of the AuthRequest service request.
+    """
+
+    _order = ("client", "audience", "scope")
+    client = Unsigned32(_context=0)
+    audience = SequenceOf(Integer32, _context=1)
+    scope = AuthorizationScope(_context=2)
 
 
 class AuthenticationFactor(Sequence):
@@ -2638,6 +3209,43 @@ class ListOfCOVMultipleSubscription(ListOf(COVMultipleSubscription)):
     pass
 
 
+class COVNotificationMultipleListOfValues(Sequence):
+    """
+    An element of list-of-values in the list-of-cov-notifications of the
+    ConfirmedCOVNotificationMultiple and UnconfirmedCOVNotificationMultiple
+    service requests.
+    """
+
+    _order = (
+        "propertyIdentifier",
+        "propertyArrayIndex",
+        "propertyValue",
+        "timeOfChange",
+    )
+    propertyIdentifier = PropertyIdentifier(_context=0)
+    propertyArrayIndex = Unsigned(_context=1, _optional=True)
+    propertyValue = Any(_context=2)
+    timeOfChange = Time(_context=3, _optional=True)
+
+
+class COVNotificationMultipleListOfCOVNotifications(Sequence):
+    """
+    An element of list-of-cov-notifications of the ConfirmedCOVNotificationMultiple
+    and UnconfirmedCOVNotificationMultiple service requests.
+    """
+
+    _order = ("monitoredObjectIdentifier", "listOfValues")
+    monitoredObjectIdentifier = ObjectIdentifier(_context=0)
+    listOfValues = SequenceOf(COVNotificationMultipleListOfValues, _context=1)
+
+
+class SubscribeCOVPropertyMultipleErrorFirstFailedSubscription(Sequence):
+    _order = ("monitoredObjectIdentifier", "monitoredPropertyReference", "errorType")
+    monitoredObjectIdentifier = ObjectIdentifier(_context=0)
+    monitoredPropertyReference = PropertyReference(_context=1)
+    errorType = ErrorType(_context=2)
+
+
 class COVNotificationParameters(Sequence):
     _order = (
         "subscriberProcessIdentifier",
@@ -2756,10 +3364,70 @@ class PropertyStates(Choice):
     accessCredentialDisable = AccessCredentialDisable(_context=33)
     authenticationStatus = AuthenticationStatus(_context=34)
     backupState = BackupState(_context=36)
-    writeStatus = WriteStatus(_context=370)
+    writeStatus = WriteStatus(_context=37)
     lightingInProgress = LightingInProgress(_context=38)
     lightingOperation = LightingOperation(_context=39)
     lightingTransition = LightingTransition(_context=40)
+    integerValue = Integer(_context=41)
+    binaryLightingValue = BinaryLightingPV(_context=42)
+    timerState = TimerState(_context=43)
+    timerTransition = TimerTransition(_context=44)
+    bacnetIPMode = IPMode(_context=45)
+    networkPortCommand = NetworkPortCommand(_context=46)
+    networkType = NetworkType(_context=47)
+    networkNumberQuality = NetworkNumberQuality(_context=48)
+    escalatorOperationDirection = EscalatorOperationDirection(_context=49)
+    escalatorFault = EscalatorFault(_context=50)
+    escalatorMode = EscalatorMode(_context=51)
+    liftCarDirection = LiftCarDirection(_context=52)
+    liftCarDoorCommand = LiftCarDoorCommand(_context=53)
+    liftCarDriveStatus = LiftCarDriveStatus(_context=54)
+    liftCarMode = LiftCarMode(_context=55)
+    liftGroupMode = LiftGroupMode(_context=56)
+    liftFault = LiftFault(_context=57)
+    protocolLevel = ProtocolLevel(_context=58)
+    auditLevel = AuditLevel(_context=59)
+    auditOperation = AuditOperation(_context=60)
+    extendedValue = Unsigned32(_context=63)
+
+    # Tag values greater than 254 are not encoded as context tags, the tag
+    # value is multiplied by 100000, added to the enumeration value, and the
+    # sum is encoded as the extended-value choice.
+    scConnectionState = SCConnectionState(_context=258)
+    scHubConnectorState = SCHubConnectorState(_context=259)
+    responseIncludes = ResponseIncludes(_context=260)
+    discoveryState = DiscoveryState(_context=261)
+
+    _extended_multiplier = 100000
+
+    def encode(self) -> TagList:
+        """Encode choices with tag values above 254 as extended-value."""
+        attr = self._choice
+        element = self._elements.get(attr) if attr else None
+        if (element is not None) and ((element._context or 0) > 254):
+            value = getattr(self, attr)
+            extended = self.__class__(
+                extendedValue=element._context * self._extended_multiplier + int(value)
+            )
+            return extended.encode()
+
+        return super().encode()
+
+    @classmethod
+    def decode(cls, tag_list: TagList) -> PropertyStates:
+        """Decode an extended-value back into its choice when it is known."""
+        result = super().decode(tag_list)
+        if result._choice == "extendedValue":
+            tag_value, value = divmod(
+                int(result.extendedValue), cls._extended_multiplier
+            )
+            if tag_value > 254:
+                for attr, element in cls._elements.items():
+                    if element._context == tag_value:
+                        setattr(result, attr, value)
+                        break
+
+        return result
 
 
 class SequenceOfPropertyStates(SequenceOf(PropertyStates)):
@@ -2820,11 +3488,6 @@ class NotificationParametersOutOfRange(Sequence):
     exceededLimit = Real(_context=3)
 
 
-class NotificationParametersComplexEventType(Sequence):
-    _order = ("complexEventType",)
-    complexEventType = PropertyValue(_context=0)
-
-
 class NotificationParametersDoubleOutOfRangeType(Sequence):
     _order = ("exceedingValue", "statusFlags", "deadband", "exceededLimit")
     exceedingValue = Double(_context=0)
@@ -2858,7 +3521,7 @@ class NotificationParametersChangeOfCharacterStringType(Sequence):
 
 class NotificationParametersChangeOfStatusFlagsType(Sequence):
     _order = ("presentValue", "referencedFlags")
-    presentValue = CharacterString(_context=0)
+    presentValue = Any(_context=0, _optional=True)
     referencedFlags = StatusFlags(_context=1)
 
 
@@ -2876,33 +3539,38 @@ class NotificationParametersAccessEventType(Sequence):
         "accessEventTag",
         "accessEventTime",
         "accessCredential",
-        "authenicationFactor",
+        "authenticationFactor",
     )
     accessEvent = AccessEvent(_context=0)
     statusFlags = StatusFlags(_context=1)
     accessEventTag = Unsigned(_context=2)
     accessEventTime = TimeStamp(_context=3)
     accessCredential = DeviceObjectReference(_context=4)
-    authenicationFactor = AuthenticationFactorType(_context=5, _optional=True)
+    authenticationFactor = AuthenticationFactor(_context=5, _optional=True)
 
 
 class NotificationParametersExtendedParametersType(Choice):
     null = Null()
     real = Real()
-    integer = Unsigned()
+    unsigned = Unsigned()
     boolean = Boolean()
+    integer = Integer()
     double = Double()
-    octet = OctetString()
+    octetstring = OctetString()
+    characterstring = CharacterString()
     bitstring = BitString()
-    enum = Enumerated()
-    propertyValue = DeviceObjectPropertyValue()
+    enumerated = Enumerated()
+    date = Date()
+    time = Time()
+    objectidentifier = ObjectIdentifier()
+    propertyValue = DeviceObjectPropertyValue(_context=0)
 
 
 class NotificationParametersExtended(Sequence):
     _order = ("vendorId", "extendedEventType", "parameters")
     vendorId = Unsigned(_context=0)
     extendedEventType = Unsigned(_context=1)
-    parameters = NotificationParametersExtendedParametersType(_context=2)
+    parameters = SequenceOf(NotificationParametersExtendedParametersType, _context=2)
 
 
 class NotificationParametersBufferReady(Sequence):
@@ -2913,10 +3581,46 @@ class NotificationParametersBufferReady(Sequence):
 
 
 class NotificationParametersUnsignedRange(Sequence):
-    _order = ("exceedingValue", "statusFlags", "exceedingLimit")
+    _order = ("exceedingValue", "statusFlags", "exceededLimit")
     exceedingValue = Unsigned(_context=0)
     statusFlags = StatusFlags(_context=1)
-    exceedingLimit = Unsigned(_context=2)
+    exceededLimit = Unsigned(_context=2)
+
+
+class NotificationParametersChangeOfDiscreteValueNewValue(Choice):
+    boolean = Boolean()
+    unsigned = Unsigned()
+    integer = Integer()
+    enumerated = Enumerated()
+    characterstring = CharacterString()
+    octetstring = OctetString()
+    date = Date()
+    time = Time()
+    objectidentifier = ObjectIdentifier()
+    datetime = DateTime(_context=0)
+
+
+class NotificationParametersChangeOfDiscreteValue(Sequence):
+    _order = ("newValue", "statusFlags")
+    newValue = NotificationParametersChangeOfDiscreteValueNewValue(_context=0)
+    statusFlags = StatusFlags(_context=1)
+
+
+class NotificationParametersChangeOfTimer(Sequence):
+    _order = (
+        "newState",
+        "statusFlags",
+        "updateTime",
+        "lastStateChange",
+        "initialTimeout",
+        "expirationTime",
+    )
+    newState = TimerState(_context=0)
+    statusFlags = StatusFlags(_context=1)
+    updateTime = DateTime(_context=2)
+    lastStateChange = TimerTransition(_context=3, _optional=True)
+    initialTimeout = Unsigned(_context=4, _optional=True)
+    expirationTime = DateTime(_context=5, _optional=True)
 
 
 class NotificationParameters(Choice):
@@ -2926,7 +3630,7 @@ class NotificationParameters(Choice):
     commandFailure = NotificationParametersCommandFailure(_context=3)
     floatingLimit = NotificationParametersFloatingLimit(_context=4)
     outOfRange = NotificationParametersOutOfRange(_context=5)
-    complexEventType = NotificationParametersComplexEventType(_context=6)
+    complexEventType = SequenceOf(PropertyValue, _context=6)
     changeOfLifeSafety = NotificationParametersChangeOfLifeSafety(_context=8)
     extended = NotificationParametersExtended(_context=9)
     bufferReady = NotificationParametersBufferReady(_context=10)
@@ -2935,11 +3639,13 @@ class NotificationParameters(Choice):
     doubleOutOfRange = NotificationParametersDoubleOutOfRangeType(_context=14)
     signedOutOfRange = NotificationParametersSignedOutOfRangeType(_context=15)
     unsignedOutOfRange = NotificationParametersUnsignedOutOfRangeType(_context=16)
-    changeOfCharacterString = NotificationParametersChangeOfCharacterStringType(
+    changeOfCharacterstring = NotificationParametersChangeOfCharacterStringType(
         _context=17
     )
     changeOfStatusFlags = NotificationParametersChangeOfStatusFlagsType(_context=18)
     changeOfReliability = NotificationParametersChangeOfReliabilityType(_context=19)
+    changeOfDiscreteValue = NotificationParametersChangeOfDiscreteValue(_context=21)
+    changeOfTimer = NotificationParametersChangeOfTimer(_context=22)
 
 
 class EventNotificationParameters(Sequence):
@@ -2947,7 +3653,7 @@ class EventNotificationParameters(Sequence):
         "processIdentifier",
         "initiatingDeviceIdentifier",
         "eventObjectIdentifier",
-        "timeStamp",
+        "timestamp",
         "notificationClass",
         "priority",
         "eventType",
@@ -2961,7 +3667,7 @@ class EventNotificationParameters(Sequence):
     processIdentifier = Unsigned(_context=0)
     initiatingDeviceIdentifier = ObjectIdentifier(_context=1)
     eventObjectIdentifier = ObjectIdentifier(_context=2)
-    timeStamp = TimeStamp(_context=3)
+    timestamp = TimeStamp(_context=3)
     notificationClass = Unsigned(_context=4)
     priority = Unsigned(_context=5)
     eventType = EventType(_context=6)
@@ -3006,21 +3712,10 @@ class ListOfEventNotificationSubscription(ListOf(EventNotificationSubscription))
     pass
 
 
-class EventParameterAccessEventAccessEvent(Sequence):
+class EventParameterAccessEvent(Sequence):
     _order = ("listOfAccessEvents", "accessEventTimeReference")
     listOfAccessEvents = SequenceOf(AccessEvent, _context=0)
     accessEventTimeReference = DeviceObjectPropertyReference(_context=1)
-
-
-class SequenceOfEventParameterAccessEventAccessEvent(
-    SequenceOf(EventParameterAccessEventAccessEvent)
-):
-    pass
-
-
-class EventParameterAccessEvent(Sequence):
-    _order = ("accessEvent",)
-    accessEvent = SequenceOf(EventParameterAccessEventAccessEvent, _context=0)
 
 
 class EventParameterBufferReady(Sequence):
@@ -3107,15 +3802,20 @@ class EventParameterDoubleOutOfRange(Sequence):
 
 
 class EventParameterExtendedParameters(Choice):
-    null = Null(_context=0)
-    real = Real(_context=1)
-    integer = Unsigned(_context=2)
-    boolean = Boolean(_context=3)
-    double = Double(_context=4)
-    octet = OctetString(_context=5)
-    bitstring = BitString(_context=6)
-    enum = Enumerated(_context=7)
-    reference = DeviceObjectPropertyReference(_context=8)
+    null = Null()
+    real = Real()
+    unsigned = Unsigned()
+    boolean = Boolean()
+    integer = Integer()
+    double = Double()
+    octetstring = OctetString()
+    characterstring = CharacterString()
+    bitstring = BitString()
+    enumerated = Enumerated()
+    date = Date()
+    time = Time()
+    objectidentifier = ObjectIdentifier()
+    reference = DeviceObjectPropertyReference(_context=0)
 
 
 class SequenceOfEventParameterExtendedParameters(
@@ -3178,8 +3878,8 @@ class EventParameterUnsignedRange(Sequence):
 
 
 class FDTEntry(Sequence):
-    _order = ("bacnetIPAddress", "timeToLive", "remainingTimeToLive")
-    bacnetIPAddress = IPOctetString(_context=0)
+    _order = ("bacnetipAddress", "timeToLive", "remainingTimeToLive")
+    bacnetipAddress = IPOctetString(_context=0)
     timeToLive = Unsigned16(_context=1)
     remainingTimeToLive = Unsigned16(_context=2)
 
@@ -3200,13 +3900,13 @@ class FaultParameterExtendedParameters(Choice):
     boolean = Boolean()
     integer = Integer()
     double = Double()
-    octet = OctetString()
-    characterString = CharacterString()
+    octetstring = OctetString()
+    characterstring = CharacterString()
     bitstring = BitString()
-    enum = Enumerated()
+    enumerated = Enumerated()
     date = Date()
     time = Time()
-    objectIdentifier = ObjectIdentifier()
+    objectidentifier = ObjectIdentifier()
     reference = DeviceObjectPropertyReference(_context=0)
 
 
@@ -3254,7 +3954,7 @@ class FaultParameterOutOfRange(Sequence):
 
 class FaultParametersFaultListed(Sequence):
     _order = ("faultListReference",)
-    faultListReference = SequenceOf(DeviceObjectPropertyReference, _context=0)
+    faultListReference = DeviceObjectPropertyReference(_context=0)
 
 
 class GetAlarmSummaryAlarmSummary(Sequence):
@@ -3290,7 +3990,7 @@ class GetEventInformationEventSummary(Sequence):
         "objectIdentifier",
         "eventState",
         "acknowledgedTransitions",
-        "eventTimeStamps",
+        "eventTimestamps",
         "notifyType",
         "eventEnable",
         "eventPriorities",
@@ -3298,7 +3998,7 @@ class GetEventInformationEventSummary(Sequence):
     objectIdentifier = ObjectIdentifier(_context=0)
     eventState = EventState(_context=1)
     acknowledgedTransitions = EventTransitionBits(_context=2)
-    eventTimeStamps = SequenceOf(TimeStamp, _context=3)
+    eventTimestamps = SequenceOf(TimeStamp, _context=3)
     notifyType = NotifyType(_context=4)
     eventEnable = EventTransitionBits(_context=5)
     eventPriorities = SequenceOf(Unsigned, _context=6)
@@ -3321,6 +4021,33 @@ class LightingCommand(Sequence):
     priority = Unsigned(_context=5, _optional=True)
 
 
+class XYColor(Sequence):
+    """
+    BACnetxyColor, the x and y coordinates are in the range 0.0 to 1.0
+    """
+
+    _order = ("xCoordinate", "yCoordinate")
+    xCoordinate = Real()
+    yCoordinate = Real()
+
+
+class ColorCommand(Sequence):
+    _order = (
+        "operation",
+        "targetColor",
+        "targetColorTemperature",
+        "fadeTime",
+        "rampRate",
+        "stepIncrement",
+    )
+    operation = ColorOperation(_context=0)
+    targetColor = XYColor(_context=1, _optional=True)
+    targetColorTemperature = Unsigned(_context=2, _optional=True)
+    fadeTime = Unsigned(_context=3, _optional=True)
+    rampRate = Unsigned(_context=4, _optional=True)
+    stepIncrement = Unsigned(_context=5, _optional=True)
+
+
 class ChannelValue(Choice):
     null = Null()
     real = Real()
@@ -3330,19 +4057,29 @@ class ChannelValue(Choice):
     integer = Integer()
     double = Double()
     time = Time()
-    characterString = CharacterString()
-    octetString = OctetString()
-    bitString = BitString()
+    characterstring = CharacterString()
+    octetstring = OctetString()
+    bitstring = BitString()
     date = Date()
     objectidentifier = ObjectIdentifier()
     lightingCommand = LightingCommand(_context=0)
+    xycolor = XYColor(_context=1)
+    colorCommand = ColorCommand(_context=2)
 
 
 class GroupChannelValue(Sequence):
-    _order = ("channel", "overridingPriority", "value")
-    channel = Unsigned(_context=0)
-    overridingPriority = Unsigned(_context=1, _optional=True)
-    value = ChannelValue()
+    _order = ("channel", "value", "overridingPriority")
+    channel = Unsigned16(_context=0)
+    value = ChannelValue(_context=1)
+    overridingPriority = Unsigned(_context=2, _optional=True)
+
+
+class Health(Sequence):
+    _order = ("timestamp", "result", "property", "details")
+    timestamp = DateTime(_context=0)
+    result = ErrorType(_context=1)
+    property = PropertyIdentifier(_context=2, _optional=True)
+    details = CharacterString(_context=3, _optional=True)
 
 
 class KeyIdentifier(Sequence):
@@ -3374,6 +4111,12 @@ class LandingDoorStatus(Sequence):
     landingDoors = SequenceOf(LandingDoorStatusLandingDoor, _context=0)
 
 
+class LifeSafetyOperationInfo(Sequence):
+    _order = ("requestingProcessIdentifier", "request")
+    requestingProcessIdentifier = Unsigned32(_context=0)
+    request = LifeSafetyOperation(_context=1)
+
+
 class LiftCarCallList(Sequence):
     _order = ("floorNumbers",)
     floorNumbers = SequenceOf(Unsigned8, _context=0)
@@ -3382,9 +4125,9 @@ class LiftCarCallList(Sequence):
 class LogDataLogData(Choice):
     booleanValue = Boolean(_context=0)
     realValue = Real(_context=1)
-    enumValue = Enumerated(_context=2)
+    enumeratedValue = Enumerated(_context=2)
     unsignedValue = Unsigned(_context=3)
-    signedValue = Integer(_context=4)
+    integerValue = Integer(_context=4)
     bitstringValue = BitString(_context=5)
     nullValue = Null(_context=6)
     failure = ErrorType(_context=7)
@@ -3407,9 +4150,9 @@ class LogRecordLogDatum(Choice):
     logStatus = LogStatus(_context=0)
     booleanValue = Boolean(_context=1)
     realValue = Real(_context=2)
-    enumValue = Enumerated(_context=3)
+    enumeratedValue = Enumerated(_context=3)
     unsignedValue = Unsigned(_context=4)
-    signedValue = Integer(_context=5)
+    integerValue = Integer(_context=5)
     bitstringValue = BitString(_context=6)
     nullValue = Null(_context=7)
     failure = ErrorType(_context=8)
@@ -3465,7 +4208,7 @@ class AnyAtomicExtended(AnyAtomic):
 class NameValue(Sequence):
     _order = ("name", "value")
     name = CharacterString(_context=0)
-    value = AnyAtomicExtended
+    value = AnyAtomicExtended(_optional=True)
 
     def encode(self) -> TagList:
         if _debug:
@@ -3538,13 +4281,117 @@ class NameValue(Sequence):
                     # this is the time part
                     value_tags.append(tag_list.pop())
 
-        # build one and return it
-        return cls(name=name, value=TagList(value_tags))
+        # build one and return it, the value is optional
+        return cls(name=name, value=TagList(value_tags) if value_tags else None)
 
 
 class NameValueCollection(Sequence):
     _order = ("members",)
     members = SequenceOf(NameValue, _context=0)
+
+
+class DeviceQualifierInstanceRange(Sequence):
+    _order = ("instanceLow", "instanceHigh")
+    instanceLow = Unsigned()
+    instanceHigh = Unsigned()
+
+
+class DeviceQualifier(Choice):
+    all = Null(_context=0)
+    instanceSet = SequenceOf(Unsigned, _context=1)
+    instanceRange = DeviceQualifierInstanceRange(_context=2)
+    pattern = CharacterString(_context=3)
+
+
+class NetworkQualifierNetworkRange(Sequence):
+    """
+    The CSML names these instance-low and instance-high, they are network
+    numbers so they are named like the Who-Is device instance range limits.
+    """
+
+    _order = ("networkNumberRangeLowLimit", "networkNumberRangeHighLimit")
+    networkNumberRangeLowLimit = Unsigned16()
+    networkNumberRangeHighLimit = Unsigned16()
+
+
+class NetworkQualifier(Choice):
+    all = Null(_context=0)
+    networkSet = SequenceOf(Unsigned16, _context=1)
+    networkRange = NetworkQualifierNetworkRange(_context=2)
+
+
+class ObjectDetails(Sequence):
+    _order = ("objectIdentifier", "lastUpdated", "objectName", "profileName", "tags")
+    objectIdentifier = ObjectIdentifier(_context=0)
+    lastUpdated = DateTime(_context=1)
+    objectName = CharacterString(_context=2, _optional=True)
+    profileName = CharacterString(_context=3, _optional=True)
+    tags = SequenceOf(NameValue, _context=4, _optional=True)
+
+
+class DeviceDetailsExtendedDetails(Sequence):
+    _order = (
+        "deviceName",
+        "lastDatabaseRevision",
+        "serialNumber",
+        "protocolRevision",
+        "protocolServicesSupported",
+    )
+    deviceName = CharacterString(_context=0)
+    lastDatabaseRevision = Unsigned(_context=1)
+    serialNumber = CharacterString(_context=2, _optional=True)
+    protocolRevision = Unsigned(_context=3)
+    protocolServicesSupported = ServicesSupported(_context=4)
+
+
+class DeviceDetails(Sequence):
+    _order = (
+        "deviceInstance",
+        "networkNumber",
+        "macAddress",
+        "vendorID",
+        "maxAPDU",
+        "segmentation",
+        "lastUpdated",
+        "extendedDetails",
+        "objects",
+        "proprietaryDetails",
+    )
+    deviceInstance = Unsigned(_context=0)
+    networkNumber = Unsigned16(_context=1)
+    macAddress = OctetString(_context=2)
+    vendorID = Unsigned16(_context=3)
+    maxAPDU = Unsigned(_context=4)
+    segmentation = Segmentation(_context=5)
+    lastUpdated = DateTime(_context=6)
+    extendedDetails = DeviceDetailsExtendedDetails(_context=7, _optional=True)
+    objects = SequenceOf(ObjectDetails, _context=8)
+    proprietaryDetails = Any(_context=9, _optional=True)
+
+
+class DeviceAddressProxyTableEntryIAm(Sequence):
+    """
+    The I-Am service request parameters (I-Am-Request) as an element.
+    """
+
+    _order = (
+        "iAmDeviceIdentifier",
+        "maxAPDULengthAccepted",
+        "segmentationSupported",
+        "vendorID",
+    )
+    iAmDeviceIdentifier = ObjectIdentifier()
+    maxAPDULengthAccepted = Unsigned()
+    segmentationSupported = Segmentation()
+    vendorID = Unsigned16()
+
+
+class DeviceAddressProxyTableEntry(Sequence):
+    _order = ("address", "iAm", "lastIAmTime")
+    _element_names = {"lastIAmTime": "last-i-am-time"}
+    address = DeviceAddress(_context=0)
+    iAm = DeviceAddressProxyTableEntryIAm(_context=1)
+    lastIAmTime = DateTime(_context=2)
 
 
 class NetworkSecurityPolicy(Sequence):
@@ -3635,6 +4482,82 @@ class RouterEntry(Sequence):
     performanceIndex = Unsigned8(_context=3, _optional=True)
 
 
+class SCDirectConnection(Sequence):
+    _order = (
+        "uri",
+        "connectionState",
+        "connectTimestamp",
+        "disconnectTimestamp",
+        "peerAddress",
+        "peerVMAC",
+        "peerUUID",
+        "error",
+        "errorDetails",
+    )
+    uri = CharacterString(_context=0)
+    connectionState = SCConnectionState(_context=1)
+    connectTimestamp = DateTime(_context=2)
+    disconnectTimestamp = DateTime(_context=3)
+    peerAddress = HostNPort(_context=4, _optional=True)
+    peerVMAC = OctetString(_context=5, _optional=True)
+    peerUUID = OctetString(_context=6, _optional=True)
+    error = ErrorType(_context=7, _optional=True)
+    errorDetails = CharacterString(_context=8, _optional=True)
+
+
+class SCFailedConnectionRequest(Sequence):
+    _order = (
+        "timestamp",
+        "peerAddress",
+        "peerVMAC",
+        "peerUUID",
+        "error",
+        "errorDetails",
+    )
+    timestamp = DateTime(_context=0)
+    peerAddress = HostNPort(_context=1)
+    peerVMAC = OctetString(_context=2, _optional=True)
+    peerUUID = OctetString(_context=3, _optional=True)
+    error = ErrorType(_context=4)
+    errorDetails = CharacterString(_context=5, _optional=True)
+
+
+class SCHubConnection(Sequence):
+    _order = (
+        "connectionState",
+        "connectTimestamp",
+        "disconnectTimestamp",
+        "error",
+        "errorDetails",
+    )
+    connectionState = SCConnectionState(_context=0)
+    connectTimestamp = DateTime(_context=1)
+    disconnectTimestamp = DateTime(_context=2)
+    error = ErrorType(_context=3, _optional=True)
+    errorDetails = CharacterString(_context=4, _optional=True)
+
+
+class SCHubFunctionConnection(Sequence):
+    _order = (
+        "connectionState",
+        "connectTimestamp",
+        "disconnectTimestamp",
+        "peerAddress",
+        "peerVMAC",
+        "peerUUID",
+        "error",
+        "errorDetails",
+    )
+    connectionState = SCConnectionState(_context=0)
+    connectTimestamp = DateTime(_context=1)
+    disconnectTimestamp = DateTime(_context=2)
+    peerAddress = HostNPort(_context=3)
+    peerVMAC = OctetString(_context=4)
+    peerUUID = OctetString(_context=5)
+    error = ErrorType(_context=6, _optional=True)
+    errorDetails = CharacterString(_context=7, _optional=True)
+
+
 class SecurityKeySet(Sequence):
     _order = ("keyRevision", "activationTime", "expirationTime", "keyIds")
     keyRevision = Unsigned(_context=0)
@@ -3665,7 +4588,7 @@ class WeekNDay(OctetString(_length=3)):
 class CalendarEntry(Choice):
     date = Date(_context=0)
     dateRange = DateRange(_context=1)
-    weekNDay = WeekNDay(_context=2)
+    weeknday = WeekNDay(_context=2)
 
 
 class SpecialEventPeriod(Choice):
@@ -3694,6 +4617,11 @@ class VMACEntry(Sequence):
 
 
 class VTSession(Sequence):
+    """
+    The virtual terminal services were removed in protocol revision 29, this
+    is kept for older devices.
+    """
+
     _order = ("localVtSessionID", "remoteVtSessionID", "remoteVtAddress")
     localVtSessionID = Unsigned()
     remoteVtSessionID = Unsigned()
@@ -3754,7 +4682,7 @@ class EventParameter(Choice):
     commandFailure = EventParameterCommandFailure(_context=3)
     floatingLimit = EventParameterFloatingLimit(_context=4)
     outOfRange = EventParameterOutOfRange(_context=5)
-    changeOfLifesafety = EventParameterChangeOfLifeSafety(_context=8)
+    changeOfLifeSafety = EventParameterChangeOfLifeSafety(_context=8)
     extended = EventParameterExtended(_context=9)
     bufferReady = EventParameterBufferReady(_context=10)
     unsignedRange = EventParameterUnsignedRange(_context=11)
@@ -3763,7 +4691,7 @@ class EventParameter(Choice):
     signedOutOfRange = EventParameterSignedOutOfRange(_context=15)
     unsignedOutOfRange = EventParameterUnsignedOutOfRange(_context=16)
     changeOfCharacterstring = EventParameterChangeOfCharacterString(_context=17)
-    changeOfStatusflags = EventParameterChangeOfStatusFlags(_context=18)
+    changeOfStatusFlags = EventParameterChangeOfStatusFlags(_context=18)
     # choice 19 intentionally omitted
     none = Null(_context=20)
     changeOfDiscreteValue = EventParameterChangeOfDiscreteValue(_context=21)
@@ -3772,7 +4700,7 @@ class EventParameter(Choice):
 
 class FaultParameter(Choice):
     none = Null(_context=0)
-    faultCharacterString = FaultParameterCharacterString(_context=1)
+    faultCharacterstring = FaultParameterCharacterString(_context=1)
     faultExtended = FaultParameterExtended(_context=2)
     faultLifeSafety = FaultParameterLifeSafety(_context=3)
     faultState = FaultParameterState(_context=4)
@@ -3787,14 +4715,69 @@ class ObjectSelector(Choice):
     objectType = ObjectType()
 
 
+class OptionalAny(Choice):
+    null = Null()
+    any = Any(_context=0)
+
+
+class OptionalBinaryLightingPV(Choice):
+    null = Null()
+    binaryLightingPV = BinaryLightingPV()
+
+
 class OptionalBinaryPV(Choice):
     null = Null()
     binaryPV = BinaryPV()
 
 
+class OptionalBitString(Choice):
+    null = Null()
+    bitstring = BitString()
+
+
 class OptionalCharacterString(Choice):
     null = Null()
-    characterString = CharacterString()
+    characterstring = CharacterString()
+
+
+class OptionalDate(Choice):
+    null = Null()
+    date = Date()
+
+
+class OptionalDatePattern(Choice):
+    null = Null()
+    datepattern = Date()
+
+
+class OptionalDateTime(Choice):
+    null = Null()
+    datetime = DateTime(_context=1)
+
+
+class OptionalDateTimePattern(Choice):
+    null = Null()
+    datetimepattern = DateTime(_context=1)
+
+
+class OptionalDoorValue(Choice):
+    null = Null()
+    doorValue = DoorValue()
+
+
+class OptionalDouble(Choice):
+    null = Null()
+    double = Double()
+
+
+class OptionalInteger(Choice):
+    null = Null()
+    integer = Integer()
+
+
+class OptionalOctetString(Choice):
+    null = Null()
+    octetstring = OctetString()
 
 
 class OptionalPriorityFilter(Choice):
@@ -3805,6 +4788,16 @@ class OptionalPriorityFilter(Choice):
 class OptionalReal(Choice):
     null = Null()
     real = Real()
+
+
+class OptionalTime(Choice):
+    null = Null()
+    time = Time()
+
+
+class OptionalTimePattern(Choice):
+    null = Null()
+    timepattern = Time()
 
 
 class OptionalUnsigned(Choice):
@@ -3842,6 +4835,9 @@ class PriorityValue(Choice):
             pass
         elif isinstance(arg, Null):
             kwargs["null"] = arg
+        elif isinstance(arg, Double):
+            # Double is a subclass of Real so check it first
+            kwargs["double"] = arg
         elif isinstance(arg, Real):
             kwargs["real"] = arg
         elif isinstance(arg, Enumerated):
@@ -3852,8 +4848,6 @@ class PriorityValue(Choice):
             kwargs["boolean"] = arg
         elif isinstance(arg, Integer):
             kwargs["integer"] = arg
-        elif isinstance(arg, Double):
-            kwargs["double"] = arg
         elif isinstance(arg, Time):
             kwargs["time"] = arg
         elif isinstance(arg, CharacterString):
@@ -3865,7 +4859,7 @@ class PriorityValue(Choice):
         elif isinstance(arg, Date):
             kwargs["date"] = arg
         elif isinstance(arg, ObjectIdentifier):
-            kwargs["objectIdentifier"] = arg
+            kwargs["objectidentifier"] = arg
         elif isinstance(arg, DateTime):
             kwargs["datetime"] = arg
         elif isinstance(arg, Sequence):

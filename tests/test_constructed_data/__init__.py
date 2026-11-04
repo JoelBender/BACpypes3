@@ -11,3 +11,4 @@ from . import test_sequence_of
 
 from . import test_read_property_multiple
 from . import test_who_has
+from . import test_sequence_optional

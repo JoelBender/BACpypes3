@@ -591,7 +591,7 @@ class EventAlgorithm(Algorithm, DebugContents):
             # processIdentifier in recipient list element
             "initiatingDeviceIdentifier": event_initiating_object._app.device_object.objectIdentifier,
             "eventObjectIdentifier": event_initiating_object.objectIdentifier,
-            "timeStamp": time_stamp,
+            "timestamp": time_stamp,
             "notificationClass": event_initiating_object.notificationClass,
             "priority": event_initiating_object._notification_class_object.priority[
                 new_state_group
@@ -865,7 +865,7 @@ class EventAlgorithm(Algorithm, DebugContents):
             property_values.append(
                 PropertyValue(
                     propertyIdentifier=PropertyIdentifier(attribute_name),
-                    value=property_value,
+                    propertyValue=property_value,
                 )
             )
 
@@ -1912,12 +1912,12 @@ class ChangeOfStatusFlags(EventAlgorithm):
                     monitored_object,
                     monitoring_object.objectPropertyReference.propertyIdentifier,  # memberStatusFlags -- 12.50.10
                 ),
-                pSelectedFlags=monitoring_object.eventParameters.changeOfStatusflags.selectedFlags,
+                pSelectedFlags=monitoring_object.eventParameters.changeOfStatusFlags.selectedFlags,
                 pPresentValue=(
                     monitored_object,
                     monitoring_object.objectPropertyReference.presentValue,
                 ),
-                pTimeDelay=monitoring_object.eventParameters.changeOfStatusflags.timeDelay,
+                pTimeDelay=monitoring_object.eventParameters.changeOfStatusFlags.timeDelay,
                 pTimeDelayNormal=None,
             )
         else:

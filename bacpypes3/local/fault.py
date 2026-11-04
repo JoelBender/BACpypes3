@@ -16,6 +16,7 @@ from ..primitivedata import (
 )
 from ..constructeddata import ListOf
 from ..basetypes import (
+    DeviceObjectPropertyReference,
     FaultParameterOutOfRangeValue,
     OptionalCharacterString,
     Reliability,
@@ -230,7 +231,7 @@ class CharacterStringFaultAlgorithm(FaultAlgorithm):
         if monitoring_object:
             self.bind(
                 pMonitoredValue=(monitored_object, "presentValue"),
-                pFaultValues=monitoring_object.faultParameters.faultCharacterString.listOfFaultValues,
+                pFaultValues=monitoring_object.faultParameters.faultCharacterstring.listOfFaultValues,
             )
         else:
             self.bind(
@@ -478,8 +479,23 @@ class FaultListedFaultAlgorithm(FaultAlgorithm):
         super().__init__(monitoring_object, monitored_object)
 
         if monitoring_object:
+            flr: DeviceObjectPropertyReference = (
+                monitoring_object.faultParameters.faultListed.faultListReference
+            )
+            if flr.propertyArrayIndex is not None:
+                raise NotImplementedError()
+            if flr.deviceIdentifier is not None:
+                raise NotImplementedError()
+
+            # resolve the flr.objectIdentifier to point to an object
+            flr_object: Optional[Object] = monitoring_object._app.get_object_id(
+                flr.objectIdentifier
+            )
+            if not flr_object:
+                raise RuntimeError("object not found")
+
             self.bind(
-                pMonitoredList=monitoring_object.faultParameters.faultListed.faultListReference,
+                pMonitoredList=(flr_object, flr.propertyIdentifier),
             )
         else:
             self.bind(

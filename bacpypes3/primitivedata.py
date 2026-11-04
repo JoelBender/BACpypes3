@@ -1008,14 +1008,11 @@ class Unsigned(Atomic, int):
         if _debug:
             Unsigned._debug("Unsigned.encode")
 
-        # rip apart the number
-        data = bytearray(struct.pack(">L", self))
+        # the smallest number of octets, at least one, big-endian; this
+        # supports values larger than 32 bits (Unsigned64)
+        data = bytearray(self.to_bytes(max(1, (self.bit_length() + 7) // 8), "big"))
         if _debug:
             Unsigned._debug("    - data: %r", data)
-
-        # reduce the value to the smallest number of octets
-        while (len(data) > 1) and (data[0] == 0):
-            del data[0]
 
         tag: Tag
         if self._context is None:
@@ -1076,6 +1073,22 @@ class Unsigned16(Unsigned):
     """
 
     _high_limit = 65535
+
+
+class Unsigned32(Unsigned):
+    """
+    Unsigned32 ::= Unsigned (0..4294967295)
+    """
+
+    _high_limit = 4294967295
+
+
+class Unsigned64(Unsigned):
+    """
+    Unsigned64 ::= Unsigned (0..18446744073709551615)
+    """
+
+    _high_limit = 18446744073709551615
 
 
 @bacpypes_debugging
@@ -1183,6 +1196,24 @@ class Integer(Atomic, int):
 
         # return an instance of this thing
         return cls(value)
+
+
+class Integer16(Integer):
+    """
+    Integer16 ::= INTEGER (-32768..32767)
+    """
+
+    _low_limit = -32768
+    _high_limit = 32767
+
+
+class Integer32(Integer):
+    """
+    Integer32 ::= INTEGER (-2147483648..2147483647)
+    """
+
+    _low_limit = -2147483648
+    _high_limit = 2147483647
 
 
 @bacpypes_debugging
@@ -1581,6 +1612,16 @@ class BitStringMetaclass(ElementMetaclass):
                 # _bitstring_names[attr] = value
                 _bitstring_names[split_attr] = value
 
+        # standard names that cannot be derived from the attribute name, like
+        # 'priority-3', are provided as {bit: name}
+        for bit, bit_name in attributedict.get("_asn1_overrides", {}).items():
+            derived_names = [k for k, v in _bitstring_names.items() if v == bit]
+            if not derived_names:
+                raise ValueError(f"{clsname}._asn1_overrides: no bit {bit}")
+            for k in derived_names:
+                del _bitstring_names[k]
+            _bitstring_names[bit_name] = bit
+
         # compute the length
         if _bitstring_names:
             min_length = max(_bitstring_names.values()) + 1
@@ -1843,6 +1884,19 @@ class EnumeratedMetaclass(ElementMetaclass):
                 _enum_map[attr] = value
                 _attr_map[value] = attr
                 _asn1_map[value] = split_attr
+
+        # standard names that cannot be derived from the attribute name, like
+        # 'performing-a-backup', are provided as {value: name}
+        for value, asn1_name in attributedict.get("_asn1_overrides", {}).items():
+            if value not in _attr_map:
+                raise ValueError(f"{clsname}._asn1_overrides: no enumeration {value}")
+            split_attr = _asn1_map[value]
+            if (split_attr != _attr_map[value]) and (
+                _enum_map.get(split_attr) == value
+            ):
+                del _enum_map[split_attr]
+            _enum_map[asn1_name] = value
+            _asn1_map[value] = asn1_name
 
         # add this special attribute to the class
         attributedict["_enum_map"] = _enum_map
@@ -2534,13 +2588,16 @@ class ObjectType(Enumerated):
     calendar = 6
     channel = 53
     characterstringValue = 40
+    color = 63
+    colorTemperature = 64
     command = 7
     credentialDataInput = 37
-    datePatternValue = 41
+    datepatternValue = 41
     dateValue = 42
-    datetimePatternValue = 43
+    datetimepatternValue = 43
     datetimeValue = 44
     device = 8
+    directory = 65
     elevatorGroup = 57
     escalator = 58
     eventEnrollment = 9
@@ -2570,7 +2627,7 @@ class ObjectType(Enumerated):
     schedule = 17
     staging = 60
     structuredView = 29
-    timePatternValue = 49
+    timepatternValue = 49
     timeValue = 50
     timer = 31
     trendLog = 20
@@ -2579,6 +2636,7 @@ class ObjectType(Enumerated):
 
 class PropertyIdentifier(Enumerated):
     _vendor_range = (512, 4194303)
+    _asn1_overrides = {4194349: "max-proxied-i-ams-per-second"}
     absenteeLimit = 244
     acceptedModes = 175
     accessAlarmEvents = 245
@@ -2602,6 +2660,7 @@ class PropertyIdentifier(Enumerated):
     activeText = 4
     activeVtSessions = 5
     actualShedLevel = 212
+    additionalReferencePorts = 508
     adjustValue = 176
     alarmValue = 6
     alarmValues = 7
@@ -2626,9 +2685,15 @@ class PropertyIdentifier(Enumerated):
     authenticationPolicyList = 258
     authenticationPolicyNames = 259
     authenticationStatus = 260
+    authorizationCache = 4194343
     authorizationExemptions = 364
+    authorizationGroups = 4194344
     authorizationMode = 261
-    autoSlaveDiscovery = 169
+    authorizationPolicy = 4194345
+    authorizationScopes = 4194346
+    authorizationServer = 4194347
+    authorizationStatus = 4194348
+    autoSubordinateDiscovery = 169
     averageValue = 125
     backupAndRestoreState = 338
     backupFailureTimeout = 153
@@ -2662,13 +2727,18 @@ class PropertyIdentifier(Enumerated):
     carMode = 456
     carMovingDirection = 457
     carPosition = 458
+    certificateSigningRequestFile = 509
     changeOfStateCount = 15
     changeOfStateTime = 16
     changesPending = 416
     channelNumber = 366
     clientCovIncrement = 127
+    colorCommand = 4194334
+    colorOverride = 4194328
+    colorReference = 4194329
     command = 417
     commandTimeArray = 430
+    commandValidationResult = 510
     configurationFiles = 154
     controlGroups = 367
     controlledVariableReference = 19
@@ -2687,12 +2757,16 @@ class PropertyIdentifier(Enumerated):
     credentialsInZone = 266
     credentialStatus = 264
     currentCommandPriority = 431
+    currentHealth = 4194307
     databaseRevision = 155
     dateList = 23
     daylightSavingsStatus = 24
     daysRemaining = 267
     deadband = 25
+    defaultColor = 4194330
+    defaultColorTemperature = 4194331
     defaultFadeTime = 374
+    defaultOnValue = 4194341
     defaultPresentValue = 492
     defaultRampRate = 375
     defaultStepIncrement = 376
@@ -2705,9 +2779,14 @@ class PropertyIdentifier(Enumerated):
     description = 28
     descriptionOfHalt = 29
     deviceAddressBinding = 30
+    deviceAddressProxyEnable = 4194338
+    deviceAddressProxyTable = 4194339
+    deviceAddressProxyTimeout = 4194340
     deviceType = 31
     deviceUUID = 507
+    directoryRevision = 4194351
     directReading = 156
+    discoveryStatus = 4194350
     distributionKeyRevision = 328
     doNotHide = 329
     doorAlarmState = 226
@@ -2769,6 +2848,7 @@ class PropertyIdentifier(Enumerated):
     groupMemberNames = 346
     groupMembers = 345
     groupMode = 467
+    highEndTrim = 4194335
     higherDeck = 468
     highLimit = 45
     inactiveText = 46
@@ -2801,6 +2881,7 @@ class PropertyIdentifier(Enumerated):
     ipv6PrefixLength = 437
     ipv6ZoneIndex = 446
     issueConfirmedNotifications = 51
+    issuerCertificateFiles = 511
     isUTC = 344
     keySets = 330
     landingCallControl = 471
@@ -2815,6 +2896,7 @@ class PropertyIdentifier(Enumerated):
     lastCredentialRemovedTime = 280
     lastKeyServer = 331
     lastNotifyRecord = 173
+    lastOnValue = 4194342
     lastPriority = 369
     lastRestartReason = 196
     lastRestoreTime = 157
@@ -2845,6 +2927,7 @@ class PropertyIdentifier(Enumerated):
     loggingType = 197
     logInterval = 134
     lowDiffLimit = 390
+    lowEndTrim = 4194336
     lowerDeck = 473
     lowLimit = 59
     macAddress = 423
@@ -2852,19 +2935,22 @@ class PropertyIdentifier(Enumerated):
     maintenanceRequired = 158
     makingCarCall = 475
     manipulatedVariableReference = 60
-    manualSlaveAddressBinding = 170
+    manualSubordinateAddressBinding = 170
     maskedAlarmValues = 234
     masterExemption = 284
     maxActualValue = 382
     maxApduLengthAccepted = 62
+    maxBvlcLengthAccepted = 4194304
     maxFailedAttempts = 285
     maximumOutput = 61
     maximumSendDelay = 503
     maximumValue = 135
     maximumValueTimestamp = 149
     maxInfoFrames = 63
-    maxMaster = 64
+    maxManager = 64
+    maxNpduLengthAccepted = 4194305
     maxPresValue = 65
+    maxProxiedIAmsPerSecond = 4194349
     maxSegmentsAccepted = 167
     memberOf = 159
     members = 286
@@ -2910,11 +2996,13 @@ class PropertyIdentifier(Enumerated):
     occupancyState = 296
     occupancyUpperLimit = 297
     occupancyUpperLimitEnforced = 298
+    operationalCertificateFile = 4194306
     operationDirection = 477
     operationExpected = 161
     optional = 80
     outOfService = 81
     outputUnits = 82
+    overrideColorReference = 4194332
     packetReorderTime = 333
     passbackExemption = 299
     passbackMode = 300
@@ -2969,7 +3057,27 @@ class PropertyIdentifier(Enumerated):
     routingTable = 428
     scale = 187
     scaleFactor = 188
+    scConnectWaitTimeout = 4194308
+    scDirectConnectAcceptEnable = 4194309
+    scDirectConnectAcceptUris = 4194310
+    scDirectConnectBinding = 4194311
+    scDirectConnectConnectionStatus = 4194312
+    scDirectConnectInitiateEnable = 4194313
+    scDisconnectWaitTimeout = 4194314
+    scFailedConnectionRequests = 4194315
+    scFailoverHubConnectionStatus = 4194316
+    scFailoverHubUri = 4194317
+    scHeartbeatTimeout = 4194323
     scheduleDefault = 174
+    scHubConnectorState = 4194318
+    scHubFunctionAcceptUris = 4194319
+    scHubFunctionBinding = 4194320
+    scHubFunctionConnectionStatus = 4194321
+    scHubFunctionEnable = 4194322
+    scMaximumReconnectTime = 4194326
+    scMinimumReconnectTime = 4194327
+    scPrimaryHubConnectionStatus = 4194324
+    scPrimaryHubUri = 4194325
     securedStatus = 235
     securityPDUTimeout = 334
     securityTimeWindow = 335
@@ -2983,8 +3091,8 @@ class PropertyIdentifier(Enumerated):
     shedLevelDescriptions = 220
     shedLevels = 221
     silenced = 163
-    slaveAddressBinding = 171
-    slaveProxyEnable = 172
+    subordinateAddressBinding = 171
+    subordinateProxyEnable = 172
     stageNames = 495
     stages = 494
     startTime = 142
@@ -3026,6 +3134,7 @@ class PropertyIdentifier(Enumerated):
     transactionNotificationClass = 309
     transition = 385
     trigger = 205
+    trimFadeTime = 4194337
     units = 117
     updateInterval = 118
     updateKeySetTimeout = 337
@@ -3052,6 +3161,7 @@ class PropertyIdentifier(Enumerated):
     weeklySchedule = 123
     windowInterval = 147
     windowSamples = 148
+    writeEveryScheduledAction = 4194333
     writeStatus = 370
     zoneFrom = 320
     zoneMembers = 165
