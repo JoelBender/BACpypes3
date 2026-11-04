@@ -6,7 +6,7 @@ import re
 import base64
 from functools import partial
 
-from typing import Optional
+from typing import Any, Optional, Union
 
 from rdflib import Graph, Literal, BNode, URIRef  # type: ignore[import]
 from rdflib.namespace import Namespace, RDF, XSD  # type: ignore[import]
@@ -28,8 +28,10 @@ from ..primitivedata import (
     Date,
     Time,
     ObjectIdentifier,
+    TagClass,
 )
 from ..constructeddata import (
+    Any as AnyElement,
     AnyAtomic,
     Sequence,  # covers both Sequence and Choice
     ExtendedList,  # covers SequenceOf, ArrayOf, and ListOf
@@ -422,6 +424,64 @@ def atomic_decode(graph: Graph, literal, class_) -> Atomic:
 
 
 #
+#   Any
+#
+
+
+def any_encode(graph: Graph, value: AnyElement) -> Union[Literal, URIRef, BNode]:
+    """Encode an Any, AnyAtomic or AnyAtomicExtended.  When the content is a
+    single application tagged value (or a DateTime) it is encoded like any
+    other value of that type, so a schedule-default of 72.0 is the same
+    literal as a present-value of 72.0.  Anything else (context tagged or
+    constructed content whose type is not known without the property
+    context) is kept, losslessly, as the hex of the encoded tag list."""
+    if value.tagList is None:
+        return BACNET.Null
+
+    if isinstance(value, (AnyAtomic, AnyAtomicExtended)):
+        try:
+            return value_encode(graph, value.get_value())
+        except TypeError:
+            pass
+
+    # an Any inside a sequence carries its context tag, look inside it
+    tags = list(value.tagList)
+    if (
+        (len(tags) >= 2)
+        and (tags[0].tag_class == TagClass.opening)
+        and (tags[-1].tag_class == TagClass.closing)
+        and (tags[0].tag_number == tags[-1].tag_number)
+    ):
+        tags = tags[1:-1]
+    if (len(tags) == 1) and (tags[0].tag_class == TagClass.application):
+        return atomic_encode(graph, tags[0].app_to_object())
+
+    tag_list_hex = bytes(value.tagList.encode().pduData).hex()
+    return Literal(tag_list_hex, datatype=BACNET.tagList)
+
+
+def value_encode(graph: Graph, value: Any) -> Union[Literal, URIRef, BNode]:
+    """Encode any BACnet value and return the node that represents it, adding
+    triples to the graph for blank nodes and lists as needed."""
+    if isinstance(value, Atomic):
+        return atomic_encode(graph, value)
+    if isinstance(value, DateTime):
+        # DateTime is a Sequence, check it first
+        return datetime_encode(graph, value)
+    if isinstance(value, Sequence):
+        node = BNode()
+        sequence_to_graph(value, node, graph)
+        return node
+    if isinstance(value, ExtendedList):
+        return extendedlist_to_node(value, graph)
+    if isinstance(value, AnyElement):
+        # covers AnyAtomic and AnyAtomicExtended
+        return any_encode(graph, value)
+
+    raise TypeError(f"unable to encode {type(value).__name__}")
+
+
+#
 #   Constructed Data
 #
 
@@ -448,24 +508,7 @@ def sequence_to_graph(
         if value is None:
             continue
 
-        if isinstance(value, Atomic):
-            literal = atomic_encode(graph, value)
-        elif isinstance(value, DateTime):
-            literal = datetime_encode(graph, value)
-        elif isinstance(value, Sequence):
-            literal = BNode()
-            sequence_to_graph(value, literal, graph)
-        elif isinstance(value, ExtendedList):
-            extendedlist_to_graph(value, node, attr_to_predicate(attr), graph)
-            continue
-        elif isinstance(value, (AnyAtomic, AnyAtomicExtended)):
-            value = value.get_value()
-            if isinstance(value, Atomic):
-                literal = atomic_encode(graph, value)
-        else:
-            raise TypeError(value)
-
-        graph.add((node, attr_to_predicate(attr), literal))
+        graph.add((node, attr_to_predicate(attr), value_encode(graph, value)))
 
     return graph
 
@@ -526,6 +569,8 @@ def graph_to_sequence(graph: Graph, node: URIRef, seq_class: type) -> Sequence:
                     value = time_decode(graph, literal)
                 elif literal.datatype == BACNET.objectIdentifier:
                     value = objectidentifier_decode(graph, literal)
+                elif literal.datatype in (BACNET.dateTimePattern, XSD.dateTime):
+                    value = datetime_decode(graph, literal)
                 else:
                     raise ValueError(literal.datatype)
             else:
@@ -570,17 +615,9 @@ def extendedlist_to_graph(
         graph.bind("bacnet", BACNET)
 
     for value in xlist:
-        if isinstance(value, Atomic):
-            literal = atomic_encode(graph, value)
-        elif isinstance(value, Sequence):
-            literal = BNode()
-            sequence_to_graph(value, literal, graph)
-        else:
-            raise TypeError(value)
-
         # create a blank node referencing the thing
         list_node = BNode()
-        graph.add((list_node, RDF.first, literal))
+        graph.add((list_node, RDF.first, value_encode(graph, value)))
 
         # chain along this list node
         graph.add((subject, predicate, list_node))
@@ -591,6 +628,16 @@ def extendedlist_to_graph(
     graph.add((subject, predicate, RDF.nil))
 
     return graph
+
+
+def extendedlist_to_node(xlist: ExtendedList, graph: Graph) -> Union[URIRef, BNode]:
+    """Encode an extended list as an RDF list and return its head, which is
+    rdf:nil for an empty list."""
+    head = BNode()
+    extendedlist_to_graph(xlist, head, RDF.rest, graph)
+    first = graph.value(head, RDF.rest)
+    graph.remove((head, RDF.rest, first))
+    return first
 
 
 @bacpypes_debugging
