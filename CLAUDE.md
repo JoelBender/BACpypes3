@@ -32,6 +32,15 @@ ruff check bacpypes3 tests
 ruff format bacpypes3 tests
 ```
 
+Build the Sphinx documentation (`doc/source/`, `sphinx_rtd_theme`) with the `doc` dependency group:
+
+```bash
+uv sync --inexact --group doc                          # --inexact keeps optional extras installed by hand
+python -m sphinx -b html -E doc/source doc/_build/html # then open doc/_build/html/index.html
+```
+
+`make html` in `doc/` also works but writes to `doc/build/html`.
+
 Run the built-in interactive shell (Read/Write/Who-Is/RPM/BBMD ops against a real network):
 
 ```bash
