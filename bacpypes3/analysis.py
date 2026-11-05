@@ -31,7 +31,14 @@ from .settings import settings
 from .debugging import ModuleLogger, bacpypes_debugging, btox
 
 from .errors import DecodingError
-from .pdu import PDU, Address, LocalBroadcast, IPv4Address
+from .pdu import (
+    PDU,
+    Address,
+    ARCNETAddress,
+    LocalBroadcast,
+    IPv4Address,
+    IPv6Address,
+)
 from .ipv4.bvll import (
     LPCI,
     LPDU,
@@ -41,6 +48,7 @@ from .ipv4.bvll import (
     OriginalBroadcastNPDU,
     ForwardedNPDU,
 )
+from .ipv6 import bvll as bvll6
 from .npdu import NPCI, NPDU, npdu_types
 from .apdu import (
     APDU,
@@ -66,8 +74,133 @@ _protocols = {
     socket.IPPROTO_TCP: "tcp",
     socket.IPPROTO_UDP: "udp",
     socket.IPPROTO_ICMP: "icmp",
+    socket.IPPROTO_ICMPV6: "icmpv6",
 }
+
+# IPv6 extension headers that can come between the fixed header and the
+# upper-layer protocol: hop-by-hop options, routing, fragment, destination
+# options
+_IPV6_FRAGMENT = 44
+_ipv6_extension_headers = (0, 43, _IPV6_FRAGMENT, 60)
 _ethernet_broadcast_address = Address("FF:FF:FF:FF:FF:FF")
+
+# link-layer header types, https://www.tcpdump.org/linktypes.html
+LINKTYPE_NULL = 0  # BSD loopback, 4-byte address family in host byte order
+LINKTYPE_ETHERNET = 1
+LINKTYPE_ARCNET_BSD = 7  # source, destination, system code
+LINKTYPE_RAW = 101  # raw IPv4/IPv6, e.g. tun interfaces
+LINKTYPE_LOOP = 108  # OpenBSD loopback, 4-byte address family in network order
+LINKTYPE_LINUX_SLL = 113  # Linux "cooked" capture v1, e.g. the "any" interface
+LINKTYPE_ARCNET_LINUX = 129  # source, destination, 2-byte offset, system code
+LINKTYPE_IPV4 = 228
+LINKTYPE_IPV6 = 229
+LINKTYPE_LINUX_SLL2 = 276  # Linux "cooked" capture v2
+
+# DLT_RAW is 12 (14 on OpenBSD), older files carry those values
+_raw_ip_linktypes = (LINKTYPE_RAW, LINKTYPE_IPV4, LINKTYPE_IPV6, 12, 14)
+
+linktypes: Dict[str, int] = {
+    "null": LINKTYPE_NULL,
+    "ethernet": LINKTYPE_ETHERNET,
+    "arcnet-bsd": LINKTYPE_ARCNET_BSD,
+    "raw": LINKTYPE_RAW,
+    "loop": LINKTYPE_LOOP,
+    "linux-sll": LINKTYPE_LINUX_SLL,
+    "arcnet-linux": LINKTYPE_ARCNET_LINUX,
+    "ipv4": LINKTYPE_IPV4,
+    "ipv6": LINKTYPE_IPV6,
+    "linux-sll2": LINKTYPE_LINUX_SLL2,
+}
+_supported_linktypes = set(linktypes.values()) | set(_raw_ip_linktypes)
+
+# AF_INET6 for the NULL/LOOP link types depends on the capturing OS: Linux,
+# NetBSD/OpenBSD, FreeBSD, macOS
+_null_af_inet6 = (10, 24, 28, 30)
+
+# Linux packet types from the cooked header (<linux/if_packet.h>)
+_PACKET_BROADCAST = 1
+
+# the cooked header protocol for 802.3 frames that carry 802.2 LLC
+_ETH_P_802_2 = 0x0004
+
+# ARCNET system code for BACnet (Clause 8.3)
+_ARCNET_SC_BACNET = 0xCD
+
+# the system code and data of a short ARCNET frame is at most 253 octets,
+# longer frames are "long" frames
+_ARCNET_SHORT_MAX = 253
+
+# long frames received through Linux ARCNET drivers have been seen with 3
+# trailing octets that are not part of the frame (but not long frames sent
+# by the capturing station), see decode_packet()
+_ARCNET_LONG_PADDING = 3
+
+# BACnet LSAP and LLC UI control (Clauses 7.1 and 8.2)
+_LLC_BACNET = (0x82, 0x82, 0x03)
+
+# Linux ARPHRD_* interface types to link-layer types
+_arphrd_linktypes = {
+    1: LINKTYPE_ETHERNET,  # ARPHRD_ETHER
+    7: LINKTYPE_ARCNET_LINUX,  # ARPHRD_ARCNET
+    772: LINKTYPE_ETHERNET,  # ARPHRD_LOOPBACK, libpcap fakes Ethernet
+    65534: LINKTYPE_RAW,  # ARPHRD_NONE, tun interfaces
+}
+
+
+def pcap_file_linktype(fname: str) -> int:
+    """
+    Return the link-layer header type of a pcap or pcapng file by reading its
+    header.  The pylibpcap reader does not expose pcap_datalink().
+    """
+    with open(fname, "rb") as f:
+        header = f.read(24)
+        if len(header) < 24:
+            raise ValueError(f"{fname}: not a pcap or pcapng file")
+
+        # classic pcap, microsecond or nanosecond timestamps, either byte order
+        magic = header[:4]
+        if magic in (b"\xa1\xb2\xc3\xd4", b"\xa1\xb2\x3c\x4d"):
+            return struct.unpack("!I", header[20:24])[0] & 0xFFFF
+        if magic in (b"\xd4\xc3\xb2\xa1", b"\x4d\x3c\xb2\xa1"):
+            return struct.unpack("<I", header[20:24])[0] & 0xFFFF
+
+        # pcapng starts with a Section Header Block with a byte order magic
+        if magic != b"\x0a\x0d\x0d\x0a":
+            raise ValueError(f"{fname}: not a pcap or pcapng file")
+        if header[8:12] == b"\x1a\x2b\x3c\x4d":
+            endian = "!"
+        elif header[8:12] == b"\x4d\x3c\x2b\x1a":
+            endian = "<"
+        else:
+            raise ValueError(f"{fname}: invalid pcapng byte order magic")
+
+        # walk the blocks looking for the first Interface Description Block,
+        # libpcap requires all interfaces in a file share the same link type
+        f.seek(0)
+        while True:
+            block_header = f.read(12)
+            if len(block_header) < 12:
+                raise ValueError(f"{fname}: no pcapng interface description block")
+            block_type, block_length = struct.unpack(endian + "II", block_header[:8])
+            if block_type == 1:
+                return struct.unpack(endian + "H", block_header[8:10])[0]
+            if block_length < 12:
+                raise ValueError(f"{fname}: invalid pcapng block length")
+            f.seek(block_length - 12, 1)
+
+
+def iface_linktype(iface: str) -> Optional[int]:
+    """
+    Return the link-layer header type libpcap will use for a live capture on
+    an interface, or None if it cannot be determined (Linux only).
+    """
+    if iface == "any":
+        return LINKTYPE_LINUX_SLL
+    try:
+        with open(f"/sys/class/net/{iface}/type") as f:
+            return _arphrd_linktypes.get(int(f.read().strip()))
+    except (OSError, ValueError):
+        return None
 
 
 def strftimestamp(ts):
@@ -198,6 +331,111 @@ def decode_vlan(s) -> VLAN:
 
 
 @dataclass
+class ARCNET:
+    source_address: int
+    destination_address: int
+    system_code: int
+    data: bytes
+    padding: bytes = b""
+
+    def dict_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
+        # make/extend the dictionary of content
+        if use_dict is None:
+            if _debug:
+                NPCI._debug("    - new use_dict")
+            use_dict = as_class()
+
+        use_dict.__setitem__("source_address", self.source_address)
+        use_dict.__setitem__("destination_address", self.destination_address)
+        use_dict.__setitem__("system_code", self.system_code)
+        if self.padding:
+            use_dict.__setitem__("padding", self.padding)
+
+        if include_data:
+            use_dict.__setitem__("data", self.data)
+
+        # return what we built/updated
+        return use_dict
+
+
+@bacpypes_debugging
+def decode_arcnet(s, linktype: int = LINKTYPE_ARCNET_LINUX) -> ARCNET:
+    """
+    Decode the ARCNET header.  The Linux header has a 2-byte offset between
+    the addresses and the system code.  Some system codes (RFC 1201) are
+    followed by a split flag and sequence number, BACnet is not.
+    """
+    if _debug:
+        decode_arcnet._debug("decode_arcnet %s...", btox(s[:5], "."))
+
+    header_len = 5 if linktype == LINKTYPE_ARCNET_LINUX else 3
+    d = ARCNET(
+        source_address=s[0],
+        destination_address=s[1],
+        system_code=s[header_len - 1],
+        data=s[header_len:],
+    )
+
+    return d
+
+
+@dataclass
+class LLC:
+    dsap: int
+    ssap: int
+    control: int
+    data: bytes
+
+    def dict_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
+        # make/extend the dictionary of content
+        if use_dict is None:
+            if _debug:
+                NPCI._debug("    - new use_dict")
+            use_dict = as_class()
+
+        use_dict.__setitem__("dsap", self.dsap)
+        use_dict.__setitem__("ssap", self.ssap)
+        use_dict.__setitem__("control", self.control)
+
+        if include_data:
+            use_dict.__setitem__("data", self.data)
+
+        # return what we built/updated
+        return use_dict
+
+
+@bacpypes_debugging
+def decode_llc(s) -> LLC:
+    """
+    Decode the IEEE 802.2 LLC header.  BACnet only uses UI frames which have
+    a 1-byte control field, other frame types are not decoded further.
+    """
+    if _debug:
+        decode_llc._debug("decode_llc %s...", btox(s[:3], "."))
+
+    d = LLC(
+        dsap=s[0],
+        ssap=s[1],
+        control=s[2],
+        data=s[3:],
+    )
+
+    return d
+
+
+@dataclass
 class IPv4:
     version: int
     header_len: int
@@ -263,14 +501,114 @@ def decode_ipv4(s) -> IPv4:
         total_len=struct.unpack("!H", s[2:4])[0],
         id=struct.unpack("!H", s[4:6])[0],
         flags=(s[6] & 0xE0) >> 5,
-        fragment_offset=struct.unpack("!H", s[6:8])[0] & 0x1F,
+        fragment_offset=struct.unpack("!H", s[6:8])[0] & 0x1FFF,
         ttl=s[8],
         protocol=_protocols.get(s[9], "0x%.2x ?" % s[9]),
         checksum=struct.unpack("!H", s[10:12])[0],
         source_address=socket.inet_ntoa(s[12:16]),
         destination_address=socket.inet_ntoa(s[16:20]),
-        options=s[20 : 4 * (header_len - 5)] if header_len > 5 else None,
+        options=s[20 : 4 * header_len] if header_len > 5 else None,
         data=s[4 * header_len :],
+    )
+
+    return d
+
+
+@dataclass
+class IPv6:
+    version: int
+    traffic_class: int
+    flow_label: int
+    payload_len: int
+    next_header: int
+    hop_limit: int
+    source_address: str
+    destination_address: str
+    extension_headers: List[int]
+    protocol: str
+    fragment_offset: int
+    data: bytes
+
+    def dict_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
+        # make/extend the dictionary of content
+        if use_dict is None:
+            if _debug:
+                NPCI._debug("    - new use_dict")
+            use_dict = as_class()
+
+        use_dict.__setitem__("version", self.version)
+        use_dict.__setitem__("traffic_class", self.traffic_class)
+        use_dict.__setitem__("flow_label", self.flow_label)
+        use_dict.__setitem__("payload_len", self.payload_len)
+        use_dict.__setitem__("next_header", self.next_header)
+        use_dict.__setitem__("hop_limit", self.hop_limit)
+        use_dict.__setitem__("source_address", self.source_address)
+        use_dict.__setitem__("destination_address", self.destination_address)
+        if self.extension_headers:
+            use_dict.__setitem__("extension_headers", self.extension_headers)
+            use_dict.__setitem__("fragment_offset", self.fragment_offset)
+        use_dict.__setitem__("protocol", self.protocol)
+
+        if include_data:
+            use_dict.__setitem__("data", self.data)
+
+        # return what we built/updated
+        return use_dict
+
+
+@bacpypes_debugging
+def decode_ipv6(s) -> IPv6:
+    """
+    Decode the IPv6 header and skip over any extension headers.  The protocol
+    is the upper-layer protocol, the data is its payload.
+    """
+    if _debug:
+        decode_ipv6._debug("decode_ipv6 %r", btox(s[:40], "."))
+
+    x = struct.unpack("!I", s[0:4])[0]
+    payload_len = struct.unpack("!H", s[4:6])[0]
+    next_header = s[6]
+
+    # a zero payload length is a jumbogram, the length is in an option
+    data = s[40 : 40 + payload_len] if payload_len else s[40:]
+
+    # walk the extension header chain
+    extension_headers: List[int] = []
+    fragment_offset = 0
+    protocol = next_header
+    while (protocol in _ipv6_extension_headers) and (len(data) >= 8):
+        extension_headers.append(protocol)
+        if protocol == _IPV6_FRAGMENT:
+            fragment_offset = struct.unpack("!H", data[2:4])[0] >> 3
+            header_len = 8
+        else:
+            header_len = (data[1] + 1) * 8
+        protocol = data[0]
+        data = data[header_len:]
+
+        # a later fragment does not start with the upper-layer header
+        if fragment_offset:
+            break
+
+    d = IPv6(
+        version=x >> 28,
+        traffic_class=(x >> 20) & 0xFF,
+        flow_label=x & 0xFFFFF,
+        payload_len=payload_len,
+        next_header=next_header,
+        hop_limit=s[7],
+        source_address=socket.inet_ntop(socket.AF_INET6, s[8:24]),
+        destination_address=socket.inet_ntop(socket.AF_INET6, s[24:40]),
+        extension_headers=extension_headers,
+        protocol=_protocols.get(protocol, "0x%.2x ?" % protocol),
+        fragment_offset=fragment_offset,
+        data=data,
     )
 
     return d
@@ -303,7 +641,7 @@ class UDP:
         use_dict.__setitem__("checksum", self.checksum)
 
         if include_data:
-            use_dict.__setitem__("type", self.data)
+            use_dict.__setitem__("data", self.data)
 
         # return what we built/updated
         return use_dict
@@ -328,8 +666,11 @@ def decode_udp(s):
 @dataclass
 class Frame:
     ethernet: Optional[Ethernet] = None
+    arcnet: Optional[ARCNET] = None
     vlan: Optional[VLAN] = None
+    llc: Optional[LLC] = None
     ipv4: Optional[IPv4] = None
+    ipv6: Optional[IPv6] = None
     udp: Optional[UDP] = None
     bvlci: Optional[LPCI] = None
     bvll: Optional[LPDU] = None
@@ -353,8 +694,11 @@ class Frame:
 
         for attr in (
             "ethernet",
+            "arcnet",
             "vlan",
+            "llc",
             "ipv4",
+            "ipv6",
             "udp",
             "bvlci",
             "bvll",
@@ -374,10 +718,10 @@ class Frame:
 
 
 @bacpypes_debugging
-def decode_packet(data: bytes) -> Optional[Frame]:
+def _decode_packet(data: bytes, linktype: int) -> Optional[Frame]:
     """Decode the data, return a Frame object or None."""
     if _debug:
-        decode_packet._debug("decode_packet %r", data)
+        _decode_packet._debug("_decode_packet %r linktype=%r", data, linktype)
 
     # empty strings are some other kind of pcap content
     if not data:
@@ -386,25 +730,86 @@ def decode_packet(data: bytes) -> Optional[Frame]:
     # a place to stuff everything
     frame = Frame()
 
-    # assume it is ethernet for now
-    ethernet = decode_ethernet(data)
-    data = ethernet.data
+    # addresses are filled in from the link layer and/or IP/UDP headers
+    pduSource: Optional[Address] = None
+    pduDestination: Optional[Address] = None
+    ethernet_type: Optional[int] = None
+    has_llc = False
 
-    # basic source and destination
-    pduSource = Address(ethernet.source_address)
-    if ethernet.destination_address == "FF:FF:FF:FF:FF:FF":
-        pduDestination = LocalBroadcast()
+    if linktype == LINKTYPE_ETHERNET:
+        ethernet = decode_ethernet(data)
+        data = ethernet.data
+
+        # basic source and destination
+        pduSource = Address(ethernet.source_address)
+        if ethernet.destination_address == "ff:ff:ff:ff:ff:ff":
+            pduDestination = LocalBroadcast()
+        else:
+            pduDestination = Address(ethernet.destination_address)
+
+        # save the header
+        frame.ethernet = ethernet
+        ethernet_type = ethernet.type
+
+    elif linktype in _raw_ip_linktypes:
+        # no link-layer header, the IP version is in the first nibble
+        version = data[0] >> 4
+        if version == 4:
+            ethernet_type = 0x0800
+        elif version == 6:
+            ethernet_type = 0x86DD
+
+    elif linktype in (LINKTYPE_NULL, LINKTYPE_LOOP):
+        # the byte order depends on the type and (for NULL) the capturing
+        # host, so accept either, AF_INET is 2 everywhere
+        family = struct.unpack("<I", data[:4])[0]
+        if family > 0xFFFF:
+            family = struct.unpack("!I", data[:4])[0]
+        if family == socket.AF_INET:
+            ethernet_type = 0x0800
+        elif family in _null_af_inet6:
+            ethernet_type = 0x86DD
+        data = data[4:]
+
+    elif linktype == LINKTYPE_LINUX_SLL:
+        packet_type, _, addr_len = struct.unpack("!HHH", data[0:6])
+        if addr_len == 6:
+            pduSource = Address(btox(data[6:12], ":"))
+        ethernet_type = struct.unpack("!H", data[14:16])[0]
+        if packet_type == _PACKET_BROADCAST:
+            pduDestination = LocalBroadcast()
+        data = data[16:]
+
+    elif linktype == LINKTYPE_LINUX_SLL2:
+        ethernet_type = struct.unpack("!H", data[0:2])[0]
+        if data[11] == 6:
+            pduSource = Address(btox(data[12:18], ":"))
+        if data[10] == _PACKET_BROADCAST:
+            pduDestination = LocalBroadcast()
+        data = data[20:]
+
+    elif linktype in (LINKTYPE_ARCNET_BSD, LINKTYPE_ARCNET_LINUX):
+        arcnet = decode_arcnet(data, linktype)
+        data = arcnet.data
+
+        # ARCNET addresses are one octet, zero is broadcast
+        pduSource = ARCNETAddress(arcnet.source_address)
+        if arcnet.destination_address == 0:
+            pduDestination = LocalBroadcast()
+        else:
+            pduDestination = ARCNETAddress(arcnet.destination_address)
+
+        # save the header
+        frame.arcnet = arcnet
+        has_llc = arcnet.system_code == _ARCNET_SC_BACNET
+
     else:
-        pduDestination = Address(ethernet.destination_address)
-
-    # save the header
-    frame.ethernet = ethernet
-    ethernet_type: int = ethernet.type
+        raise DecodingError(f"unsupported link type: {linktype}")
 
     # there could be a VLAN header
     if ethernet_type == 0x8100:
         if _debug:
-            decode_packet._debug("    - vlan found")
+            _decode_packet._debug("    - vlan found")
 
         vlan = decode_vlan(data)
         data = vlan.data
@@ -414,107 +819,195 @@ def decode_packet(data: bytes) -> Optional[Frame]:
 
         ethernet_type = vlan.type
 
+    # 802.3 frames have a length rather than an EtherType and carry LLC, the
+    # Linux cooked header labels them ETH_P_802_2
+    if (
+        (frame.ethernet is not None)
+        and (ethernet_type is not None)
+        and (ethernet_type <= 1500)
+    ):
+        data = data[:ethernet_type]  # strip any padding
+        has_llc = True
+    elif (linktype in (LINKTYPE_LINUX_SLL, LINKTYPE_LINUX_SLL2)) and (
+        ethernet_type == _ETH_P_802_2
+    ):
+        has_llc = True
+
+    # BACnet/Ethernet (Clause 7) and BACnet/ARCNET (Clause 8) put the NPDU
+    # in an LLC UI frame
+    if has_llc:
+        if _debug:
+            _decode_packet._debug("    - LLC found")
+
+        llc = frame.llc = decode_llc(data)
+        data = llc.data
+        if (llc.dsap, llc.ssap, llc.control) != _LLC_BACNET:
+            if _debug:
+                _decode_packet._debug("    - not a BACnet LLC frame")
+            return frame
+
     # look for IP packets
+    ip: Union[IPv4, IPv6, None] = None
     if ethernet_type == 0x0800:
         if _debug:
-            decode_packet._debug("    - IP found")
+            _decode_packet._debug("    - IPv4 found")
 
-        ipv4 = decode_ipv4(data)
-        data = ipv4.data
+        ip = frame.ipv4 = decode_ipv4(data)
+    elif ethernet_type == 0x86DD:
+        if _debug:
+            _decode_packet._debug("    - IPv6 found")
 
-        # save the header
-        frame.ipv4 = ipv4
+        ip = frame.ipv6 = decode_ipv6(data)
+    else:
+        if _debug:
+            _decode_packet._debug("    - not an IP packet")
 
-        # check for a UDP packet
-        if ipv4.protocol == "udp":
+    if ip:
+        data = ip.data
+
+        # check for a UDP packet, later fragments do not have a UDP header
+        if ip.protocol != "udp":
             if _debug:
-                decode_packet._debug("    - UDP found")
+                _decode_packet._debug("    - not a UDP packet")
+        elif ip.fragment_offset:
+            if _debug:
+                _decode_packet._debug("    - not the first fragment")
+        else:
+            if _debug:
+                _decode_packet._debug("    - UDP found")
 
             udp = decode_udp(data)
             data = udp.data
 
             # update the source and destination
-            pduSource = IPv4Address((ipv4.source_address, udp.source_port))
-            if not isinstance(pduDestination, LocalBroadcast):
-                pduDestination = IPv4Address(
-                    (ipv4.destination_address, udp.destination_port)
+            if isinstance(ip, IPv4):
+                pduSource = IPv4Address((ip.source_address, udp.source_port))
+
+                # without a MAC address the limited broadcast address is the
+                # only broadcast that is certain
+                if (frame.ethernet is None) and (
+                    ip.destination_address == "255.255.255.255"
+                ):
+                    pduDestination = LocalBroadcast()
+                if not isinstance(pduDestination, LocalBroadcast):
+                    pduDestination = IPv4Address(
+                        (ip.destination_address, udp.destination_port)
+                    )
+            else:
+                # BACnet/IPv6 broadcasts are multicasts, the BVLL function
+                # says which it is
+                pduSource = IPv6Address((ip.source_address, udp.source_port))
+                pduDestination = IPv6Address(
+                    (ip.destination_address, udp.destination_port)
                 )
 
             # save the header
             frame.udp = udp
-        else:
-            if _debug:
-                decode_packet._debug("    - not a UDP packet")
-    else:
+
+    # without link layer or UDP addresses there is no BACnet to decode
+    if pduSource is None:
         if _debug:
-            decode_packet._debug("    - not an IP packet")
+            _decode_packet._debug("    - no link layer or UDP addresses")
+        return frame
+
+    # NPDUs are carried in UDP (Annex J, Annex U) or LLC (Clauses 7 and 8),
+    # anything else that happens to start with 0x01 is not BACnet
+    if (frame.udp is None) and (frame.llc is None):
+        if _debug:
+            _decode_packet._debug("    - not UDP or BACnet LLC")
+        return frame
 
     # check for empty
     if not data:
         if _debug:
-            decode_packet._debug("    - empty packet")
+            _decode_packet._debug("    - empty packet")
         return frame
 
     # build a PDU, to be consumed by the decode functions
     pdu = PDU(data, source=pduSource, destination=pduDestination)
     if _debug:
-        decode_packet._debug("    - pdu: %r", pdu)
+        _decode_packet._debug("    - pdu: %r", pdu)
 
-    # check for a BVLL header
-    if pdu.pduData[0] == 0x81:
+    # check for a BVLL header, BACnet/IPv4 (Annex J) or BACnet/IPv6 (Annex U)
+    bvll_type = pdu.pduData[0]
+    if (frame.udp is not None) and (bvll_type in (0x81, 0x82)):
         if _debug:
-            decode_packet._debug("    - BVLL header found")
+            _decode_packet._debug("    - BVLL header found: %r", bvll_type)
 
+        lpci_class = LPCI if bvll_type == 0x81 else bvll6.LPCI
         try:
-            lpci = LPCI.decode(pdu)
+            lpci = lpci_class.decode(pdu)
             frame.bvlci = lpci
         except Exception as err:
             if _debug:
-                decode_packet._debug("    - BVLL PDU decoding error: %r", err)
+                _decode_packet._debug("    - BVLL PDU decoding error: %r", err)
             return frame
 
         # find the appropriate LPDU subclass
         try:
-            lpdu_class = bvll_pdu_types[lpci.bvlciFunction]
+            if bvll_type == 0x81:
+                lpdu_class = bvll_pdu_types[lpci.bvlciFunction]
+            else:
+                lpdu_class = bvll6.pdu_types[lpci.bvlciFunction]
         except KeyError:
             raise DecodingError(f"unrecognized BVLL function: {lpci.bvlciFunction}")
         if _debug:
-            decode_packet._debug("    - lpdu_class: %r", lpdu_class)
+            _decode_packet._debug("    - lpdu_class: %r", lpdu_class)
 
         try:
             # ask the subclass to decode the rest of the pdu
             lpdu = lpdu_class.decode(pdu)
             frame.bvll = lpdu
 
-            # no deeper decoding for some
-            if not isinstance(
-                lpdu,
-                (
-                    DistributeBroadcastToNetwork,
-                    OriginalUnicastNPDU,
-                    OriginalBroadcastNPDU,
-                    ForwardedNPDU,
-                ),
-            ):
-                return frame
+            if bvll_type == 0x81:
+                # no deeper decoding for some
+                if not isinstance(
+                    lpdu,
+                    (
+                        DistributeBroadcastToNetwork,
+                        OriginalUnicastNPDU,
+                        OriginalBroadcastNPDU,
+                        ForwardedNPDU,
+                    ),
+                ):
+                    return frame
 
-            # update source address
-            if isinstance(lpdu, ForwardedNPDU):
-                pduSource = lpdu.bvlciAddress
+                # update source address
+                if isinstance(lpdu, ForwardedNPDU):
+                    pduSource = lpdu.bvlciAddress
+
+            else:
+                # the BACnet/IPv6 MAC address is the virtual address (VMAC)
+                if isinstance(lpdu, bvll6.OriginalUnicastNPDU):
+                    pduSource = lpdu.bvlciSourceVirtualAddress
+                    pduDestination = lpdu.bvlciDestinationVirtualAddress
+                elif isinstance(
+                    lpdu,
+                    (
+                        bvll6.OriginalBroadcastNPDU,
+                        bvll6.ForwardedNPDU,
+                        bvll6.DistributeBroadcastToNetwork,
+                    ),
+                ):
+                    pduSource = lpdu.bvlciSourceVirtualAddress
+                    pduDestination = LocalBroadcast()
+                else:
+                    # no deeper decoding for the rest
+                    return frame
 
             # reference the rest of the packet
             pdu = PDU(lpdu.pduData, source=pduSource, destination=pduDestination)
 
         except Exception as err:
             if _debug:
-                decode_packet._debug("    - %r decoding Error: %r", lpdu_class, err)
+                _decode_packet._debug("    - %r decoding Error: %r", lpdu_class, err)
                 traceback.print_stack()
             return frame
 
     # check for version number
     if pdu.pduData[0] != 0x01:
         if _debug:
-            decode_packet._debug(
+            _decode_packet._debug(
                 "    - not a version 1 packet: %s...", btox(pdu.pduData[:30], ".")
             )
         return frame
@@ -525,15 +1018,15 @@ def decode_packet(data: bytes) -> Optional[Frame]:
         frame.npci = npci
     except Exception as err:
         if _debug:
-            decode_packet._debug("    - NPDU decoding Error: %r", err)
+            _decode_packet._debug("    - NPDU decoding Error: %r", err)
         return frame
     if _debug:
-        decode_packet._debug("    - npci: %r", npci)
+        _decode_packet._debug("    - npci: %r", npci)
 
     # application or network layer message
     if npci.npduNetMessage is None:
         if _debug:
-            decode_packet._debug("    - not a network layer message, try as an APDU")
+            _decode_packet._debug("    - not a network layer message, try as an APDU")
 
         # keep the 'null' out of the JSON encoding
         delattr(npci, "npduNetMessage")
@@ -543,10 +1036,10 @@ def decode_packet(data: bytes) -> Optional[Frame]:
             apdu = APDU.decode(pdu)
             frame.apdu = apdu
             if _debug:
-                decode_packet._debug("    - apdu: %r", apdu)
+                _decode_packet._debug("    - apdu: %r", apdu)
         except Exception as err:
             if _debug:
-                decode_packet._debug("    - decoding Error: %r", err)
+                _decode_packet._debug("    - decoding Error: %r", err)
             return frame
 
         # scrape off the APCI data
@@ -564,16 +1057,25 @@ def decode_packet(data: bytes) -> Optional[Frame]:
         ):
             return frame
 
-        # continue decoding the apdu.pduData
+        # a segment is only part of the service request or ack
+        if getattr(apdu, "apduSeg", False):
+            if _debug:
+                _decode_packet._debug("    - segmented")
+            return frame
+
+        # continue decoding the apdu.pduData, keep the APCI-only APDU in the
+        # frame with its data if it fails
+        apdu_data = bytearray(apdu.pduData)
         try:
             apdu = APCISequence.decode(apdu)
             frame.apdu = apdu
 
             if _debug:
-                decode_packet._debug("    - apdu: %r", apdu)
-        except AttributeError as err:
+                _decode_packet._debug("    - apdu: %r", apdu)
+        except Exception as err:
             if _debug:
-                decode_packet._debug("    - decoding error: %r", err)
+                _decode_packet._debug("    - decoding error: %r", err)
+            frame.apdu.pduData = apdu_data
 
         # success
         return frame
@@ -583,12 +1085,12 @@ def decode_packet(data: bytes) -> Optional[Frame]:
         ntype = npdu_types.get(npci.npduNetMessage, None)
         if not ntype:
             if _debug:
-                decode_packet._debug(
+                _decode_packet._debug(
                     "    - no network layer decoder: %r", npci.npduNetMessage
                 )
             return frame
         if _debug:
-            decode_packet._debug("    - ntype: %r", ntype)
+            _decode_packet._debug("    - ntype: %r", ntype)
 
         # deeper decoding
         try:
@@ -596,20 +1098,68 @@ def decode_packet(data: bytes) -> Optional[Frame]:
             frame.npdu = npdu
         except Exception as err:
             if _debug:
-                decode_packet._debug("    - decoding error: %r", err)
+                _decode_packet._debug("    - decoding error: %r", err)
 
         # success
         return frame
 
 
-def _decode_packets(gen: Iterator[Tuple[int, float, bytes]]) -> Iterator[Frame]:
+def _undecoded_apdu(frame: Optional[Frame]) -> bool:
+    """
+    True if the frame has an unsegmented service request or ack that failed
+    to decode past the APCI.
+    """
+    if (frame is None) or (frame.apdu is None):
+        return False
+    return (
+        type(frame.apdu) in (ConfirmedRequestPDU, ComplexAckPDU, UnconfirmedRequestPDU)
+    ) and not getattr(frame.apdu, "apduSeg", False)
+
+
+@bacpypes_debugging
+def decode_packet(data: bytes, linktype: int = LINKTYPE_ETHERNET) -> Optional[Frame]:
+    """
+    Decode the data, return a Frame object or None.  The linktype is the
+    link-layer header type of the capture (see pcap_file_linktype()).
+    """
+    if _debug:
+        decode_packet._debug("decode_packet %r linktype=%r", data, linktype)
+
+    frame = _decode_packet(data, linktype)
+
+    # long ARCNET frames can have trailing padding, which breaks decoding
+    # the APDU, so try again without it.  Segments are not decoded so their
+    # data may still include the padding.
+    if (
+        (frame is not None)
+        and (frame.arcnet is not None)
+        and (1 + len(frame.arcnet.data) > _ARCNET_SHORT_MAX)
+        and _undecoded_apdu(frame)
+    ):
+        retry = _decode_packet(data[:-_ARCNET_LONG_PADDING], linktype)
+        if (
+            (retry is not None)
+            and (retry.apdu is not None)
+            and not _undecoded_apdu(retry)
+        ):
+            if _debug:
+                decode_packet._debug("    - ARCNET padding removed")
+            retry.arcnet.padding = data[-_ARCNET_LONG_PADDING:]
+            return retry
+
+    return frame
+
+
+def _decode_packets(
+    gen: Iterator[Tuple[int, float, bytes]], linktype: int = LINKTYPE_ETHERNET
+) -> Iterator[Frame]:
     """
     Helper function for decoding data from pylibpcap generators.
     """
     # loop through the packets
     for i, (len, timestamp, data) in enumerate(gen):
         try:
-            frame = decode_packet(data)
+            frame = decode_packet(data, linktype)
             if not frame:
                 continue
         except Exception as err:
@@ -636,10 +1186,17 @@ def decode_file(fname):
     if not pylibpcap:
         raise RuntimeError("failed to import pylibpcap")
 
+    # the link-layer header type determines where the IP header starts
+    linktype = pcap_file_linktype(fname)
+    if _debug:
+        decode_file._debug("    - linktype: %r", linktype)
+    if linktype not in _supported_linktypes:
+        raise ValueError(f"{fname}: unsupported link type: {linktype}")
+
     # generator function yields (len, timestamp, data) tuple
     gen_fn = pylibpcap.pcap.rpcap(fname)
 
-    yield from _decode_packets(gen_fn)
+    yield from _decode_packets(gen_fn, linktype)
 
 
 @bacpypes_debugging
@@ -650,16 +1207,27 @@ def decode_iface(
     snaplen: int = 65535,
     filters: str = "udp port 47808",
     timeout: int = 500,
+    linktype: Optional[int] = None,
 ):
     """
     Given the name of an interface, 'sniff' the packets and yield each as
-    a frame.
+    a frame.  If the linktype is not provided it is looked up from the
+    interface type (Linux only) and defaults to Ethernet.
     """
     if _debug:
-        decode_file._debug("decode_iface %r", iface)
+        decode_iface._debug("decode_iface %r linktype=%r", iface, linktype)
 
     if not pylibpcap:
         raise RuntimeError("failed to import pylibpcap")
+
+    if linktype is None:
+        linktype = iface_linktype(iface)
+        if linktype is None:
+            linktype = LINKTYPE_ETHERNET
+        if _debug:
+            decode_iface._debug("    - linktype: %r", linktype)
+    if linktype not in _supported_linktypes:
+        raise ValueError(f"{iface}: unsupported link type: {linktype}")
 
     # generator function yields (len, timestamp, data) tuple
     gen_fn = pylibpcap.sniff(
@@ -671,7 +1239,7 @@ def decode_iface(
         timeout=timeout,
     )
 
-    yield from _decode_packets(gen_fn)
+    yield from _decode_packets(gen_fn, linktype)
 
 
 class TracerState(Enum):
@@ -859,6 +1427,14 @@ if __name__ == "__main__":
             default=500,
             help="timeout",
         )
+        parser.add_argument(
+            "--linktype",
+            type=lambda v: linktypes[v] if v in linktypes else int(v),
+            default=None,
+            help="interface link-layer type, a number or one of: "
+            + ", ".join(linktypes)
+            + " (default: from the interface type, or ethernet)",
+        )
 
         # data options
         parser.add_argument(
@@ -882,6 +1458,7 @@ if __name__ == "__main__":
                     count=args.count,
                     promisc=int(args.no_promiscous),
                     timeout=args.timeout,
+                    linktype=args.linktype,
                 )
             )
 
