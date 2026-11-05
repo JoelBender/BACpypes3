@@ -60,6 +60,10 @@ dev = [
     "pytest-asyncio>=0.24.0",
     "ruff>=0.15.5",
 ]
+doc = [
+    "sphinx>=7.1.2",
+    "sphinx-rtd-theme>=3.1.0",
+]
 
 # Publish targets for `uv publish --index <name>`. Credentials live
 # outside this file: source ~/.uv-publish.pypi.env or
