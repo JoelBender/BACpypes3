@@ -720,7 +720,7 @@ class ElementInterface:
         # get the value, wait for it if necessary
         value = getter()
         if _debug:
-            ElementInterface._debug("    - value:", value)
+            ElementInterface._debug("    - value: %r", value)
         if inspect.isawaitable(value):
             if _debug:
                 ElementInterface._debug("    - awaitable")
