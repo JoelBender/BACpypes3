@@ -17,19 +17,24 @@ import pytest
 
 from bacpypes3.debugging import ModuleLogger
 from bacpypes3.errors import DecodingError, InvalidTag
-from bacpypes3.pdu import PDU, PDUData, IPv4Address
+from bacpypes3.pdu import Address, PDU, PDUData, IPv4Address
 from bacpypes3.primitivedata import Tag
 from bacpypes3.apdu import (
     APDU,
     APCISequence,
     AbortPDU,
     AbortReason,
+    ComplexAckPDU,
+    Error,
+    ReadPropertyRequest,
     UnconfirmedRequestPDU,
 )
+from bacpypes3.app import Application
 from bacpypes3.appservice import (
     ApplicationServiceAccessPoint,
     ServerSSM,
 )
+from bacpypes3.comm import ServiceAccessPoint
 from bacpypes3.ipv4 import IPv4DatagramServer
 
 # some debugging
@@ -295,3 +300,77 @@ class TestIPv4DatagramServerConfirmation:
         await server.confirmation(pdu)
 
         server.response.assert_not_called()
+
+
+# ---------------------------------------------------------------------------
+# Bug 4 – sap_response() decode failure loses the invoke ID
+# ---------------------------------------------------------------------------
+
+
+def _make_complex_ack(invoke_id: int = 7):
+    """Build a ComplexAckPDU as it would arrive from a peer."""
+    apdu = ComplexAckPDU(service_choice=12, invoke_id=invoke_id)
+    apdu.pduSource = Address("10.0.0.1")
+    apdu.pduDestination = Address("10.0.0.2")
+    apdu.pduNetworkPriority = 2
+    apdu.pduUserData = b"user"
+    return apdu
+
+
+class TestSapResponseDecodeHandling:
+    """When a response fails to decode, the Error passed up to the application
+    must keep the PCI of the response so it matches the pending request."""
+
+    @pytest.mark.asyncio
+    async def test_error_keeps_pci(self):
+        asap = _make_asap()
+        apdu = _make_complex_ack()
+
+        with patch.object(
+            APCISequence, "decode", side_effect=InvalidTag("bad tag")
+        ), patch.object(
+            ServiceAccessPoint, "sap_response", new_callable=AsyncMock
+        ) as mock_sap_response:
+            await asap.sap_response(apdu)
+
+        mock_sap_response.assert_called_once()
+        xpdu = mock_sap_response.call_args[0][1]
+        assert isinstance(xpdu, Error)
+        assert xpdu.apduInvokeID == 7
+        assert xpdu.apduService == 12
+        assert xpdu.pduSource == Address("10.0.0.1")
+        assert xpdu.pduDestination == Address("10.0.0.2")
+        assert xpdu.pduNetworkPriority == 2
+        assert xpdu.pduUserData == b"user"
+        assert str(xpdu.errorClass) == "communication"
+        assert str(xpdu.errorCode) == "invalid-tag"
+
+    @pytest.mark.asyncio
+    async def test_pending_request_gets_error(self):
+        """The Error must resolve the request future in Application, which
+        matches responses by source address and invoke ID."""
+        asap = _make_asap()
+        apdu = _make_complex_ack()
+
+        with patch.object(
+            APCISequence, "decode", side_effect=InvalidTag("bad tag")
+        ), patch.object(
+            ServiceAccessPoint, "sap_response", new_callable=AsyncMock
+        ) as mock_sap_response:
+            await asap.sap_response(apdu)
+        xpdu = mock_sap_response.call_args[0][1]
+
+        request = ReadPropertyRequest(
+            objectIdentifier="device,1",
+            propertyIdentifier="object-name",
+            destination=Address("10.0.0.1"),
+        )
+        request.apduInvokeID = 7
+        future = asyncio.get_running_loop().create_future()
+
+        app = Application.__new__(Application)
+        app._requests = {Address("10.0.0.1"): [(request, future)]}
+        await app.confirmation(xpdu)
+
+        assert future.done()
+        assert future.exception() is xpdu

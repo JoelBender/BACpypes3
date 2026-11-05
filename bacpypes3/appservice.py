@@ -1837,8 +1837,14 @@ class ApplicationServiceAccessPoint(Client[PDU], ServiceAccessPoint):
                 if isinstance(apdu, ConfirmedRequestPDU):
                     return
 
+                # keep the PCI of the original response, in particular the
+                # invoke ID the application uses to match it to the request
                 xpdu = Error(
                     source=apdu.pduSource,
+                    destination=apdu.pduDestination,
+                    networkPriority=apdu.pduNetworkPriority,
+                    user_data=apdu.pduUserData,
+                    invoke_id=apdu.apduInvokeID,
                     service_choice=apdu.apduService,
                     errorClass="communication",
                     errorCode="invalid-tag",
