@@ -340,7 +340,7 @@ class AddressMetaclass(type):
                     if not route_ipv6_port:
                         route_ipv6_port = "47808"
                     address.addrRoute = super(AddressMetaclass, IPv6Address).__call__(
-                        (route_ipv4_addr, int(route_ipv4_port))
+                        (route_ipv6_addr, int(route_ipv6_port))
                     )  # type: ignore[misc]
 
                 return address  # type: ignore[no-any-return]
