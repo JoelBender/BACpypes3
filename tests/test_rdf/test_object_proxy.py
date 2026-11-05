@@ -17,6 +17,7 @@ from bacpypes3.pdu import Address
 from bacpypes3.primitivedata import (
     CharacterString,
     ClosingTag,
+    ContextTag,
     Date,
     Null,
     ObjectIdentifier,
@@ -199,14 +200,36 @@ class TestAnyValues(unittest.TestCase):
         )
         assert g.value(rec, BACNET["timestamp"]).datatype == namespace.XSD.dateTime
 
-    def test_any_constructed_kept_as_tag_list(self):
+    def test_any_constructed_as_tag_list(self):
         g, obj = object_proxy()
-        # two values, the type is not known without the property context
-        tag_list = TagList([Real(1.0).encode()[0], Unsigned(2).encode()[0]])
-        obj.mystery = Any(tag_list)
-        value = g.value(obj._object_iri, BACNET["mystery"])
-        assert value.datatype == BACNET.tagList
-        assert str(value) == "443f800000" + "2102"
+        # several tags, the type is not known without the property context
+        any_value = Any(
+            TagList(
+                [
+                    Real(1.0).encode()[0],
+                    ObjectIdentifier("analog-value,1").encode()[0],
+                    OpeningTag(3),
+                    ContextTag(0, b""),
+                    ClosingTag(3),
+                ]
+            )
+        )
+        obj.mystery = any_value
+        no_python_repr(g)
+        node = g.value(obj._object_iri, BACNET["mystery"])
+        tags = list(Collection(g, g.value(node, BACNET["any"])))
+
+        # one node per tag, the same shape as Any.dict_contents()
+        expected = any_value.dict_contents()["any"]
+        assert len(tags) == len(expected) == 5
+        assert g.value(tags[0], BACNET["real"]) == Literal(
+            1.0, datatype=namespace.XSD.float
+        )
+        assert str(g.value(tags[1], BACNET["object-identifier"])) == "analog-value,1"
+        assert g.value(tags[2], BACNET["open"]).toPython() == 3
+        assert g.value(tags[3], BACNET["context"]).toPython() == 0
+        assert str(g.value(tags[3], BACNET["data"])) == "05"
+        assert g.value(tags[4], BACNET["close"]).toPython() == 3
 
     def test_any_context_wrapped_single_value(self):
         g, obj = object_proxy()

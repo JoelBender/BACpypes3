@@ -28,6 +28,7 @@ from ..primitivedata import (
     Date,
     Time,
     ObjectIdentifier,
+    Tag,
     TagClass,
 )
 from ..constructeddata import (
@@ -434,7 +435,14 @@ def any_encode(graph: Graph, value: AnyElement) -> Union[Literal, URIRef, BNode]
     other value of that type, so a schedule-default of 72.0 is the same
     literal as a present-value of 72.0.  Anything else (context tagged or
     constructed content whose type is not known without the property
-    context) is kept, losslessly, as the hex of the encoded tag list."""
+    context) becomes a blank node whose bacnet:any is an RDF list with one
+    node per tag, following Any.dict_contents() (the analysis module JSON):
+
+        [ bacnet:any ( [ bacnet:real "1.0"^^xsd:float ] [ bacnet:open 3 ]
+                       [ bacnet:context 0 ; bacnet:data "05"^^xsd:hexBinary ]
+                       [ bacnet:close 3 ] ) ]
+
+    Context tags keep their data (hex) because its type is not known."""
     if value.tagList is None:
         return BACNET.Null
 
@@ -456,8 +464,44 @@ def any_encode(graph: Graph, value: AnyElement) -> Union[Literal, URIRef, BNode]
     if (len(tags) == 1) and (tags[0].tag_class == TagClass.application):
         return atomic_encode(graph, tags[0].app_to_object())
 
-    tag_list_hex = bytes(value.tagList.encode().pduData).hex()
-    return Literal(tag_list_hex, datatype=BACNET.tagList)
+    node = BNode()
+    head = RDF.nil
+    for tag in reversed(tags):
+        list_node = BNode()
+        graph.add((list_node, RDF.first, tag_encode(graph, tag)))
+        graph.add((list_node, RDF.rest, head))
+        head = list_node
+    graph.add((node, BACNET["any"], head))
+    return node
+
+
+def tag_encode(graph: Graph, tag: Tag) -> BNode:
+    """Encode one tag of an Any the way Tag.dict_contents() describes it."""
+    node = BNode()
+    if tag.tag_class == TagClass.application:
+        graph.add(
+            (
+                node,
+                attr_to_predicate(Tag._app_tag_name[tag.tag_number]),
+                atomic_encode(graph, tag.app_to_object()),
+            )
+        )
+    elif tag.tag_class == TagClass.opening:
+        graph.add((node, BACNET["open"], Literal(tag.tag_number)))
+    elif tag.tag_class == TagClass.closing:
+        graph.add((node, BACNET["close"], Literal(tag.tag_number)))
+    elif tag.tag_class == TagClass.context:
+        graph.add((node, BACNET["context"], Literal(tag.tag_number)))
+        graph.add(
+            (
+                node,
+                BACNET["data"],
+                Literal(bytes(tag.tag_data).hex(), datatype=XSD.hexBinary),
+            )
+        )
+    else:
+        raise TypeError(f"unexpected tag class: {tag.tag_class}")
+    return node
 
 
 def value_encode(graph: Graph, value: Any) -> Union[Literal, URIRef, BNode]:
