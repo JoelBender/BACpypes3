@@ -31,7 +31,14 @@ from .settings import settings
 from .debugging import ModuleLogger, bacpypes_debugging, btox
 
 from .errors import DecodingError
-from .pdu import PDU, Address, LocalBroadcast, IPv4Address, IPv6Address
+from .pdu import (
+    PDU,
+    Address,
+    ARCNETAddress,
+    LocalBroadcast,
+    IPv4Address,
+    IPv6Address,
+)
 from .ipv4.bvll import (
     LPCI,
     LPDU,
@@ -80,9 +87,11 @@ _ethernet_broadcast_address = Address("FF:FF:FF:FF:FF:FF")
 # link-layer header types, https://www.tcpdump.org/linktypes.html
 LINKTYPE_NULL = 0  # BSD loopback, 4-byte address family in host byte order
 LINKTYPE_ETHERNET = 1
+LINKTYPE_ARCNET_BSD = 7  # source, destination, system code
 LINKTYPE_RAW = 101  # raw IPv4/IPv6, e.g. tun interfaces
 LINKTYPE_LOOP = 108  # OpenBSD loopback, 4-byte address family in network order
 LINKTYPE_LINUX_SLL = 113  # Linux "cooked" capture v1, e.g. the "any" interface
+LINKTYPE_ARCNET_LINUX = 129  # source, destination, 2-byte offset, system code
 LINKTYPE_IPV4 = 228
 LINKTYPE_IPV6 = 229
 LINKTYPE_LINUX_SLL2 = 276  # Linux "cooked" capture v2
@@ -93,9 +102,11 @@ _raw_ip_linktypes = (LINKTYPE_RAW, LINKTYPE_IPV4, LINKTYPE_IPV6, 12, 14)
 linktypes: Dict[str, int] = {
     "null": LINKTYPE_NULL,
     "ethernet": LINKTYPE_ETHERNET,
+    "arcnet-bsd": LINKTYPE_ARCNET_BSD,
     "raw": LINKTYPE_RAW,
     "loop": LINKTYPE_LOOP,
     "linux-sll": LINKTYPE_LINUX_SLL,
+    "arcnet-linux": LINKTYPE_ARCNET_LINUX,
     "ipv4": LINKTYPE_IPV4,
     "ipv6": LINKTYPE_IPV6,
     "linux-sll2": LINKTYPE_LINUX_SLL2,
@@ -109,9 +120,28 @@ _null_af_inet6 = (10, 24, 28, 30)
 # Linux packet types from the cooked header (<linux/if_packet.h>)
 _PACKET_BROADCAST = 1
 
+# the cooked header protocol for 802.3 frames that carry 802.2 LLC
+_ETH_P_802_2 = 0x0004
+
+# ARCNET system code for BACnet (Clause 8.3)
+_ARCNET_SC_BACNET = 0xCD
+
+# the system code and data of a short ARCNET frame is at most 253 octets,
+# longer frames are "long" frames
+_ARCNET_SHORT_MAX = 253
+
+# long frames received through Linux ARCNET drivers have been seen with 3
+# trailing octets that are not part of the frame (but not long frames sent
+# by the capturing station), see decode_packet()
+_ARCNET_LONG_PADDING = 3
+
+# BACnet LSAP and LLC UI control (Clauses 7.1 and 8.2)
+_LLC_BACNET = (0x82, 0x82, 0x03)
+
 # Linux ARPHRD_* interface types to link-layer types
 _arphrd_linktypes = {
     1: LINKTYPE_ETHERNET,  # ARPHRD_ETHER
+    7: LINKTYPE_ARCNET_LINUX,  # ARPHRD_ARCNET
     772: LINKTYPE_ETHERNET,  # ARPHRD_LOOPBACK, libpcap fakes Ethernet
     65534: LINKTYPE_RAW,  # ARPHRD_NONE, tun interfaces
 }
@@ -295,6 +325,111 @@ def decode_vlan(s) -> VLAN:
         vlan=x & 0x0FFF,
         type=struct.unpack("!H", s[2:4])[0],
         data=s[4:],
+    )
+
+    return d
+
+
+@dataclass
+class ARCNET:
+    source_address: int
+    destination_address: int
+    system_code: int
+    data: bytes
+    padding: bytes = b""
+
+    def dict_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
+        # make/extend the dictionary of content
+        if use_dict is None:
+            if _debug:
+                NPCI._debug("    - new use_dict")
+            use_dict = as_class()
+
+        use_dict.__setitem__("source_address", self.source_address)
+        use_dict.__setitem__("destination_address", self.destination_address)
+        use_dict.__setitem__("system_code", self.system_code)
+        if self.padding:
+            use_dict.__setitem__("padding", self.padding)
+
+        if include_data:
+            use_dict.__setitem__("data", self.data)
+
+        # return what we built/updated
+        return use_dict
+
+
+@bacpypes_debugging
+def decode_arcnet(s, linktype: int = LINKTYPE_ARCNET_LINUX) -> ARCNET:
+    """
+    Decode the ARCNET header.  The Linux header has a 2-byte offset between
+    the addresses and the system code.  Some system codes (RFC 1201) are
+    followed by a split flag and sequence number, BACnet is not.
+    """
+    if _debug:
+        decode_arcnet._debug("decode_arcnet %s...", btox(s[:5], "."))
+
+    header_len = 5 if linktype == LINKTYPE_ARCNET_LINUX else 3
+    d = ARCNET(
+        source_address=s[0],
+        destination_address=s[1],
+        system_code=s[header_len - 1],
+        data=s[header_len:],
+    )
+
+    return d
+
+
+@dataclass
+class LLC:
+    dsap: int
+    ssap: int
+    control: int
+    data: bytes
+
+    def dict_contents(
+        self,
+        use_dict: Optional[Dict[str, Any]] = None,
+        *,
+        as_class: Union[Callable[[], Dict[str, Any]]] = dict,
+        include_data: Optional[bool] = True,
+    ):
+        # make/extend the dictionary of content
+        if use_dict is None:
+            if _debug:
+                NPCI._debug("    - new use_dict")
+            use_dict = as_class()
+
+        use_dict.__setitem__("dsap", self.dsap)
+        use_dict.__setitem__("ssap", self.ssap)
+        use_dict.__setitem__("control", self.control)
+
+        if include_data:
+            use_dict.__setitem__("data", self.data)
+
+        # return what we built/updated
+        return use_dict
+
+
+@bacpypes_debugging
+def decode_llc(s) -> LLC:
+    """
+    Decode the IEEE 802.2 LLC header.  BACnet only uses UI frames which have
+    a 1-byte control field, other frame types are not decoded further.
+    """
+    if _debug:
+        decode_llc._debug("decode_llc %s...", btox(s[:3], "."))
+
+    d = LLC(
+        dsap=s[0],
+        ssap=s[1],
+        control=s[2],
+        data=s[3:],
     )
 
     return d
@@ -531,7 +666,9 @@ def decode_udp(s):
 @dataclass
 class Frame:
     ethernet: Optional[Ethernet] = None
+    arcnet: Optional[ARCNET] = None
     vlan: Optional[VLAN] = None
+    llc: Optional[LLC] = None
     ipv4: Optional[IPv4] = None
     ipv6: Optional[IPv6] = None
     udp: Optional[UDP] = None
@@ -557,7 +694,9 @@ class Frame:
 
         for attr in (
             "ethernet",
+            "arcnet",
             "vlan",
+            "llc",
             "ipv4",
             "ipv6",
             "udp",
@@ -579,13 +718,10 @@ class Frame:
 
 
 @bacpypes_debugging
-def decode_packet(data: bytes, linktype: int = LINKTYPE_ETHERNET) -> Optional[Frame]:
-    """
-    Decode the data, return a Frame object or None.  The linktype is the
-    link-layer header type of the capture (see pcap_file_linktype()).
-    """
+def _decode_packet(data: bytes, linktype: int) -> Optional[Frame]:
+    """Decode the data, return a Frame object or None."""
     if _debug:
-        decode_packet._debug("decode_packet %r linktype=%r", data, linktype)
+        _decode_packet._debug("_decode_packet %r linktype=%r", data, linktype)
 
     # empty strings are some other kind of pcap content
     if not data:
@@ -598,6 +734,7 @@ def decode_packet(data: bytes, linktype: int = LINKTYPE_ETHERNET) -> Optional[Fr
     pduSource: Optional[Address] = None
     pduDestination: Optional[Address] = None
     ethernet_type: Optional[int] = None
+    has_llc = False
 
     if linktype == LINKTYPE_ETHERNET:
         ethernet = decode_ethernet(data)
@@ -635,7 +772,9 @@ def decode_packet(data: bytes, linktype: int = LINKTYPE_ETHERNET) -> Optional[Fr
         data = data[4:]
 
     elif linktype == LINKTYPE_LINUX_SLL:
-        packet_type = struct.unpack("!H", data[0:2])[0]
+        packet_type, _, addr_len = struct.unpack("!HHH", data[0:6])
+        if addr_len == 6:
+            pduSource = Address(btox(data[6:12], ":"))
         ethernet_type = struct.unpack("!H", data[14:16])[0]
         if packet_type == _PACKET_BROADCAST:
             pduDestination = LocalBroadcast()
@@ -643,9 +782,26 @@ def decode_packet(data: bytes, linktype: int = LINKTYPE_ETHERNET) -> Optional[Fr
 
     elif linktype == LINKTYPE_LINUX_SLL2:
         ethernet_type = struct.unpack("!H", data[0:2])[0]
+        if data[11] == 6:
+            pduSource = Address(btox(data[12:18], ":"))
         if data[10] == _PACKET_BROADCAST:
             pduDestination = LocalBroadcast()
         data = data[20:]
+
+    elif linktype in (LINKTYPE_ARCNET_BSD, LINKTYPE_ARCNET_LINUX):
+        arcnet = decode_arcnet(data, linktype)
+        data = arcnet.data
+
+        # ARCNET addresses are one octet, zero is broadcast
+        pduSource = ARCNETAddress(arcnet.source_address)
+        if arcnet.destination_address == 0:
+            pduDestination = LocalBroadcast()
+        else:
+            pduDestination = ARCNETAddress(arcnet.destination_address)
+
+        # save the header
+        frame.arcnet = arcnet
+        has_llc = arcnet.system_code == _ARCNET_SC_BACNET
 
     else:
         raise DecodingError(f"unsupported link type: {linktype}")
@@ -653,7 +809,7 @@ def decode_packet(data: bytes, linktype: int = LINKTYPE_ETHERNET) -> Optional[Fr
     # there could be a VLAN header
     if ethernet_type == 0x8100:
         if _debug:
-            decode_packet._debug("    - vlan found")
+            _decode_packet._debug("    - vlan found")
 
         vlan = decode_vlan(data)
         data = vlan.data
@@ -663,21 +819,48 @@ def decode_packet(data: bytes, linktype: int = LINKTYPE_ETHERNET) -> Optional[Fr
 
         ethernet_type = vlan.type
 
+    # 802.3 frames have a length rather than an EtherType and carry LLC, the
+    # Linux cooked header labels them ETH_P_802_2
+    if (
+        (frame.ethernet is not None)
+        and (ethernet_type is not None)
+        and (ethernet_type <= 1500)
+    ):
+        data = data[:ethernet_type]  # strip any padding
+        has_llc = True
+    elif (linktype in (LINKTYPE_LINUX_SLL, LINKTYPE_LINUX_SLL2)) and (
+        ethernet_type == _ETH_P_802_2
+    ):
+        has_llc = True
+
+    # BACnet/Ethernet (Clause 7) and BACnet/ARCNET (Clause 8) put the NPDU
+    # in an LLC UI frame
+    if has_llc:
+        if _debug:
+            _decode_packet._debug("    - LLC found")
+
+        llc = frame.llc = decode_llc(data)
+        data = llc.data
+        if (llc.dsap, llc.ssap, llc.control) != _LLC_BACNET:
+            if _debug:
+                _decode_packet._debug("    - not a BACnet LLC frame")
+            return frame
+
     # look for IP packets
     ip: Union[IPv4, IPv6, None] = None
     if ethernet_type == 0x0800:
         if _debug:
-            decode_packet._debug("    - IPv4 found")
+            _decode_packet._debug("    - IPv4 found")
 
         ip = frame.ipv4 = decode_ipv4(data)
     elif ethernet_type == 0x86DD:
         if _debug:
-            decode_packet._debug("    - IPv6 found")
+            _decode_packet._debug("    - IPv6 found")
 
         ip = frame.ipv6 = decode_ipv6(data)
     else:
         if _debug:
-            decode_packet._debug("    - not an IP packet")
+            _decode_packet._debug("    - not an IP packet")
 
     if ip:
         data = ip.data
@@ -685,13 +868,13 @@ def decode_packet(data: bytes, linktype: int = LINKTYPE_ETHERNET) -> Optional[Fr
         # check for a UDP packet, later fragments do not have a UDP header
         if ip.protocol != "udp":
             if _debug:
-                decode_packet._debug("    - not a UDP packet")
+                _decode_packet._debug("    - not a UDP packet")
         elif ip.fragment_offset:
             if _debug:
-                decode_packet._debug("    - not the first fragment")
+                _decode_packet._debug("    - not the first fragment")
         else:
             if _debug:
-                decode_packet._debug("    - UDP found")
+                _decode_packet._debug("    - UDP found")
 
             udp = decode_udp(data)
             data = udp.data
@@ -721,28 +904,35 @@ def decode_packet(data: bytes, linktype: int = LINKTYPE_ETHERNET) -> Optional[Fr
             # save the header
             frame.udp = udp
 
-    # without Ethernet or UDP there are no addresses and no BACnet to decode
+    # without link layer or UDP addresses there is no BACnet to decode
     if pduSource is None:
         if _debug:
-            decode_packet._debug("    - no link layer or UDP addresses")
+            _decode_packet._debug("    - no link layer or UDP addresses")
+        return frame
+
+    # NPDUs are carried in UDP (Annex J, Annex U) or LLC (Clauses 7 and 8),
+    # anything else that happens to start with 0x01 is not BACnet
+    if (frame.udp is None) and (frame.llc is None):
+        if _debug:
+            _decode_packet._debug("    - not UDP or BACnet LLC")
         return frame
 
     # check for empty
     if not data:
         if _debug:
-            decode_packet._debug("    - empty packet")
+            _decode_packet._debug("    - empty packet")
         return frame
 
     # build a PDU, to be consumed by the decode functions
     pdu = PDU(data, source=pduSource, destination=pduDestination)
     if _debug:
-        decode_packet._debug("    - pdu: %r", pdu)
+        _decode_packet._debug("    - pdu: %r", pdu)
 
     # check for a BVLL header, BACnet/IPv4 (Annex J) or BACnet/IPv6 (Annex U)
     bvll_type = pdu.pduData[0]
-    if bvll_type in (0x81, 0x82):
+    if (frame.udp is not None) and (bvll_type in (0x81, 0x82)):
         if _debug:
-            decode_packet._debug("    - BVLL header found: %r", bvll_type)
+            _decode_packet._debug("    - BVLL header found: %r", bvll_type)
 
         lpci_class = LPCI if bvll_type == 0x81 else bvll6.LPCI
         try:
@@ -750,7 +940,7 @@ def decode_packet(data: bytes, linktype: int = LINKTYPE_ETHERNET) -> Optional[Fr
             frame.bvlci = lpci
         except Exception as err:
             if _debug:
-                decode_packet._debug("    - BVLL PDU decoding error: %r", err)
+                _decode_packet._debug("    - BVLL PDU decoding error: %r", err)
             return frame
 
         # find the appropriate LPDU subclass
@@ -762,7 +952,7 @@ def decode_packet(data: bytes, linktype: int = LINKTYPE_ETHERNET) -> Optional[Fr
         except KeyError:
             raise DecodingError(f"unrecognized BVLL function: {lpci.bvlciFunction}")
         if _debug:
-            decode_packet._debug("    - lpdu_class: %r", lpdu_class)
+            _decode_packet._debug("    - lpdu_class: %r", lpdu_class)
 
         try:
             # ask the subclass to decode the rest of the pdu
@@ -810,14 +1000,14 @@ def decode_packet(data: bytes, linktype: int = LINKTYPE_ETHERNET) -> Optional[Fr
 
         except Exception as err:
             if _debug:
-                decode_packet._debug("    - %r decoding Error: %r", lpdu_class, err)
+                _decode_packet._debug("    - %r decoding Error: %r", lpdu_class, err)
                 traceback.print_stack()
             return frame
 
     # check for version number
     if pdu.pduData[0] != 0x01:
         if _debug:
-            decode_packet._debug(
+            _decode_packet._debug(
                 "    - not a version 1 packet: %s...", btox(pdu.pduData[:30], ".")
             )
         return frame
@@ -828,15 +1018,15 @@ def decode_packet(data: bytes, linktype: int = LINKTYPE_ETHERNET) -> Optional[Fr
         frame.npci = npci
     except Exception as err:
         if _debug:
-            decode_packet._debug("    - NPDU decoding Error: %r", err)
+            _decode_packet._debug("    - NPDU decoding Error: %r", err)
         return frame
     if _debug:
-        decode_packet._debug("    - npci: %r", npci)
+        _decode_packet._debug("    - npci: %r", npci)
 
     # application or network layer message
     if npci.npduNetMessage is None:
         if _debug:
-            decode_packet._debug("    - not a network layer message, try as an APDU")
+            _decode_packet._debug("    - not a network layer message, try as an APDU")
 
         # keep the 'null' out of the JSON encoding
         delattr(npci, "npduNetMessage")
@@ -846,10 +1036,10 @@ def decode_packet(data: bytes, linktype: int = LINKTYPE_ETHERNET) -> Optional[Fr
             apdu = APDU.decode(pdu)
             frame.apdu = apdu
             if _debug:
-                decode_packet._debug("    - apdu: %r", apdu)
+                _decode_packet._debug("    - apdu: %r", apdu)
         except Exception as err:
             if _debug:
-                decode_packet._debug("    - decoding Error: %r", err)
+                _decode_packet._debug("    - decoding Error: %r", err)
             return frame
 
         # scrape off the APCI data
@@ -867,16 +1057,25 @@ def decode_packet(data: bytes, linktype: int = LINKTYPE_ETHERNET) -> Optional[Fr
         ):
             return frame
 
-        # continue decoding the apdu.pduData
+        # a segment is only part of the service request or ack
+        if getattr(apdu, "apduSeg", False):
+            if _debug:
+                _decode_packet._debug("    - segmented")
+            return frame
+
+        # continue decoding the apdu.pduData, keep the APCI-only APDU in the
+        # frame with its data if it fails
+        apdu_data = bytearray(apdu.pduData)
         try:
             apdu = APCISequence.decode(apdu)
             frame.apdu = apdu
 
             if _debug:
-                decode_packet._debug("    - apdu: %r", apdu)
-        except AttributeError as err:
+                _decode_packet._debug("    - apdu: %r", apdu)
+        except Exception as err:
             if _debug:
-                decode_packet._debug("    - decoding error: %r", err)
+                _decode_packet._debug("    - decoding error: %r", err)
+            frame.apdu.pduData = apdu_data
 
         # success
         return frame
@@ -886,12 +1085,12 @@ def decode_packet(data: bytes, linktype: int = LINKTYPE_ETHERNET) -> Optional[Fr
         ntype = npdu_types.get(npci.npduNetMessage, None)
         if not ntype:
             if _debug:
-                decode_packet._debug(
+                _decode_packet._debug(
                     "    - no network layer decoder: %r", npci.npduNetMessage
                 )
             return frame
         if _debug:
-            decode_packet._debug("    - ntype: %r", ntype)
+            _decode_packet._debug("    - ntype: %r", ntype)
 
         # deeper decoding
         try:
@@ -899,10 +1098,56 @@ def decode_packet(data: bytes, linktype: int = LINKTYPE_ETHERNET) -> Optional[Fr
             frame.npdu = npdu
         except Exception as err:
             if _debug:
-                decode_packet._debug("    - decoding error: %r", err)
+                _decode_packet._debug("    - decoding error: %r", err)
 
         # success
         return frame
+
+
+def _undecoded_apdu(frame: Optional[Frame]) -> bool:
+    """
+    True if the frame has an unsegmented service request or ack that failed
+    to decode past the APCI.
+    """
+    if (frame is None) or (frame.apdu is None):
+        return False
+    return (
+        type(frame.apdu) in (ConfirmedRequestPDU, ComplexAckPDU, UnconfirmedRequestPDU)
+    ) and not getattr(frame.apdu, "apduSeg", False)
+
+
+@bacpypes_debugging
+def decode_packet(data: bytes, linktype: int = LINKTYPE_ETHERNET) -> Optional[Frame]:
+    """
+    Decode the data, return a Frame object or None.  The linktype is the
+    link-layer header type of the capture (see pcap_file_linktype()).
+    """
+    if _debug:
+        decode_packet._debug("decode_packet %r linktype=%r", data, linktype)
+
+    frame = _decode_packet(data, linktype)
+
+    # long ARCNET frames can have trailing padding, which breaks decoding
+    # the APDU, so try again without it.  Segments are not decoded so their
+    # data may still include the padding.
+    if (
+        (frame is not None)
+        and (frame.arcnet is not None)
+        and (1 + len(frame.arcnet.data) > _ARCNET_SHORT_MAX)
+        and _undecoded_apdu(frame)
+    ):
+        retry = _decode_packet(data[:-_ARCNET_LONG_PADDING], linktype)
+        if (
+            (retry is not None)
+            and (retry.apdu is not None)
+            and not _undecoded_apdu(retry)
+        ):
+            if _debug:
+                decode_packet._debug("    - ARCNET padding removed")
+            retry.arcnet.padding = data[-_ARCNET_LONG_PADDING:]
+            return retry
+
+    return frame
 
 
 def _decode_packets(
