@@ -18,6 +18,7 @@ from bacpypes3.pdu import (
     LocalBroadcast,
     RemoteBroadcast,
     GlobalBroadcast,
+    IPv6Address,
 )
 
 # some debugging
@@ -421,6 +422,64 @@ class TestRemoteStation(unittest.TestCase, MatchAddressMixin):
         test_addr = RemoteStation(1, xtob("01020304bac0"), route=Address("1.2.3.4"))
         self.match_address(test_addr, 4, 1, 6, "01020304bac0")
         assert str(test_addr) == "1:1.2.3.4@1.2.3.4"
+
+
+@bacpypes_debugging
+class TestIPv6Route(unittest.TestCase, MatchAddressMixin):
+    """Addresses routed through an IPv6 router, see issue #136."""
+
+    def setUp(self):
+        self.route_aware = settings.route_aware
+        settings.route_aware = True
+
+    def tearDown(self):
+        settings.route_aware = self.route_aware
+
+    def match_route(self, addr, route_hex):
+        assert isinstance(addr.addrRoute, IPv6Address)
+        self.match_address(addr.addrRoute, 2, None, 18, route_hex)
+
+    def test_remote_station_ipv6_route_port(self):
+        if _debug:
+            TestIPv6Route._debug("test_remote_station_ipv6_route_port")
+
+        # the address from the issue
+        test_addr = Address("200:12@[fe81::9874:c320]:47809")
+        self.match_address(test_addr, 4, 200, 1, "0c")
+        self.match_route(test_addr, "FE81000000000000000000009874C320BAC1")
+        assert str(test_addr) == "200:12@[fe81::9874:c320]:47809"
+        assert test_addr == RemoteStation(
+            200, 12, route=Address("[fe81::9874:c320]:47809")
+        )
+
+    def test_remote_station_ipv6_route_default_port(self):
+        if _debug:
+            TestIPv6Route._debug("test_remote_station_ipv6_route_default_port")
+
+        test_addr = Address("200:12@[fe81::9874:c320]")
+        self.match_address(test_addr, 4, 200, 1, "0c")
+        self.match_route(test_addr, "FE81000000000000000000009874C320BAC0")
+        assert str(test_addr) == "200:12@[fe81::9874:c320]"
+
+    def test_ipv6_remote_station_ipv6_route(self):
+        if _debug:
+            TestIPv6Route._debug("test_ipv6_remote_station_ipv6_route")
+
+        test_addr = Address("200:[fe80::67a9]@[fe81::1]:47810")
+        self.match_address(
+            test_addr, 4, 200, 18, "FE8000000000000000000000000067A9BAC0"
+        )
+        self.match_route(test_addr, "FE810000000000000000000000000001BAC2")
+        assert str(test_addr) == "200:[fe80::67a9]@[fe81::1]:47810"
+
+    def test_remote_broadcast_ipv6_route(self):
+        if _debug:
+            TestIPv6Route._debug("test_remote_broadcast_ipv6_route")
+
+        test_addr = Address("200:*@[fe81::1]")
+        self.match_address(test_addr, 3, 200, None, None)
+        self.match_route(test_addr, "FE810000000000000000000000000001BAC0")
+        assert str(test_addr) == "200:*@[fe81::1]"
 
 
 @bacpypes_debugging
