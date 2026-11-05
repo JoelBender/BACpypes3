@@ -6,7 +6,7 @@ Test BACnet/SC LPCI
 import pytest
 
 from bacpypes3.debugging import ModuleLogger
-from bacpypes3.pdu import PDU
+from bacpypes3.pdu import PDU, VirtualAddress
 
 sc_bvll = pytest.importorskip("bacpypes3.sc.bvll")
 LPCI = sc_bvll.LPCI
@@ -47,6 +47,50 @@ def test_update_copies_destination_options():
     assert isinstance(decoded, EncapsulatedNPDU)
     assert [h.option_type for h in decoded.bvlcDestinationOptions] == [2, 3]
     assert decoded.bvlcDataOptions == []
+    assert bytes(decoded.pduData) == NPDU
+
+
+def test_update_copies_data_options():
+    lpdu = EncapsulatedNPDU(NPDU)
+    lpdu.bvlcMessageID = 1
+    lpdu.bvlcDataOptions = [header_option(2), header_option(3)]
+
+    decoded = codec_decode(lpdu.encode())
+
+    assert decoded.bvlcControlFlags == 0x01
+    assert decoded.bvlcDestinationOptions == []
+    assert [h.option_type for h in decoded.bvlcDataOptions] == [2, 3]
+    assert bytes(decoded.pduData) == NPDU
+
+
+def test_originating_address_without_data_options():
+    """A hub-forwarded message has an originating virtual address but no
+    data options; the NPDU must not be parsed as header options."""
+    lpdu = EncapsulatedNPDU(NPDU)
+    lpdu.bvlcMessageID = 1
+    lpdu.bvlcOriginatingVirtualAddress = VirtualAddress(bytes(range(1, 7)))
+
+    decoded = codec_decode(lpdu.encode())
+
+    assert decoded.bvlcControlFlags == 0x08
+    assert decoded.bvlcOriginatingVirtualAddress == VirtualAddress(bytes(range(1, 7)))
+    assert decoded.bvlcDataOptions == []
+    assert bytes(decoded.pduData) == NPDU
+
+
+def test_all_flags():
+    lpdu = EncapsulatedNPDU(NPDU)
+    lpdu.bvlcMessageID = 1
+    lpdu.bvlcOriginatingVirtualAddress = VirtualAddress(bytes(range(1, 7)))
+    lpdu.bvlcDestinationVirtualAddress = VirtualAddress(bytes(range(11, 17)))
+    lpdu.bvlcDestinationOptions = [header_option(2)]
+    lpdu.bvlcDataOptions = [header_option(3), header_option(4)]
+
+    decoded = codec_decode(lpdu.encode())
+
+    assert decoded.bvlcControlFlags == 0x0F
+    assert [h.option_type for h in decoded.bvlcDestinationOptions] == [2]
+    assert [h.option_type for h in decoded.bvlcDataOptions] == [3, 4]
     assert bytes(decoded.pduData) == NPDU
 
 
