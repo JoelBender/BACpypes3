@@ -633,12 +633,33 @@ class ReadWritePropertyMultipleServices:
                     "    - vendor_info: %r", vendor_info
                 )
 
+        # make a copy so any iterable (including a generator) can be indexed
+        parameter_list = list(parameter_list)
+
         list_of_read_access_specs = []
         while parameter_list:
             read_access_spec = ReadAccessSpecification()
             list_of_read_access_specs.append(read_access_spec)
 
-            object_identifier, property_reference_list, *parameter_list = parameter_list
+            # accept both the (object identifier, property reference list)
+            # pairs from the type annotation and the flat, alternating
+            # [objid, [prop, ...], objid, [prop, ...], ...] form
+            if isinstance(parameter_list[0], (tuple, list)) and not isinstance(
+                parameter_list[0], ObjectIdentifier
+            ):
+                (
+                    (
+                        object_identifier,
+                        property_reference_list,
+                    ),
+                    *parameter_list,
+                ) = parameter_list
+            else:
+                (
+                    object_identifier,
+                    property_reference_list,
+                    *parameter_list,
+                ) = parameter_list
 
             # parse the object identifier if needed
             if isinstance(object_identifier, str):

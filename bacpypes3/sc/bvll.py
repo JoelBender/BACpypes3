@@ -291,10 +291,13 @@ class LPCI(PCI, DebugContents):
 
         PCI.update(self, bvlci)
 
-        # skip over fields that aren't set
+        # skip over fields that aren't set, strip the DebugContents suffix
+        # from the header option lists and give self its own copy
         for k in LPCI._debug_contents:
+            k = k.rstrip("+")
             if hasattr(bvlci, k):
-                setattr(self, k, getattr(bvlci, k))
+                v = getattr(bvlci, k)
+                setattr(self, k, list(v) if isinstance(v, list) else v)
 
     def encode(self) -> PDU:
         """Encode the contents of the LPCI into a PDU."""
@@ -362,7 +365,7 @@ class LPCI(PCI, DebugContents):
         has_originating_virtual_address = control_flags & 0x08
         has_destination_virtual_address = control_flags & 0x04
         has_destination_options = control_flags & 0x02
-        has_data_options = control_flags & 0x08
+        has_data_options = control_flags & 0x01
         lpci.bvlcControlFlags = control_flags
 
         lpci.bvlcMessageID = pdu.get_short()
@@ -405,8 +408,9 @@ class LPCI(PCI, DebugContents):
         if use_dict is None:
             use_dict = as_class()
 
-        # skip over fields that aren't set
+        # skip over fields that aren't set, strip the DebugContents suffix
         for k in LPCI._debug_contents:
+            k = k.rstrip("+")
             if hasattr(self, k):
                 use_dict.__setitem__(k, getattr(self, k))
 
