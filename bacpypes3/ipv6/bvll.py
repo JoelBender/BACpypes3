@@ -939,7 +939,7 @@ class VirtualAddressResolutionACK(LPDU):
         source_virtual_address = VirtualAddress(pdu.get_data(3))
         destination_virtual_address = VirtualAddress(pdu.get_data(3))
 
-        return AddressResolutionACK(source_virtual_address, destination_virtual_address)
+        return VirtualAddressResolutionACK(source_virtual_address, destination_virtual_address)
 
     def lpdu_contents(
         self,

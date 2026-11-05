@@ -229,7 +229,41 @@ def enumerated_encode(value):
 
 def enumerated_decode(value, class_):
     assert isinstance(value, str)
-    return class_(value)
+    try:
+        return class_(value)
+    except ValueError as err:
+        signature = class_.__dict__.get("_signature", ())
+        if class_ is not Enumerated and ("cls", Enumerated) not in signature:
+            raise
+
+        # A generic Enumerated does not have a name map, but values from a
+        # concrete enumeration can retain their name when wrapped in one.
+        # Recover that value when the name identifies only one numeric value.
+        enum_classes = [Enumerated]
+        seen_enum_classes = set()
+        enum_values = []
+        while enum_classes:
+            enum_class = enum_classes.pop()
+            if enum_class in seen_enum_classes:
+                continue
+            seen_enum_classes.add(enum_class)
+            for enum_subclass in enum_class.__subclasses__():
+                enum_classes.append(enum_subclass)
+                if value in enum_subclass._enum_map:
+                    enum_values.append((enum_subclass, enum_subclass._enum_map[value]))
+
+        numeric_values = {numeric_value for _, numeric_value in enum_values}
+        if len(numeric_values) > 1:
+            raise ValueError(f"ambiguous enumerated value: {value}") from err
+        if numeric_values:
+            numeric_value = numeric_values.pop()
+            enum_value = next(
+                enum_class(value)
+                for enum_class, candidate_value in enum_values
+                if candidate_value == numeric_value
+            )
+            return class_(enum_value)
+        raise
 
 
 def date_encode(value):

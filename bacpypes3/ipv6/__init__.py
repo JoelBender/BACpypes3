@@ -122,10 +122,17 @@ class IPv6DatagramServer(Server[PDU]):
     async def retrying_create_datagram_endpoint(
         self, loop: asyncio.events.AbstractEventLoop, local_socket: socket.socket
     ):
+        # Factory that wires .server on the protocol BEFORE the socket can
+        # deliver anything — see the matching comment in ipv4/__init__.py.
+        def protocol_factory() -> "IPv6DatagramProtocol":
+            protocol = IPv6DatagramProtocol()
+            protocol.server = self
+            return protocol
+
         while True:
             try:
                 return await loop.create_datagram_endpoint(
-                    IPv6DatagramProtocol,
+                    protocol_factory,
                     sock=local_socket,
                 )
             except OSError:

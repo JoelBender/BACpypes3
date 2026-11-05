@@ -248,8 +248,8 @@ class Tag:
             else:
                 # tag_lvt contains length
                 tag.tag_data = pdu_data.get_data(tag.tag_lvt)
-        except DecodingError:
-            raise InvalidTag("invalid tag encoding")
+        except DecodingError as err:
+            raise InvalidTag(f"invalid tag encoding: {err}") from err
 
         return tag
 
@@ -720,7 +720,7 @@ class ElementInterface:
         # get the value, wait for it if necessary
         value = getter()
         if _debug:
-            ElementInterface._debug("    - value:", value)
+            ElementInterface._debug("    - value: %r", value)
         if inspect.isawaitable(value):
             if _debug:
                 ElementInterface._debug("    - awaitable")

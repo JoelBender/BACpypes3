@@ -127,8 +127,19 @@ class WhoIsFuture:
         if (self.high_limit is not None) and (device_instance > self.high_limit):
             return
 
-        # if we're only looking for one we found it
+        # if we're only looking for one we found it - but the future may
+        # already be resolved: who_is_timeout() can fire (or a previous
+        # matching I-Am can arrive) before who_is_done() has had a chance
+        # to run and remove this future from app._who_is_futures, because
+        # add_done_callback() schedules that removal rather than running
+        # it synchronously with set_result(). A duplicate/retransmitted
+        # I-Am, or simply more than one device replying to the same
+        # Who-Is, hits this every time without the guard.
         if self.only_one:
+            if self.future.done():
+                if _debug:
+                    WhoIsFuture._debug("    - already resolved, ignoring")
+                return
             if _debug:
                 WhoIsFuture._debug("    - found it")
             self.future.set_result([apdu])
@@ -157,6 +168,14 @@ class WhoIsFuture:
         future."""
         if _debug:
             WhoIsFuture._debug("who_is_timeout")
+
+        # match() may have already resolved this future (see the comment
+        # there) if an I-Am arrived in the same event loop iteration that
+        # the timeout was scheduled to fire in
+        if self.future.done():
+            if _debug:
+                WhoIsFuture._debug("    - already resolved, ignoring")
+            return
 
         self.future.set_result(list(self.i_ams.values()))
 
