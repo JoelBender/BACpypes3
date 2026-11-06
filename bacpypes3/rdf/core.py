@@ -15,9 +15,10 @@ from ..debugging import bacpypes_debugging, ModuleLogger, btox
 from ..pdu import Address
 from ..primitivedata import (
     Atomic,
+    Element,
     ObjectIdentifier,
 )
-from ..basetypes import PropertyIdentifier
+from ..basetypes import DateTime, PropertyIdentifier
 from ..constructeddata import Sequence, ExtendedList
 
 from .util import (
@@ -27,6 +28,7 @@ from .util import (
     attr_to_predicate,
     sequence_to_graph,
     extendedlist_to_graph,
+    value_encode,
 )
 
 # some debugging
@@ -346,23 +348,27 @@ class ObjectProxy:
         s = self._object_iri
         p = attr_to_predicate(attr)
 
-        if isinstance(value, Literal):
+        if isinstance(value, (Literal, URIRef, BNode)):
             o = value
-        elif isinstance(value, Atomic):
-            # the encoders add triples (bit strings as RDF lists), so they need
-            # the rdflib Graph, not the BACnetGraph wrapper
-            o = atomic_encode(g, value)
         elif isinstance(value, ExtendedList):
             # ArrayOf/ListOf/SequenceOf become RDF lists; extendedlist_to_graph
             # adds the (s, p, list) triple itself, so replace any existing value
             g.remove((s, p, None))
             extendedlist_to_graph(value, s, p, g)
             return
-        elif isinstance(value, Sequence):
+        elif isinstance(value, Sequence) and not isinstance(value, DateTime):
             o = _blank_node()
             sequence_to_graph(value, o, g)
-        else:
+        elif isinstance(value, Element):
+            # atomic values, DateTime, Any, AnyAtomic (schedule-default,
+            # relinquish-default, ...); the encoders add triples (bit strings
+            # as RDF lists), so they need the rdflib Graph, not the wrapper.
+            # Raises TypeError rather than writing a Python repr.
+            o = value_encode(g, value)
+        elif isinstance(value, (str, int, float, bool)):
             o = Literal(value)
+        else:
+            raise TypeError(f"{attr}: unable to encode {type(value).__name__}")
 
         # uses the convenience function which removes existing triples for
         # functional properties
