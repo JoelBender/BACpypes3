@@ -138,6 +138,57 @@ def test_network_message_to_remote_station():
         assert key not in npdu_contents
 
 
+@pytest.mark.parametrize(
+    "dnet_dlen_dadr, message, function, destination_class, destination",
+    [
+        # Reject-Message-To-Network, reason 1, DNET 10500, to a remote station
+        (
+            "2904 01 07",
+            "03 01 2904",
+            "RejectMessageToNetwork",
+            RemoteStation,
+            "10500:7",
+        ),
+        # Who-Is-Router-To-Network 10500, to a remote broadcast
+        ("2904 00", "00 2904", "WhoIsRouterToNetwork", RemoteBroadcast, "10500:*"),
+    ],
+)
+def test_network_message_with_source_and_destination(
+    dnet_dlen_dadr, message, function, destination_class, destination
+):
+    """A network layer message with both SNET/SADR and DNET/DADR."""
+    # version, control (network message, DNET and SNET present), DNET/DLEN/DADR,
+    # SNET 11651, SLEN 1, SADR 02, hop count 255, then the message
+    npdu = bytes.fromhex(f"01 a8 {dnet_dlen_dadr} 2d83 01 02 ff {message}")
+    frame, contents = decode(original_broadcast(npdu), source="10.0.1.20")
+
+    # the end-to-end addresses are SADR and DADR, the link-level source is
+    # the router that put it on this network
+    assert type(frame.npdu).__name__ == function
+    assert frame.npdu.pduSource == RemoteStation(11651, b"\x02")
+    assert type(frame.npdu.pduDestination) is destination_class
+    assert str(frame.npdu.pduDestination) == destination
+    assert frame.npci.pduSource == IPv4Address("10.0.1.20")
+
+    npci = contents["npci"]
+    assert (npci["snet"], npci["slen"], npci["sadr"]) == (11651, 1, "02")
+    assert npci["_source"] == "11651:2"
+    assert npci["_destination"] == destination
+    assert list(npci).index("_source") == list(npci).index("sadr") + 1
+    assert list(npci).index("_destination") == list(npci).index("dadr") + 1
+    assert npci["hop_count"] == 255
+
+    npdu_contents = contents["npdu"]
+    assert list(npdu_contents)[:2] == ["_source", "_destination"]
+    assert npdu_contents["_source"] == "11651:2"
+    assert npdu_contents["_destination"] == destination
+    assert npdu_contents["function"] == function
+
+    # the routing header is only in the npci
+    for key in ("dnet", "dlen", "dadr", "snet", "slen", "sadr", "hop_count"):
+        assert key not in npdu_contents
+
+
 def test_i_am_router_to_network():
     """The router is the link-level source, there is no SADR."""
     npdu = bytes.fromhex("01800127252726")
