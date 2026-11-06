@@ -2,8 +2,90 @@
 
 """
 Analysis - Decoding pcap files and packets
+
+This module decodes BACnet traffic, from pcap files or captured live from a
+network interface, into frames with the BVLL, NPDU and APDU layers decoded.
+It needs the optional ``python-libpcap`` package (the ``pylibpcap`` module).
+
+Run as a program it prints each frame as JSON::
+
+    python -m bacpypes3.analysis capture.pcap [more.pcap ...]
+    python -m bacpypes3.analysis -i eth0 [-f "udp port 47808"] [-c 100]
+
+Permission to capture from an interface
+---------------------------------------
+
+Reading a pcap file only needs read access to the file.  Capturing from an
+interface (``-i``, or ``decode_iface()``) opens a raw packet socket, and on
+Linux that requires the ``CAP_NET_RAW`` capability.  Ordinary users don't have
+it, and the capture fails with::
+
+    Attempt to create packet socket failed - CAP_NET_RAW may be required
+
+``decode_iface()`` raises this as a ``PermissionError``, and the command line
+program prints a short summary of the options below.  There are three ways
+around it:
+
+1.  Run the capture as root::
+
+        sudo .venv/bin/python -m bacpypes3.analysis -i eth0
+
+    Name the virtual environment's interpreter explicitly: ``sudo`` resets
+    ``PATH``, so a plain ``python`` would be the system interpreter, which
+    probably doesn't have ``pylibpcap`` (or bacpypes3) installed.  This is
+    the simplest choice for an occasional capture, but the whole program,
+    including any packet decoding bugs, runs as root.
+
+2.  Capture with ``dumpcap`` or ``tcpdump``, then decode the file::
+
+        dumpcap -i eth0 -f "udp port 47808" -a duration:60 -F pcap -w capture.pcap
+        python -m bacpypes3.analysis capture.pcap
+
+    No privileges are needed to decode.  When Wireshark is installed on
+    Debian/Ubuntu and "non-superusers may capture packets" is selected,
+    ``/usr/bin/dumpcap`` is given ``cap_net_raw,cap_net_admin`` and members
+    of the ``wireshark`` group can run it as themselves (check with
+    ``getcap /usr/bin/dumpcap`` and ``id -nG``; run
+    ``sudo dpkg-reconfigure wireshark-common`` and
+    ``sudo usermod -aG wireshark $USER`` to set it up, then log in again).
+    ``-F pcap`` writes classic pcap rather than pcapng; ``-a duration:60`` stops
+    after a minute (or use ``-c <count>``, or stop it with Ctrl-C).
+    ``sudo tcpdump -i eth0 -w capture.pcap udp port 47808`` works too.
+
+    This is the least privileged choice and the best one for routine use.
+    The drawback is that packets are not decoded as they arrive.
+
+3.  Give the Python interpreter the capability::
+
+        sudo setcap cap_net_raw,cap_net_admin=eip "$(readlink -f .venv/bin/python)"
+
+    After this, ``-i`` works as an ordinary user.  ``setcap`` does not follow
+    symbolic links, and a virtual environment's ``python`` is usually a
+    link, hence the ``readlink -f``.  Things to know before doing this:
+
+    *   The capability belongs to the interpreter binary, not to this
+        module, so *every* script run with that interpreter can open raw
+        sockets.  An interpreter managed by uv or pyenv is shared by all of
+        the virtual environments created from it.  A safer variant is a
+        dedicated copy of the interpreter used only for capturing.
+    *   It is lost when the binary is replaced, for example when uv or the
+        system package manager installs a new Python release, and has to be
+        applied again.
+    *   It has no effect on a file system mounted ``nosuid``.
+    *   Remove it with ``sudo setcap -r <path>``.
+
+    ``CAP_NET_RAW`` is what opening the socket requires; ``cap_net_admin``
+    is included to match what Wireshark gives ``dumpcap``.
+
+Inside a container, capturing also needs the capability granted to the
+container, for example ``docker run --cap-add NET_RAW ...``.  On macOS the
+equivalent restriction is access to the ``/dev/bpf*`` devices, which the
+Wireshark installer's "ChmodBPF" component grants to the ``access_bpf``
+group; on Windows, live capture needs Npcap installed.
 """
 
+import sys
+import os
 import time
 import socket
 import struct
@@ -60,8 +142,10 @@ from .apdu import (
 )
 
 pylibpcap = None
+LibpcapError: Any = None
 try:
     import pylibpcap
+    from pylibpcap.exception import LibpcapError
 except ImportError:
     pass
 
@@ -1229,17 +1313,35 @@ def decode_iface(
     if linktype not in _supported_linktypes:
         raise ValueError(f"{iface}: unsupported link type: {linktype}")
 
-    # generator function yields (len, timestamp, data) tuple
-    gen_fn = pylibpcap.sniff(
-        iface,
-        count=count,
-        promisc=promisc,
-        snaplen=snaplen,
-        filters=filters,
-        timeout=timeout,
-    )
+    # generator function yields (len, timestamp, data) tuple, opening the
+    # capture fails here if the process isn't allowed to
+    try:
+        gen_fn = pylibpcap.sniff(
+            iface,
+            count=count,
+            promisc=promisc,
+            snaplen=snaplen,
+            filters=filters,
+            timeout=timeout,
+        )
+    except LibpcapError as err:
+        if _is_permission_error(str(err)):
+            raise PermissionError(
+                f"{iface}: {err} (see the bacpypes3.analysis module documentation)"
+            ) from err
+        raise
 
     yield from _decode_packets(gen_fn, linktype)
+
+
+def _is_permission_error(message: str) -> bool:
+    """Return true if a libpcap error message says the capture failed because
+    the process lacks the privileges to open the interface."""
+    message = message.lower()
+    return any(
+        phrase in message
+        for phrase in ("cap_net_raw", "permission", "not permitted")
+    )
 
 
 class TracerState(Enum):
@@ -1475,6 +1577,27 @@ if __name__ == "__main__":
 
     except KeyboardInterrupt:
         pass
+    except PermissionError as err:
+        iface = args.interface
+        python = os.path.realpath(sys.executable)
+        sys.stderr.write(
+            f"error: {err}\n"
+            "\n"
+            "Capturing from an interface needs the CAP_NET_RAW capability, either:\n"
+            "\n"
+            "  - run as root:\n"
+            f"        sudo {sys.executable} -m bacpypes3.analysis -i {iface}\n"
+            "\n"
+            "  - capture with dumpcap (or tcpdump) and decode the file:\n"
+            f"        dumpcap -i {iface} -f '{args.filter}' -F pcap -w capture.pcap\n"
+            "        python -m bacpypes3.analysis capture.pcap\n"
+            "\n"
+            "  - give the interpreter the capability (every script it runs gets it):\n"
+            f"        sudo setcap cap_net_raw,cap_net_admin=eip {python}\n"
+            "\n"
+            "See 'python -m pydoc bacpypes3.analysis' for details.\n"
+        )
+        sys.exit(1)
     except Exception as err:
         _log.exception("an error has occurred: %s", err)
     finally:

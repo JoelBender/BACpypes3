@@ -101,5 +101,7 @@ except ImportError:
 #
 #   Analysis
 #
-
-from . import analysis
+#   Not imported here: it is also run as a program (python -m
+#   bacpypes3.analysis), and importing it with the package would load it
+#   twice and make runpy warn.  Use "from bacpypes3 import analysis".
+#
