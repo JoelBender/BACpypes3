@@ -1,30 +1,25 @@
 #!/usr/bin/env python
 
 """
-Discover Devices and Object
+Discover Devices and Objects
 """
 
 import sys
 import asyncio
 import argparse
-import logging
-from typing import List
 
 # --- RDF Imports ---
-from rdflib import Graph, Namespace  # type: ignore
+from rdflib import Graph, Namespace, URIRef  # type: ignore
 from bacpypes3.rdf import BACnetGraph
+from bacpypes3.rdf.core import set_identifier_functions
 
 # --- BACpypes3 Imports ---
 from bacpypes3.argparse import SimpleArgumentParser
 from bacpypes3.app import Application
-from bacpypes3.pdu import Address
 from bacpypes3.primitivedata import ObjectIdentifier
 from bacpypes3.basetypes import PropertyIdentifier
-from bacpypes3.apdu import AbortPDU, ErrorRejectAbortNack
+from bacpypes3.apdu import ErrorRejectAbortNack
 from bacpypes3.vendor import get_vendor_info
-
-# Setup basic logging
-log = logging.getLogger(__name__)
 
 # globals
 args: argparse.Namespace
@@ -38,51 +33,8 @@ def device_node(
     return Namespace(args.namespace)[str(device_identifier[1])]
 
 
-# hack in the functions
-import bacpypes3.rdf.core
-
-bacpypes3.rdf.core._device_node = device_node
-
-
-async def get_device_object_list_robust(
-    app: Application, device_address: Address, device_identifier: ObjectIdentifier
-) -> List[ObjectIdentifier]:
-    """
-    Robustly reads object list.
-    """
-    # 1. Try reading entire array
-    try:
-        obj_list = await app.read_property(
-            device_address, device_identifier, "object-list"
-        )
-        return obj_list
-    except (AbortPDU, ErrorRejectAbortNack):
-        pass
-    except Exception:
-        sys.stderr.write(
-            "error reading object-list from {device_identifier} at {device_address}: {e}\n"
-        )
-
-    obj_list = []
-    try:
-        # Read the Length (Index 0)
-        list_len = await app.read_property(
-            device_address, device_identifier, "object-list", array_index=0
-        )
-
-        # Loop through indices
-        for i in range(list_len):
-            object_identifier = await app.read_property(
-                device_address, device_identifier, "object-list", array_index=i + 1
-            )
-            obj_list.append(object_identifier)
-    except Exception:
-        sys.stderr.write(
-            "error reading object-list element from {device_identifier} at {device_address}: {e}\n"
-        )
-        return []
-
-    return obj_list
+# use this function for device node identifiers
+set_identifier_functions(device_node_fn=device_node)
 
 
 async def main() -> None:
@@ -115,6 +67,7 @@ async def main() -> None:
 
             # RDF Device Node
             dev_graph = bacnet_graph.create_device(device_address, device_identifier)
+            dev_obj = dev_graph.create_object(device_identifier)
 
             # get at least the basic information from the device in case it
             # doesn't support the object-list property
@@ -123,27 +76,32 @@ async def main() -> None:
                     property_value = await app.read_property(
                         device_address, device_identifier, property_name
                     )
-                    setattr(dev_graph, property_name, property_value)
+                    setattr(dev_obj, property_name, property_value)
                 except (ErrorRejectAbortNack, AttributeError):
                     continue
                 except Exception as e:
                     sys.stderr.write(
-                        "error reading {property_name} from {device_identifier} at {device_address}: {e}\n"
+                        f"error reading {property_name} from {device_identifier} at {device_address}: {e}\n"
                     )
                     continue
 
-            # get the object list, all at once if you can
-            obj_list = await get_device_object_list_robust(
-                app, device_address, device_identifier
-            )
-            if not obj_list:
+            # get the object list, all at once if possible, otherwise one
+            # element at a time
+            try:
+                obj_list = await app.read_object_list(
+                    device_address, device_identifier
+                )
+            except (ErrorRejectAbortNack, Exception) as e:
+                sys.stderr.write(
+                    f"error reading object-list from {device_identifier} at {device_address}: {e}\n"
+                )
                 continue
 
             for object_identifier in obj_list:
                 obj_proxy = dev_graph.create_object(object_identifier)
 
                 # given the object type from its object id, see if the
-                # coorresponding class is supported
+                # corresponding class is supported
                 obj_class = vendor_info.get_object_class(object_identifier[0])
                 if not obj_class:
                     continue
@@ -177,9 +135,9 @@ async def main() -> None:
 
                     except (ErrorRejectAbortNack, AttributeError):
                         continue
-                    except Exception:
+                    except Exception as e:
                         sys.stderr.write(
-                            "error reading {property_name} from {object_identifier} of {device_identifier}: {e}\n"
+                            f"error reading {property_name} from {object_identifier} of {device_identifier}: {e}\n"
                         )
                         continue
 

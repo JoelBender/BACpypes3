@@ -8,13 +8,13 @@ import asyncio
 
 from typing import List, Optional
 
-from bacpypes3.debugging import bacpypes_debugging, ModuleLogger
+from bacpypes3.debugging import ModuleLogger
 from bacpypes3.argparse import SimpleArgumentParser
 
 from bacpypes3.pdu import Address
 from bacpypes3.primitivedata import ObjectIdentifier
 from bacpypes3.basetypes import PropertyIdentifier
-from bacpypes3.apdu import AbortReason, AbortPDU, ErrorRejectAbortNack
+from bacpypes3.apdu import ErrorRejectAbortNack
 from bacpypes3.app import Application
 from bacpypes3.vendor import get_vendor_info
 
@@ -24,61 +24,6 @@ _log = ModuleLogger(globals())
 
 # globals
 show_warnings: bool = False
-
-
-@bacpypes_debugging
-async def object_identifiers(
-    app: Application, device_address: Address, device_identifier: ObjectIdentifier
-) -> List[ObjectIdentifier]:
-    """
-    Read the entire object list from a device at once, or if that fails, read
-    the object identifiers one at a time.
-    """
-
-    # try reading the whole thing at once, but it might be too big and
-    # segmentation isn't supported
-    try:
-        object_list = await app.read_property(
-            device_address, device_identifier, "object-list"
-        )
-        return object_list
-    except AbortPDU as err:
-        if err.apduAbortRejectReason != AbortReason.segmentationNotSupported:
-            if show_warnings:
-                sys.stderr.write(f"{device_identifier} object-list abort: {err}\n")
-            return []
-    except ErrorRejectAbortNack as err:
-        if show_warnings:
-            sys.stderr.write(f"{device_identifier} object-list error/reject: {err}\n")
-        return []
-
-    # fall back to reading the length and each element one at a time
-    object_list = []
-    try:
-        # read the length
-        object_list_length = await app.read_property(
-            device_address,
-            device_identifier,
-            "object-list",
-            array_index=0,
-        )
-
-        # read each element individually
-        for i in range(object_list_length):
-            object_identifier = await app.read_property(
-                device_address,
-                device_identifier,
-                "object-list",
-                array_index=i + 1,
-            )
-            object_list.append(object_identifier)
-    except ErrorRejectAbortNack as err:
-        if show_warnings:
-            sys.stderr.write(
-                f"{device_identifier} object-list length error/reject: {err}\n"
-            )
-
-    return object_list
 
 
 async def main() -> None:
@@ -114,7 +59,14 @@ async def main() -> None:
         if _debug:
             _log.debug("    - vendor_info: %r", vendor_info)
 
-        object_list = await object_identifiers(app, device_address, device_identifier)
+        # read the entire object list at once, or one element at a time if
+        # it is too big and the device cannot segment the response
+        object_list: List[ObjectIdentifier] = []
+        try:
+            object_list = await app.read_object_list(device_address, device_identifier)
+        except ErrorRejectAbortNack as err:
+            if show_warnings:
+                sys.stderr.write(f"{device_identifier} object-list error: {err}\n")
         for object_identifier in object_list:
             object_class = vendor_info.get_object_class(object_identifier[0])
             if _debug:

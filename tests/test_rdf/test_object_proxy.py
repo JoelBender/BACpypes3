@@ -89,6 +89,24 @@ class TestObjectProxy(unittest.TestCase):
         assert float(g.value(slots[7], BACNET["real"])) == 12.0
         assert g.value(slots[0], BACNET["real"]) is None
 
+    def test_get_returns_stored_node(self):
+        g, obj = object_proxy()
+        obj.objectName = CharacterString("AO-1")
+        assert obj.objectName == Literal("AO-1")
+        # hyphenated and camelCase names map to the same predicate
+        assert getattr(obj, "object-name") == Literal("AO-1")
+
+    def test_get_set_by_create_object(self):
+        g, obj = object_proxy()
+        assert obj.objectType == BACNET["ObjectType.analog-output"]
+
+    def test_get_missing_raises_attribute_error(self):
+        g, obj = object_proxy()
+        with self.assertRaises(AttributeError) as cm:
+            obj.presentValue
+        assert str(cm.exception) == "presentValue"
+        assert not hasattr(obj, "presentValue")
+
     def test_array_replaces_previous_value(self):
         g, obj = object_proxy()
         obj.stateText = ArrayOf(CharacterString)(["Off", "On"])

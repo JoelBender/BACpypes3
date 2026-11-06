@@ -15,15 +15,12 @@ import asyncio
 import csv
 import logging
 from pathlib import Path
-from typing import List
 
 # --- BACpypes3 Imports ---
 from bacpypes3.argparse import SimpleArgumentParser
 from bacpypes3.app import Application
-from bacpypes3.pdu import Address
-from bacpypes3.primitivedata import ObjectIdentifier
 from bacpypes3.basetypes import PropertyIdentifier, PriorityArray
-from bacpypes3.apdu import AbortPDU, ErrorRejectAbortNack
+from bacpypes3.apdu import ErrorRejectAbortNack
 from bacpypes3.vendor import get_vendor_info
 from bacpypes3.constructeddata import AnyAtomic
 
@@ -56,54 +53,6 @@ def format_priority_array(pa: PriorityArray) -> str:
 
     items = [f"{k}: {v}" for k, v in out_dict.items()]
     return "{" + ", ".join(items) + "}"
-
-
-async def get_device_object_list_robust(
-    app: Application, device_address: Address, device_identifier: ObjectIdentifier
-) -> List[ObjectIdentifier]:
-    """
-    Robustly reads object list with visual feedback (dots).
-    """
-    # 1. Try reading entire array
-    try:
-        val = await app.read_property(device_address, device_identifier, "object-list")
-        if isinstance(val, list):
-            # print(f" [Success: {len(val)} objects]", file=sys.stderr)
-            return val
-    except (AbortPDU, ErrorRejectAbortNack):
-        pass
-    except Exception as e:
-        print(f" [Array Read Error: {e}]", file=sys.stderr)
-
-    # 2. Fallback: Read index by index
-    print(
-        "\n    (Fallback: Reading index-by-index...)",
-        end="",
-        flush=True,
-        file=sys.stderr,
-    )
-    obj_list = []
-    try:
-        # Read the Length (Index 0)
-        list_len = await app.read_property(
-            device_address, device_identifier, "object-list", array_index=0
-        )
-
-        # Loop through indices
-        for i in range(list_len):
-            obj_id = await app.read_property(
-                device_address, device_identifier, "object-list", array_index=i + 1
-            )
-            obj_list.append(obj_id)
-            if i % 10 == 0:
-                print(".", end="", flush=True, file=sys.stderr)
-
-        print(" Done)", file=sys.stderr)
-        return obj_list
-
-    except Exception as e:
-        print(f" Failed: {e})", file=sys.stderr)
-        return []
 
 
 async def main() -> None:
@@ -211,7 +160,7 @@ async def main() -> None:
             try:
                 dev_name = await app.read_property(dev_addr, dev_id, "object-name")
                 dev_desc = await app.read_property(dev_addr, dev_id, "description")
-            except (AbortPDU, ErrorRejectAbortNack):
+            except ErrorRejectAbortNack:
                 pass
             except Exception as e:
                 print(f" [Read Property Error: {e}]", file=sys.stderr)
@@ -233,7 +182,13 @@ async def main() -> None:
             )
 
             # --- Process Sub-Objects ---
-            obj_list = await get_device_object_list_robust(app, dev_addr, dev_id)
+            # read the entire object list at once, or one element at a time
+            # if it is too big and the device cannot segment the response
+            try:
+                obj_list = await app.read_object_list(dev_addr, dev_id)
+            except (ErrorRejectAbortNack, Exception) as e:
+                print(f"    ! object-list read failed: {e}", file=sys.stderr)
+                continue
 
             if not obj_list:
                 print("    ! No objects found or read failed.", file=sys.stderr)

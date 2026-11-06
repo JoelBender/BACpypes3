@@ -324,18 +324,13 @@ class ObjectProxy:
         p = attr_to_predicate(attr)
 
         # uses the convenience function for functional properties
-        o = self._graph.value(s, p, default=None)
+        o = self._graph.graph.value(s, p, default=None)
         if o is None:
             raise AttributeError(attr)
 
-        # attempt to interpret the thing as a primitive or constructed value
-        value: Any
-        if (self._object_cls is None) or (self._object_cls not in self._elements):
-            value = o
-        else:
-            raise NotImplementedError(attr)
-
-        return value
+        ###TODO decode the node into a BACnet value using self._object_cls,
+        # until then return the RDF node (Literal, URIRef or BNode) as-is
+        return o
 
     def __setattr__(self, attr: str, value: Any) -> None:
         if attr.startswith("_"):  # (attr not in self._elements) or (value is None):
