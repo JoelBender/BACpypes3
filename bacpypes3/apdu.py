@@ -2175,6 +2175,15 @@ class SubscribeCOVPropertyMultipleError(ErrorSequence):
         _context=1, _optional=True
     )
 
+    @property
+    def reason(self) -> int:
+        # the error code is in whichever choice is present
+        if self.errorType is not None:
+            return self.errorType.errorCode  # type: ignore[no-any-return]
+        if self.firstFailedSubscription is not None:
+            return self.firstFailedSubscription.errorType.errorCode  # type: ignore[no-any-return]
+        raise ValueError("errorType or firstFailedSubscription required")
+
 
 error_types[30] = SubscribeCOVPropertyMultipleError
 
