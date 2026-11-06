@@ -2534,6 +2534,8 @@ class ObjectType(Enumerated):
     calendar = 6
     channel = 53
     characterstringValue = 40
+    color = 63
+    colorTemperature = 64
     command = 7
     credentialDataInput = 37
     datePatternValue = 41
@@ -2667,6 +2669,9 @@ class PropertyIdentifier(Enumerated):
     changesPending = 416
     channelNumber = 366
     clientCovIncrement = 127
+    colorCommand = 4194334
+    colorOverride = 4194328
+    colorReference = 4194329
     command = 417
     commandTimeArray = 430
     configurationFiles = 154
@@ -2692,6 +2697,8 @@ class PropertyIdentifier(Enumerated):
     daylightSavingsStatus = 24
     daysRemaining = 267
     deadband = 25
+    defaultColor = 4194330
+    defaultColorTemperature = 4194331
     defaultFadeTime = 374
     defaultPresentValue = 492
     defaultRampRate = 375
@@ -2915,6 +2922,7 @@ class PropertyIdentifier(Enumerated):
     optional = 80
     outOfService = 81
     outputUnits = 82
+    overrideColorReference = 4194332
     packetReorderTime = 333
     passbackExemption = 299
     passbackMode = 300
