@@ -316,6 +316,30 @@ class BinaryPV(Enumerated):
     active = 1
 
 
+class ColorOperation(Enumerated):
+    none = 0
+    fadeToColor = 1
+    fadeToCct = 2
+    rampToCct = 3
+    stepUpCct = 4
+    stepDownCct = 5
+    stop = 6
+
+
+class ColorOperationInProgress(Enumerated):
+    idle = 0
+    fadeActive = 1
+    rampActive = 2
+    notControlled = 3
+    other = 4
+
+
+class ColorTransition(Enumerated):
+    none = 0
+    fade = 1
+    ramp = 2
+
+
 class ConfirmedTextMessageRequestMessagePriority(Enumerated):
     normal = 0
     urgent = 1
@@ -1518,6 +1542,8 @@ class ObjectTypesSupported(BitString):
     staging = 60
     auditLog = 61
     auditReporter = 62
+    # color (63) and colorTemperature (64) are Protocol_Revision 24; these
+    # names set the encoded length, and DeviceObject claims revision 22
 
 
 class PriorityFilter(BitString):
@@ -3326,6 +3352,29 @@ class LightingCommand(Sequence):
     priority = Unsigned(_context=5, _optional=True)
 
 
+class XYColor(Sequence):
+    _order = ("xCoordinate", "yCoordinate")
+    xCoordinate = Real()
+    yCoordinate = Real()
+
+
+class ColorCommand(Sequence):
+    _order = (
+        "operation",
+        "targetColor",
+        "targetColorTemperature",
+        "fadeTime",
+        "rampRate",
+        "stepIncrement",
+    )
+    operation = ColorOperation(_context=0)
+    targetColor = XYColor(_context=1, _optional=True)
+    targetColorTemperature = Unsigned(_context=2, _optional=True)
+    fadeTime = Unsigned(_context=3, _optional=True)
+    rampRate = Unsigned(_context=4, _optional=True)
+    stepIncrement = Unsigned(_context=5, _optional=True)
+
+
 class ChannelValue(Choice):
     null = Null()
     real = Real()
@@ -3341,6 +3390,8 @@ class ChannelValue(Choice):
     date = Date()
     objectidentifier = ObjectIdentifier()
     lightingCommand = LightingCommand(_context=0)
+    xyColor = XYColor(_context=1)
+    colorCommand = ColorCommand(_context=2)
 
 
 class GroupChannelValue(Sequence):

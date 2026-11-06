@@ -76,6 +76,9 @@ from .basetypes import (
     CalendarEntry,
     ChannelValue,
     ClientCOV,
+    ColorCommand,
+    ColorOperationInProgress,
+    ColorTransition,
     COVMultipleSubscription,
     COVSubscription,
     CredentialAuthenticationFactor,
@@ -187,6 +190,7 @@ from .basetypes import (
     VTClass,
     VTSession,
     WriteStatus,
+    XYColor,
 )
 from .vendor import get_vendor_info
 
@@ -1325,6 +1329,52 @@ class CharacterStringValueObject(Object):
     auditPriorityFilter: OptionalPriorityFilter
 
 
+class ColorObject(Object):
+    _required = (
+        "presentValue",
+        "trackingValue",
+        "colorCommand",
+        "inProgress",
+        "defaultColor",
+        "defaultFadeTime",
+    )
+    objectType = ObjectType("color")
+    presentValue: XYColor
+    trackingValue: XYColor
+    colorCommand: ColorCommand
+    inProgress: ColorOperationInProgress
+    defaultColor: XYColor
+    defaultFadeTime: Unsigned
+    transition: ColorTransition
+    valueSource: ValueSource
+
+
+class ColorTemperatureObject(Object):
+    _required = (
+        "presentValue",
+        "trackingValue",
+        "colorCommand",
+        "inProgress",
+        "defaultColorTemperature",
+        "defaultFadeTime",
+        "defaultRampRate",
+        "defaultStepIncrement",
+    )
+    objectType = ObjectType("colorTemperature")
+    presentValue: Unsigned
+    trackingValue: Unsigned
+    colorCommand: ColorCommand
+    inProgress: ColorOperationInProgress
+    defaultColorTemperature: Unsigned
+    defaultFadeTime: Unsigned
+    defaultRampRate: Unsigned
+    defaultStepIncrement: Unsigned
+    transition: ColorTransition
+    minPresValue: Unsigned
+    maxPresValue: Unsigned
+    valueSource: ValueSource
+
+
 class CommandObject(Object):
     _required = ("presentValue", "inProcess", "allWritesSuccessful", "action")
     objectType = ObjectType("command")
@@ -2070,6 +2120,9 @@ class LightingOutputObject(Object):
     lastCommandTime: TimeStamp
     commandTimeArray: ArrayOf(TimeStamp, _length=16)
     auditPriorityFilter: OptionalPriorityFilter
+    colorOverride: Boolean
+    colorReference: ObjectIdentifier
+    overrideColorReference: ObjectIdentifier
 
 
 class LoadControlObject(Object):
