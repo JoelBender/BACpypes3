@@ -865,6 +865,11 @@ class ErrorRejectAbortNack(BaseException):
     @property
     def reason(self) -> int:
         if isinstance(self, ErrorPDU):
+            # errors like WritePropertyMultipleError and CreateObjectError
+            # wrap the class and code in an errorType
+            error_type = getattr(self, "errorType", None)
+            if error_type is not None:
+                return error_type.errorCode  # type: ignore[no-any-return]
             return self.errorCode  # type: ignore[attr-defined]
         elif isinstance(self, (RejectPDU, AbortPDU)):
             return self.apduAbortRejectReason
