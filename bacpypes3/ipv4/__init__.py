@@ -138,18 +138,14 @@ class IPv4DatagramServer(Server[PDU]):
 
             # Windows takes care of the broadcast, but Linux needs a broadcast endpoint
             if "nt" not in os.name:
-                if bind_socket:
-                    broadcast_endpoint_task = loop.create_task(
-                        self.retrying_create_datagram_endpoint(
-                            loop, address.addrBroadcastTuple, bind_socket=bind_socket
-                        )
+                # bind_socket is deliberately not reused here: it is bound to
+                # address.addrTuple, but this endpoint needs address.addrBroadcastTuple,
+                # and one socket cannot back two transports.
+                broadcast_endpoint_task = loop.create_task(
+                    self.retrying_create_datagram_endpoint(
+                        loop, address.addrBroadcastTuple
                     )
-                else:
-                    broadcast_endpoint_task = loop.create_task(
-                        self.retrying_create_datagram_endpoint(
-                            loop, address.addrBroadcastTuple
-                        )
-                    )
+                )
                 if _debug:
                     IPv4DatagramServer._debug(
                         "    - broadcast_endpoint_task: %r", broadcast_endpoint_task
