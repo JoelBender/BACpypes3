@@ -10,8 +10,9 @@ the link, IP, BVLL, NPDU and APDU layers each decoded.  The traffic can come
 from pcap files, for example ones saved by Wireshark, or be captured live
 from a network interface.
 
-The module needs the optional ``python-libpcap`` package, which is included
-in the ``pylibpcap`` extra::
+Decoding files needs nothing beyond BACpypes3.  Live capture needs the
+optional ``python-libpcap`` package, which is included in the ``pylibpcap``
+extra::
 
     $ pip install "bacpypes3[pylibpcap]"
 
@@ -22,12 +23,16 @@ it from source, the library and its headers have to be installed first
 Decoding Files
 --------------
 
-Give the module one or more pcap file names and it prints each frame as a
+Give the module one or more capture file names and it prints each frame as a
 timestamp followed by a JSON object::
 
     $ python3 -m bacpypes3.analysis capture.pcap
 
-Reading a file only needs permission to read the file.
+Both classic pcap (microsecond or nanosecond) and pcapng files are read,
+and the timestamps keep the resolution of the file.  The interfaces in a
+pcapng file can have different link-layer types, and each packet is decoded
+using the type of its interface.  Reading a file only needs permission to
+read the file.
 
 Capturing From an Interface
 ---------------------------
@@ -50,7 +55,7 @@ is stopped with Ctrl-C::
       - a libpcap capture filter, the default is ``udp port 47808``
     * - ``-c``, ``--count``
       - stop after this many packets, the default is to keep going
-    * - ``-p``, ``--no-promiscous``
+    * - ``-p``, ``--no-promiscuous``
       - don't put the interface into promiscuous mode
     * - ``--timeout``
       - the libpcap read timeout in milliseconds, the default is 500
@@ -61,6 +66,66 @@ is stopped with Ctrl-C::
         comes from the interface type (Linux only), otherwise ``ethernet``
     * - ``--data``
       - include the data of each layer as hex strings
+
+Give capture files, ``-i``, or both (the files are decoded first); with
+neither it is a usage error.
+
+Addresses
+---------
+
+Each header in the output shows only what its own fields say, and the
+content of the NPDU shows where the message came from and where it is going
+in the internetwork.  For example, an I-Am forwarded by a BBMD, from a device
+on network 11651 behind a router, as a global broadcast:
+
+.. code-block:: text
+
+    "bvll": {
+        "function": "ForwardedNPDU",
+        "address": "128.253.140.59"
+    },
+    "npci": {
+        "version": 1,
+        "control": 40,
+        "dnet": 65535,
+        "dlen": 0,
+        "dadr": "",
+        "_destination": "*:*",
+        "snet": 11651,
+        "slen": 1,
+        "sadr": "02",
+        "_source": "11651:2",
+        "hop_count": 254
+    },
+    "apci": {
+        "expectingReply": false,
+        "networkPriority": 0,
+        "apduType": "UnconfirmedRequestPDU",
+        "apduService": "IAmRequest"
+    },
+    "apdu": {
+        "_source": "11651:2",
+        "_destination": "*:*",
+        "function": "IAmRequest",
+        ...
+    }
+
+* the link layer source of this message is the BBMD's original source,
+  ``128.253.140.59``, the router that put it on this network;
+* the **npci** has ``_source`` and ``_destination``, SNET/SADR and DNET/DADR
+  as BACnet addresses, when the header has them;
+* the **apci** has no addresses;
+* the **apdu** has the end-to-end ``_source`` and ``_destination``: SADR and
+  DADR when the header has them, otherwise the link-level addresses.
+
+The names start with an underscore because they are not fields of the packet,
+they are derived from the fields.
+
+A network layer message (the **npdu**, like I-Am-Router-To-Network) has its
+end-to-end ``_source`` and ``_destination`` in the same way.  In Python,
+``frame.apdu.pduSource`` and ``frame.npdu.pduSource`` are the end-to-end
+source and ``frame.npci.pduSource`` is the link-level source, which for an
+I-Am-Router-To-Network is the router.
 
 Permission to Capture
 ---------------------
@@ -193,3 +258,55 @@ the link-layer type::
             print(frame.dict_contents())
     except PermissionError as err:
         print(f"cannot capture: {err}")
+
+An application can take the same command line options as the module with
+``add_capture_arguments(parser)`` and turn them into the generators with
+``capture_sources(parser, args)``; ``capture_permission_help(err, args)``
+describes the options above for the command that is running.
+
+Tracing
+-------
+
+A *tracer* is a state machine that is given the frames one at a time and
+looks for a pattern, like a request followed by its responses.  The
+``trace()`` function creates the tracers, gives them the frames, and makes a
+new instance of a tracer class when there isn't one waiting to start, so
+overlapping requests are each followed by their own tracer.  The API is
+experimental and may change.
+
+Two samples use it, and take the same capture options as the module plus
+``--response-timeout`` (seconds, the default is 10):
+
+``samples/whois-tracer.py``
+    Matches each Who-Is with the I-Am responses in its range within the
+    response timeout, and prints the devices that responded or
+    "no match".
+
+``samples/routing-tracer.py``
+    Matches each Who-Is-Router-To-Network with the I-Am-Router-To-Network
+    responses, and flags a CONFLICT when more than one router claims a
+    network.  It also learns a routing table from every
+    I-Am-Router-To-Network (including the unsolicited ones routers send
+    when they start), reports Router-Busy-To-Network,
+    Router-Available-To-Network and Reject-Message-To-Network, and prints
+    the table at the end.
+
+Both decode capture files, or trace live until Ctrl-C::
+
+    $ python3 samples/routing-tracer.py capture.pcap
+    $ sudo .venv/bin/python samples/routing-tracer.py -i eth0
+
+Live tracing needs the same permission to capture as above.  A result is
+printed when the response timeout of its request has passed, even when the
+network is quiet: ``capture_sources(..., idle_ticks=True)`` turns the
+libpcap read timeouts (``--timeout``, 500 milliseconds) into idle ticks that
+tell the tracers the time.  This relies on libpcap returning when the read
+timeout passes with no packets, which it does on current Linux versions; on
+a platform where it doesn't, a result is printed when the next packet
+arrives.  Ctrl-C prints the results of the requests that are still waiting,
+and the routing table.
+
+A tracer subclasses ``Tracer``: ``start(frame)`` is its first state and
+``next(method)`` moves it to another one, ``tick(now)`` is called with the
+time before each frame (and on idle ticks) so it can time out, and
+``stop()`` is called when it is done or the frames run out.
