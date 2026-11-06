@@ -75,6 +75,26 @@ def test_other_error_type_errors_reason() -> None:
         assert str(error) == "unknown-object"
 
 
+def test_change_list_error_round_trip() -> None:
+    """AddListElement and RemoveListElement errors decode, see PR #166."""
+    error_type = ErrorType(errorClass="object", errorCode="unknownObject")
+
+    for service_choice in (8, 9):
+        error = ChangeListError(
+            errorType=error_type,
+            firstFailedElementNumber=1,
+            service_choice=service_choice,
+        )
+
+        decoded = round_trip(error)
+        assert type(decoded) is error_types[service_choice]
+        assert isinstance(decoded, ChangeListError)
+        assert decoded.apduService == service_choice
+        assert decoded.firstFailedElementNumber == 1
+        assert decoded.reason == ErrorCode("unknownObject")
+        assert str(decoded) == "unknown-object"
+
+
 def test_reject_reason() -> None:
     reject = RejectPDU(reason="unrecognizedService")
     assert str(reject) == "unrecognized-service"

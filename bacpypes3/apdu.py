@@ -1901,13 +1901,22 @@ for service_choice in {
 
 
 class ChangeListError(ErrorSequence):
+    """Shared by AddListElement and RemoveListElement, use the subclasses or
+    pass service_choice when constructing one directly."""
+
     _order = ("errorType", "firstFailedElementNumber")
     errorType = ErrorType(_context=0)
     firstFailedElementNumber = Unsigned(_context=1)
 
 
-error_types[8] = ChangeListError
-error_types[9] = ChangeListError
+@register_error_type
+class AddListElementError(ChangeListError):
+    service_choice = ConfirmedServiceChoice.addListElement
+
+
+@register_error_type
+class RemoveListElementError(ChangeListError):
+    service_choice = ConfirmedServiceChoice.removeListElement
 
 
 @register_error_type
