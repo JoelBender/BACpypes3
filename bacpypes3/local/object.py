@@ -544,6 +544,52 @@ class Object(_Object):
         for fn in self._property_monitors[attr]:
             fn(current_value, value)
 
+    async def write_property(  # type: ignore[override]
+        self,
+        attr: Union[int, str],
+        value: _Any,
+        index: Optional[int] = None,
+        priority: Optional[int] = None,
+    ) -> None:
+        """
+        The base class write_property() bypasses __setattr__(), so changes
+        made by WriteProperty and WritePropertyMultiple requests are checked
+        here and passed along to the property monitors.
+        """
+        if _debug:
+            Object._debug("write_property %r %r %r %r", attr, value, index, priority)
+        if isinstance(attr, int):
+            attr = self._property_identifier_class(attr).attr
+
+        # nothing extra to do if nobody is watching, don't use [] because
+        # _property_monitors is a defaultdict
+        monitors = self._property_monitors.get(attr)
+        if not monitors:
+            await super().write_property(attr, value, index, priority)
+            return
+
+        current_value = await super().read_property(attr)
+        if (index is not None) and isinstance(current_value, list):
+            # array element writes and resizing modify the array in place, so
+            # keep a copy of the old contents to compare and pass along
+            current_value = current_value.__class__(list(current_value))
+        if _debug:
+            Object._debug("    - current_value: %r", current_value)
+
+        await super().write_property(attr, value, index, priority)
+
+        new_value = await super().read_property(attr)
+        if _debug:
+            Object._debug("    - new_value: %r", new_value)
+        if new_value == current_value:
+            if _debug:
+                Object._debug("    - no change")
+            return
+
+        # tell the monitors, copy the list in case a monitor removes itself
+        for fn in list(monitors):
+            fn(current_value, new_value)
+
     @property
     def objectName(self) -> CharacterString:
         """Return the private value of the object name."""
