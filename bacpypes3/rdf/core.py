@@ -131,12 +131,14 @@ def bacnet_query(query: str) -> Any:
     return prepareQuery(query, initNs={"bacnet": BACNET})
 
 
-find_device_by_address = bacnet_query("""
+find_device_by_address = bacnet_query(
+    """
     select ?s where { ?s bacnet:device-address [
         bacnet:network-number ?net ;
         bacnet:mac-address ?addr
         ] }
-    """)
+    """
+)
 find_device_by_instance = bacnet_query(
     "select ?s where { ?s bacnet:device-instance ?device_instance .}"
 )
