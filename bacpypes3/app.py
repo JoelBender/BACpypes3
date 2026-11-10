@@ -23,6 +23,7 @@ from .apdu import (
     ConfirmedServiceChoice,
     Error,
     ErrorPDU,
+    ErrorSequence,
     IAmRequest,
     RejectPDU,
     SimpleAckPDU,
@@ -1193,6 +1194,21 @@ class Application(
             else:
                 Application._exception(
                     "abort exception processing unconfirmed request: %r", err
+                )
+
+        except ErrorSequence as err:
+            # service-specific errors like WritePropertyMultipleError are
+            # APDUs derived from BaseException, they need the response context
+            # (destination, invoke ID) of the request
+            if _debug:
+                Application._debug("    - error sequence: %r", err)
+            if is_confirmed_request:
+                err.set_context(apdu)
+                err.apduService = apdu.apduService
+                error_pdu = err
+            else:
+                Application._exception(
+                    "error sequence processing unconfirmed request: %r", err
                 )
 
         except ExecutionError as err:
