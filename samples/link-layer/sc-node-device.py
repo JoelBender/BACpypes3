@@ -68,6 +68,10 @@ async def main() -> None:
     parser.add_argument("--key", required=True, help="private key (PEM)")
     parser.add_argument("--ca", required=True, help="issuer/CA certificate(s) (PEM)")
     parser.add_argument(
+        "--vmac", default=None, help="node VMAC as 12 hex digits, e.g. 0x123456789abc"
+    )
+    parser.add_argument("--uuid", default=None, help="device UUID")
+    parser.add_argument(
         "--debug", action="store_true", help="show BACnet/SC connection logging"
     )
     args = parser.parse_args()
@@ -81,19 +85,32 @@ async def main() -> None:
         # at least surface connection warnings (TLS/connect failures)
         logging.basicConfig(level=logging.WARNING)
 
-    # every BACnet/SC device requires a stable device UUID (Clause YY.1.5.3)
+    # every BACnet/SC device requires a device UUID and a VMAC that stay the
+    # same across restarts, peers cache them, so generate them once and pass
+    # them back in with --uuid and --vmac
+    if args.uuid:
+        device_uuid = uuid.UUID(args.uuid)
+    else:
+        device_uuid = uuid.uuid4()
+        print(f"generated device UUID, use --uuid {device_uuid} next time")
+    if args.vmac:
+        vmac = SecureConnectAddress(args.vmac)
+    else:
+        vmac = SecureConnectAddress.random()
+        print(f"generated VMAC, use --vmac {vmac} next time")
+
     device_object = DeviceObject(
         objectIdentifier=("device", args.instance),
         objectName=args.name,
         vendorIdentifier=args.vendor,
-        deviceUUID=uuid.uuid4().bytes,
+        deviceUUID=device_uuid.bytes,
     )
 
-    # a secure-connect network port with a Random-48 VMAC
+    # a secure-connect network port
     primary_hub_uri = _wss_uri(args.hub)
     failover_hub_uri = _wss_uri(args.failover) if args.failover else ""
     network_port = NetworkPortObject(
-        SecureConnectAddress.random(),
+        vmac,
         objectIdentifier=("network-port", 1),
         objectName="SC Port 1",
         scPrimaryHubUri=primary_hub_uri,

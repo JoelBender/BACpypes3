@@ -294,6 +294,7 @@ class Application(
     ChangeOfValueServices,
 ):
     _debug: Callable[..., None]
+    _warning: Callable[..., None]
     _exception: Callable[..., None]
     _startup_disabled = False
 
@@ -695,21 +696,41 @@ class Application(
                 from .pdu import SecureConnectAddress
                 from .sc.link import SCNodeLinkLayer
 
-                # the node VMAC, generated if not configured
+                # the device UUID comes from the device object
+                if self.device_object is None:
+                    raise RuntimeError(
+                        "add the device object before a secure-connect network port"
+                    )
+
+                # the VMAC should be stable across restarts, peers cache it,
+                # so a generated one is written back to be saved
                 if obj.macAddress:
                     link_address = SecureConnectAddress(bytes(obj.macAddress))
                 else:
                     link_address = SecureConnectAddress.random()
                     obj.macAddress = link_address.addrAddr
+                    Application._warning(
+                        "%s has no macAddress, generated VMAC %s, configure it to"
+                        " keep it stable",
+                        obj.objectIdentifier,
+                        link_address,
+                    )
                 if _debug:
                     Application._debug("     - link_address: %r", link_address)
 
-                # every BACnet/SC device requires a device UUID
-                device_uuid = None
-                if self.device_object is not None and self.device_object.deviceUUID:
+                # every BACnet/SC device requires a device UUID that is
+                # maintained across restarts, same as the VMAC
+                if self.device_object.deviceUUID:
                     device_uuid = _uuid.UUID(bytes=bytes(self.device_object.deviceUUID))
-                if device_uuid is None:
+                else:
                     device_uuid = _uuid.uuid4()
+                    self.device_object.deviceUUID = device_uuid.bytes
+                    Application._warning(
+                        "%s has no deviceUUID, generated %s, configure it to keep"
+                        " it stable",
+                        self.device_object.objectIdentifier,
+                        device_uuid,
+                    )
 
                 # hub URIs
                 if not obj.scPrimaryHubUri:
@@ -751,6 +772,16 @@ class Application(
                     self.nsap.bind(
                         link_layer, net=obj.networkNumber, address=link_address
                     )
+
+                # a VMAC collision means a new Random-48 VMAC, which is also
+                # the address of the network adapter and the port
+                def _update_vmac(vmac, _obj=obj, _link_layer=link_layer):
+                    _obj.macAddress = vmac.addrAddr
+                    for adapter in self.nsap.adapters.values():
+                        if adapter.clientPeer is _link_layer:
+                            adapter.adapterAddr = vmac
+
+                link_layer.on_vmac_change = _update_vmac
 
                 # start maintaining the hub connection
                 link_layer.start()
