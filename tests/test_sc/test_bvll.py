@@ -6,8 +6,8 @@ Test BACnet/SC BVLL
 -------------------
 
 Encode/decode round-trip tests for all BACnet/SC BVLC message types, plus
-decode tests against the wire examples published in the standard (Addendum
-135-2016bj Figures YY-5 and YY-6, equivalent to Annex AB in 135-2020/2024).
+decode tests against the wire examples published in the standard (Figures
+AB-5 and AB-6, Figures YY-5 and YY-6 in Addendum 135-2016bj).
 """
 
 import unittest
@@ -165,7 +165,7 @@ class TestEncapsulatedNPDU(unittest.TestCase):
 
     def test_figure_yy5_decode(self):
         """Decode the Encapsulated-NPDU wire example from the standard
-        (Addendum 135-2016bj Figure YY-5).  This message conveys a
+        (Figure AB-5).  This message conveys a
         ReadProperty request being sent to the hub function for forwarding."""
         blob = (
             "01"  # BVLC function: Encapsulated-NPDU

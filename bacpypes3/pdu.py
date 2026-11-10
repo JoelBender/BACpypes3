@@ -1814,14 +1814,14 @@ class VirtualAddress(Address):
 class SecureConnectAddress(Address):
     """
     BACnet Secure Connect virtual MAC (VMAC) address.  A VMAC is a 6-octet
-    value (see ASHRAE 135 Clause H.7.X).  The reserved value
+    value (see ASHRAE 135 Clauses H.7.3 and AB.1.5.2).  The reserved value
     FF:FF:FF:FF:FF:FF is the Local Broadcast VMAC and 00:00:00:00:00:00 is
     reserved to indicate an unknown/uninitialized VMAC.
     """
 
     _debug: Callable[..., None]
 
-    # reserved VMAC values, see Clause H.7.X
+    # reserved VMAC values, see Clauses H.7.3 and AB.1.5.2
     local_broadcast = b"\xff\xff\xff\xff\xff\xff"
     unknown = b"\x00\x00\x00\x00\x00\x00"
 
@@ -1867,7 +1867,7 @@ class SecureConnectAddress(Address):
     @classmethod
     def random(cls) -> "SecureConnectAddress":
         """Generate a Random-48 VMAC: the low nibble of the first octet is
-        0x2 and the other 44 bits are random (see Clause H.7.X)."""
+        0x2 and the other 44 bits are random (see Clause H.7.3)."""
         addr = bytearray(os.urandom(6))
         addr[0] = (addr[0] & 0xF0) | 0x02
         return cls(bytes(addr))

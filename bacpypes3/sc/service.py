@@ -7,11 +7,10 @@ Secure Connect
 import asyncio
 from asyncio.tasks import Task
 import enum
-import traceback
 import uuid
 import websockets
 
-from typing import TYPE_CHECKING, Any, Callable, List, Optional, Set, Tuple, Union, cast
+from typing import TYPE_CHECKING, Any, Callable, Dict, List, Optional, Set
 
 from ..debugging import ModuleLogger, bacpypes_debugging
 
@@ -19,7 +18,6 @@ from ..comm import Client, Server, ServiceAccessPoint
 from ..pdu import (
     Address,
     LocalBroadcast,
-    IPv4Address,
     PDU,
     SecureConnectAddress,
     VirtualAddress,
@@ -571,8 +569,7 @@ class SCNodeSwitch(Server[PDU]):
 @bacpypes_debugging
 class SCBVLLServiceAccessPoint(Client[LPDU], Server[PDU], ServiceAccessPoint):
     """
-    BACnet/SC Virtual Link Layer entity (BVLL entity, see Annex AB / Clause
-    YY.1.1.1).
+    BACnet/SC Virtual Link Layer entity (BVLL entity, see Clause AB.1.1.1).
 
     This is the SC equivalent of the IPv4 BIPNormal service access point.  It
     is stacked on a BVLLCodec: as a server (top) it exchanges NPDUs with the
@@ -641,7 +638,7 @@ class SCBVLLServiceAccessPoint(Client[LPDU], Server[PDU], ServiceAccessPoint):
         lpdu.bvlcMessageID = self._next_message_id()
         lpdu.bvlcDestinationVirtualAddress = dest_vmac
         # the node is the originator, so the originating VMAC is absent; the
-        # hub function inserts it when forwarding (Clause YY.5.4)
+        # hub function inserts it when forwarding (Clause AB.5.4)
         lpdu.bvlcOriginatingVirtualAddress = None
         lpdu.pduUserData = pdu.pduUserData
         if _debug:
@@ -759,7 +756,7 @@ class HubConnectorState(enum.Enum):
     DISCONNECTING = "disconnecting"
 
 
-# WebSocket subprotocol names, see Clause YY.7.1
+# WebSocket subprotocol names, see Clause AB.7.1
 HUB_SUBPROTOCOL = "hub.bsc.bacnet.org"
 DIRECT_CONNECT_SUBPROTOCOL = "dc.bsc.bacnet.org"
 
@@ -772,12 +769,12 @@ HUB_CONNECTOR_CONNECTED_FAILOVER = 2
 @bacpypes_debugging
 class SCHubConnector(Server[PDU]):
     """
-    BACnet/SC hub connector (see Annex AB / Clause YY.1.1.2 and YY.5).
+    BACnet/SC hub connector (see Clauses AB.1.1.2 and AB.5).
 
     Maintains a single hub connection at a time, preferring the primary hub
     and falling back to the failover hub.  Runs the initiating-peer BACnet/SC
-    connection state machine (Clause YY.6.2.2), keeps the connection alive with
-    heartbeats (Clause YY.6.3), and forwards Encapsulated-NPDU BVLC messages
+    connection state machine (Clause AB.6.2.2), keeps the connection alive with
+    heartbeats (Clause AB.6.3), and forwards Encapsulated-NPDU BVLC messages
     to and from the codec above it.  Control BVLC messages are consumed here
     and are not passed up the stack.
 
@@ -933,7 +930,7 @@ class SCHubConnector(Server[PDU]):
             await conn.send(bytes(pdu.pduData))
 
     #
-    #   connection state machine (Clause YY.6.2.2, initiating peer)
+    #   connection state machine (Clause AB.6.2.2, initiating peer)
     #
 
     async def _fsm_ws_established(self) -> None:
@@ -1008,7 +1005,7 @@ class SCHubConnector(Server[PDU]):
 
         self._cancel_timer("connect_wait")
 
-        # remember the hub's identity (informational, Clause YY.6)
+        # remember the hub's identity (informational, Clause AB.6)
         self.peer_vmac = SecureConnectAddress(lpdu.vmac_address.addrAddr)
         self.peer_uuid = lpdu.device_uuid
 
@@ -1035,7 +1032,7 @@ class SCHubConnector(Server[PDU]):
             return
 
         # a duplicate VMAC was detected: choose a new Random-48 VMAC and
-        # reconnect (Clause YY.6.2.2)
+        # reconnect (Clause AB.6.2.2)
         if lpdu.error_code == ErrorCode.nodeDuplicateVmac:
             self.vmac = SecureConnectAddress.random()
             SCHubConnector._warning("duplicate VMAC, regenerated %r", self.vmac)
@@ -1066,7 +1063,7 @@ class SCHubConnector(Server[PDU]):
             await self._close_connection()
 
     #
-    #   heartbeats (Clause YY.6.3)
+    #   heartbeats (Clause AB.6.3)
     #
 
     def _restart_heartbeat(self) -> None:

@@ -5,7 +5,7 @@ BACnet Secure Connect - Transport Layer Security
 
 BACnet/SC only permits TLS-secured ("wss") WebSocket connections and requires
 mutual TLS authentication using operational credentials (see Annex AB /
-Clause YY.7.4).  This module builds the SSL contexts used by the hub connector
+Clause AB.7.4).  This module builds the SSL contexts used by the hub connector
 and, later, the hub function.
 
 For initial bring-up the operational credentials are supplied as PEM file paths
@@ -18,7 +18,6 @@ Certificate_Signing_Request_File) is deferred.
 from __future__ import annotations
 
 import ssl
-from typing import Callable
 from urllib.parse import urlparse
 
 from ..debugging import ModuleLogger, bacpypes_debugging
@@ -36,7 +35,7 @@ def require_wss(uri: str) -> None:
     """Raise a ValueError if the URI does not use the secure 'wss' scheme.
 
     BACnet/SC only permits TLS-secured WebSocket connections; a malformed URI
-    or any scheme other than 'wss' is not supported (Clause YY.5.4, YY.7.2).
+    or any scheme other than 'wss' is not supported (Clauses AB.5.4, AB.7.2).
     """
     if _debug:
         require_wss._debug("require_wss %r", uri)
@@ -52,7 +51,7 @@ def require_wss(uri: str) -> None:
 def harden_ssl_context(
     context: ssl.SSLContext, *, server_side: bool = False
 ) -> ssl.SSLContext:
-    """Apply the BACnet/SC TLS policy to an SSL context (Clause YY.7.4).
+    """Apply the BACnet/SC TLS policy to an SSL context (Clause AB.7.4).
 
     TLS 1.3 is required and mutual authentication is enforced.  Per the
     standard no hostname/subject checks are performed by default, only that the
@@ -70,7 +69,7 @@ def harden_ssl_context(
     context.check_hostname = False
     context.verify_mode = ssl.CERT_REQUIRED
 
-    # Clause YY.7.4 requires exactly four checks (well-formed, in validity
+    # Clause AB.7.4 requires exactly four checks (well-formed, in validity
     # period, not revoked if known, signed by a configured CA) and states that
     # "no additional checks beyond the above shall be performed by default".
     # Newer OpenSSL/Python enable strict X.509 verification in the default

@@ -5,7 +5,7 @@
 Test BACnet/SC hub connector state machine
 -------------------------------------------
 
-Drives the initiating-peer connection state machine (Clause YY.6.2.2) directly
+Drives the initiating-peer connection state machine (Clause AB.6.2.2) directly
 through its ``_fsm_*`` handlers with a fake WebSocket connection, so no live
 TLS socket is required.
 """

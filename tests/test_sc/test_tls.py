@@ -51,7 +51,7 @@ class TestSSLPolicy(unittest.TestCase):
         assert context.verify_mode == ssl.CERT_REQUIRED
 
     def test_strict_verification_disabled(self):
-        # Clause YY.7.4 forbids extra checks; strict X.509 verification (which
+        # Clause AB.7.4 forbids extra checks; strict X.509 verification (which
         # rejects certificates missing an Authority Key Identifier) must be off
         if not hasattr(ssl, "VERIFY_X509_STRICT"):
             self.skipTest("VERIFY_X509_STRICT not available")
@@ -62,7 +62,7 @@ class TestSSLPolicy(unittest.TestCase):
 
     def test_missing_ca_file_raises(self):
         # a non-existent issuer certificate file must fail
-        with self.assertRaises(Exception):
+        with self.assertRaises(OSError):
             create_ssl_context(
                 "nonexistent-cert.pem",
                 "nonexistent-key.pem",
