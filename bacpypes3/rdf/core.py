@@ -4,7 +4,8 @@ Core
 
 from __future__ import annotations
 
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Iterable, Optional
+from urllib.parse import quote
 
 from rdflib import Graph, Literal, BNode, URIRef  # type: ignore[import]
 from rdflib.namespace import Namespace, RDF, RDFS, XSD  # type: ignore[import]
@@ -18,13 +19,14 @@ from ..primitivedata import (
     Element,
     ObjectIdentifier,
 )
-from ..basetypes import DateTime, PropertyIdentifier
+from ..basetypes import DateTime, NetworkType, PropertyIdentifier
 from ..constructeddata import Sequence, ExtendedList
 
 from .util import (
     atomic_encode,
     unsigned_encode,
     octetstring_encode,
+    enumerated_encode,
     attr_to_predicate,
     sequence_to_graph,
     extendedlist_to_graph,
@@ -75,9 +77,24 @@ def blank_node() -> URIRef:
     return BNode()
 
 
+def network_node(network_number: int) -> URIRef:
+    """Given a network number return a URI reference for the network.  The
+    default is bacnet://network/<number>, which cannot collide with the
+    Annex Q.8 device form bacnet://<instance>; the local network is 0."""
+    return BACnetURI["//network/" + str(network_number)]
+
+
+def router_node(router_address: Address) -> URIRef:
+    """Given the address of a router return a URI reference for it, the
+    default is bacnet://router/<address>."""
+    return BACnetURI["//router/" + quote(str(router_address), safe=":.")]
+
+
 _device_node: Callable[..., URIRef] = device_node
 _object_node: Callable[..., URIRef] = object_node
 _blank_node: Callable[..., URIRef] = blank_node
+_network_node: Callable[..., URIRef] = network_node
+_router_node: Callable[..., URIRef] = router_node
 
 
 def set_identifier_functions(
@@ -85,16 +102,20 @@ def set_identifier_functions(
     device_node_fn: Callable[..., URIRef] = device_node,
     object_node_fn: Callable[..., URIRef] = object_node,
     blank_node_fn: Callable[..., URIRef] = blank_node,
+    network_node_fn: Callable[..., URIRef] = network_node,
+    router_node_fn: Callable[..., URIRef] = router_node,
 ):
     """This function allows the application using the library to provide
     its own functions for contsructing URI node identifiers for
     devices, objects and blank nodes.
     """
-    global _device_node, _object_node, _blank_node
+    global _device_node, _object_node, _blank_node, _network_node, _router_node
 
     _device_node = device_node_fn
     _object_node = object_node_fn
     _blank_node = blank_node_fn
+    _network_node = network_node_fn
+    _router_node = router_node_fn
 
 
 #
@@ -215,6 +236,54 @@ class BACnetGraph:
 
         return DeviceGraph(self, device_iri)
 
+    def create_network(
+        self,
+        network_number: int,
+        network_type: Optional[NetworkType] = None,
+    ) -> URIRef:
+        """Optional network topology: return the node for a BACnet network,
+        typed bacnet:Network with its bacnet:network-number (the same value
+        used in device addresses, the local network is 0) and, when it is
+        known, its link layer as bacnet:network-type (a NetworkType value
+        such as ipv4 or mstp, as in the Network Port object).
+        """
+        network_iri = _network_node(network_number)
+        self.graph.add((network_iri, RDF.type, BACNET.Network))
+        self.graph.set(
+            (
+                network_iri,
+                BACNET["network-number"],
+                unsigned_encode(self.graph, network_number),
+            )
+        )
+        if network_type is not None:
+            self.graph.set(
+                (
+                    network_iri,
+                    BACNET["network-type"],
+                    enumerated_encode(self.graph, NetworkType(network_type)),
+                )
+            )
+        return network_iri
+
+    def create_router(
+        self,
+        router_address: Address,
+        networks: Iterable[int] = (),
+    ) -> URIRef:
+        """Optional network topology: return the node for a router found at
+        an address (for example from I-Am-Router-To-Network), typed
+        bacnet:Router, labeled with its address and linked with
+        bacnet:routes-to-network to each network it reports.
+        """
+        router_iri = _router_node(router_address)
+        self.graph.add((router_iri, RDF.type, BACNET.Router))
+        self.graph.set((router_iri, RDFS.label, Literal(str(router_address))))
+        for network_number in networks:
+            network_iri = self.create_network(network_number)
+            self.graph.add((router_iri, BACNET["routes-to-network"], network_iri))
+        return router_iri
+
     def find_device(
         self,
         device_address: Optional[Address] = None,
@@ -268,6 +337,24 @@ class DeviceGraph:
         self.graph.graph.add((self.device_iri, BACNET.contains, object_iri))
 
         return object_proxy
+
+    def set_network(self, network_iri: URIRef) -> None:
+        """Optional network topology: the network the device is on
+        (bacnet:on-network), see BACnetGraph.create_network()."""
+        self.graph.graph.set((self.device_iri, BACNET["on-network"], network_iri))
+
+    def set_router(self, router_iri: URIRef) -> None:
+        """Optional network topology: the router the device is reached
+        through (bacnet:reached-via), see BACnetGraph.create_router()."""
+        self.graph.graph.set((self.device_iri, BACNET["reached-via"], router_iri))
+
+    def set_reachable(self, reachable: bool) -> None:
+        """Optional discovery status: whether the device answered when the
+        graph was built (bacnet:reachable), so a network or routing problem
+        can be told apart from a device that is present but faulted."""
+        self.graph.graph.set(
+            (self.device_iri, BACNET.reachable, Literal(bool(reachable)))
+        )
 
     def find_object(self, object_identifier: ObjectIdentifier) -> Optional[ObjectProxy]:
         """Given an object identifier return an ObjectProxy for the object."""
