@@ -4,6 +4,7 @@ PDU
 
 from __future__ import annotations
 
+import os
 import sys
 import re
 import socket
@@ -1805,6 +1806,79 @@ class VirtualAddress(Address):
 
 
 #
+#   SecureConnectAddress
+#
+
+
+@bacpypes_debugging
+class SecureConnectAddress(Address):
+    """
+    BACnet Secure Connect virtual MAC (VMAC) address.  A VMAC is a 6-octet
+    value (see ASHRAE 135 Clause H.7.X).  The reserved value
+    FF:FF:FF:FF:FF:FF is the Local Broadcast VMAC and 00:00:00:00:00:00 is
+    reserved to indicate an unknown/uninitialized VMAC.
+    """
+
+    _debug: Callable[..., None]
+
+    # reserved VMAC values, see Clause H.7.X
+    local_broadcast = b"\xff\xff\xff\xff\xff\xff"
+    unknown = b"\x00\x00\x00\x00\x00\x00"
+
+    def __init__(
+        self,
+        addr: Union[bytes, bytearray, str],
+        route: Optional[Address] = None,
+        network_type: str = "secureConnect",
+    ) -> None:
+        if _debug:
+            SecureConnectAddress._debug(
+                "__init__ %r network_type=%r", addr, network_type
+            )
+
+        if network_type != "secureConnect":
+            raise ValueError("network type must be 'secureConnect'")
+
+        self.addrNetworkType = "secureConnect"
+        self.addrNet = None
+        self.addrRoute = route
+
+        if isinstance(addr, (bytes, bytearray)):
+            addr_bytes = bytes(addr)
+        elif isinstance(addr, str):
+            if not addr.startswith("0x"):
+                raise ValueError("invalid address")
+            addr_bytes = xtob(addr[2:])
+        else:
+            raise TypeError("bytes, bytearray or hex string required")
+
+        if len(addr_bytes) != 6:
+            raise ValueError("VMAC address must be 6 octets")
+
+        self.addrAddr = addr_bytes
+        self.addrLen = 6
+
+        # the local broadcast VMAC maps to a local broadcast address
+        if addr_bytes == SecureConnectAddress.local_broadcast:
+            self.addrType = Address.localBroadcastAddr
+        else:
+            self.addrType = Address.localStationAddr
+
+    @classmethod
+    def random(cls) -> "SecureConnectAddress":
+        """Generate a Random-48 VMAC: the low nibble of the first octet is
+        0x2 and the other 44 bits are random (see Clause H.7.X)."""
+        addr = bytearray(os.urandom(6))
+        addr[0] = (addr[0] & 0xF0) | 0x02
+        return cls(bytes(addr))
+
+    def __str__(self) -> str:
+        assert self.addrAddr is not None
+        suffix = "@" + str(self.addrRoute) if self.addrRoute else ""
+        return "0x" + btox(self.addrAddr) + suffix
+
+
+#
 #   Network Types
 #
 
@@ -1820,7 +1894,7 @@ network_types = {
     "virtual": VirtualAddress,
     "ipv6": IPv6Address,
     #   'serial': SerialAddress,
-    #   'secureConnect': SecureConnectAddress,
+    "secureConnect": SecureConnectAddress,
     #   'websocket': WebSocketAddress,
 }
 
