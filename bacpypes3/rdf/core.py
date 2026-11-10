@@ -260,6 +260,9 @@ class DeviceGraph:
         """Given an object identifier return an ObjectProxy for the object."""
         object_iri = _object_node(self.device_iri, object_identifier)
 
+        # type the object node, like create_device types the device node
+        self.graph.graph.add((object_iri, RDF.type, BACNET.Object))
+
         object_proxy = ObjectProxy(self.graph, object_iri)
         object_proxy.objectType = object_identifier[0]
         object_proxy.objectIdentifier = object_identifier
