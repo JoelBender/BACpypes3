@@ -29,6 +29,7 @@ from ..basetypes import ErrorClass, ErrorCode
 from .bvll import (
     LPCI,
     LPDU,
+    HeaderOption,
     pdu_types,
     ConnectRequest,
     ConnectAccept,
@@ -662,6 +663,32 @@ class SCBVLLServiceAccessPoint(Client[LPDU], Server[PDU], ServiceAccessPoint):
                 SCBVLLServiceAccessPoint._debug("    - not an NPDU, ignored")
             return
 
+        # a unicast message from the hub for this node has no destination,
+        # one with a destination other than the broadcast VMAC is dropped
+        # (Clause AB.5.4)
+        dest_vmac = lpdu.bvlcDestinationVirtualAddress
+        is_broadcast = (
+            dest_vmac is not None
+            and dest_vmac.addrAddr == SecureConnectAddress.local_broadcast
+        )
+        if (dest_vmac is not None) and (not is_broadcast):
+            if _debug:
+                SCBVLLServiceAccessPoint._debug("    - not for this node, dropped")
+            return
+
+        # no destination options are supported, those that must be understood
+        # are rejected for unicast messages and broadcasts are ignored
+        # (Clause AB.3.1.4)
+        for option in lpdu.bvlcDestinationOptions:
+            if option.must_understand:
+                if _debug:
+                    SCBVLLServiceAccessPoint._debug(
+                        "    - header not understood: %r", option
+                    )
+                if not is_broadcast:
+                    await self._header_not_understood(lpdu, option)
+                return
+
         # the source is the originating VMAC (inserted by the hub) or, absent
         # that, the connection peer as tagged by the transport
         origin = lpdu.bvlcOriginatingVirtualAddress
@@ -672,12 +699,8 @@ class SCBVLLServiceAccessPoint(Client[LPDU], Server[PDU], ServiceAccessPoint):
 
         # a broadcast destination maps to a local broadcast, otherwise the
         # message was addressed to this node
-        dest_vmac = lpdu.bvlcDestinationVirtualAddress
         destination: Optional[Address]
-        if (
-            dest_vmac is not None
-            and dest_vmac.addrAddr == SecureConnectAddress.local_broadcast
-        ):
+        if is_broadcast:
             destination = LocalBroadcast()
         else:
             destination = self.local_vmac
@@ -693,6 +716,25 @@ class SCBVLLServiceAccessPoint(Client[LPDU], Server[PDU], ServiceAccessPoint):
 
         # send it upstream
         await self.response(pdu)
+
+    async def _header_not_understood(self, lpdu: LPDU, option: HeaderOption) -> None:
+        """Return a BVLC-Result NAK for a destination option that must be
+        understood but is not supported (Clause AB.3.1.4).  The response goes
+        to the originating node, or to the connection peer if there is no
+        originating address (Clause AB.3.1.2)."""
+        nak = Result(
+            result_function=lpdu.bvlcFunction,
+            result_code=0x01,
+            error_header_marker=option.header_marker,
+            error_class=ErrorClass.communication,
+            error_code=ErrorCode.headerNotUnderstood,
+        )
+        nak.bvlcMessageID = lpdu.bvlcMessageID
+        nak.bvlcDestinationVirtualAddress = lpdu.bvlcOriginatingVirtualAddress
+        if _debug:
+            SCBVLLServiceAccessPoint._debug("    - nak: %r", nak)
+
+        await self.request(nak)
 
     async def sap_indication(self, lpdu: LPDU) -> None:
         if _debug:
@@ -806,6 +848,14 @@ class SCHubConnector(Server[PDU]):
 
         # set while a hub connection is fully established
         self.connected = asyncio.Event()
+
+        # set when the hub acknowledges a Disconnect-Request
+        self._disconnect_ack: Optional[asyncio.Event] = None
+
+        # while connected to the failover hub the primary hub is retried, a
+        # WebSocket connection to it is handed over to the run loop
+        self._primary_task: Optional[Task] = None
+        self._primary_conn: Any = None
 
         # lifecycle
         self._closing = False
@@ -973,6 +1023,10 @@ class SCHubConnector(Server[PDU]):
             else HUB_CONNECTOR_CONNECTED_FAILOVER
         )
 
+        # keep trying to get back to the primary hub (Clause AB.5.2)
+        if self._uri_index != 0 and self._run_task is not None:
+            self._primary_task = asyncio.ensure_future(self._retry_primary())
+
     async def _handle_result(self, lpdu: Result) -> None:
         if _debug:
             SCHubConnector._debug("_handle_result %r", lpdu)
@@ -1007,6 +1061,8 @@ class SCHubConnector(Server[PDU]):
 
     async def _handle_disconnect_ack(self, lpdu: DisconnectACK) -> None:
         if self._state == HubConnectorState.DISCONNECTING:
+            if self._disconnect_ack is not None:
+                self._disconnect_ack.set()
             await self._close_connection()
 
     #
@@ -1044,10 +1100,82 @@ class SCHubConnector(Server[PDU]):
             except Exception as err:
                 SCHubConnector._warning("connector state callback failed: %r", err)
 
+    async def _disconnect(self) -> None:
+        """Send a Disconnect-Request and wait for the Disconnect-ACK, at most
+        the disconnect wait timeout, then close the connection (Clause
+        AB.6.2)."""
+        if _debug:
+            SCHubConnector._debug("_disconnect")
+
+        # the run loop may move on to a new connection while this waits
+        conn = self._conn
+
+        if self._state == HubConnectorState.CONNECTED and conn is not None:
+            self._state = HubConnectorState.DISCONNECTING
+            self._disconnect_ack = asyncio.Event()
+
+            request = DisconnectRequest()
+            request.bvlcMessageID = self._next_message_id()
+            try:
+                await self._send(request)
+                await asyncio.wait_for(
+                    self._disconnect_ack.wait(), self.disconnect_wait_timeout
+                )
+            except asyncio.TimeoutError:
+                if _debug:
+                    SCHubConnector._debug("    - no Disconnect-ACK")
+            except Exception as err:
+                if _debug:
+                    SCHubConnector._debug("    - disconnect failed: %r", err)
+            finally:
+                self._disconnect_ack = None
+
+        if self._conn is conn:
+            await self._close_connection()
+
+    async def _retry_primary(self) -> None:
+        """While connected to the failover hub, keep trying to connect to the
+        primary hub respecting the reconnect timeout.  When the WebSocket
+        connection succeeds, disconnect from the failover hub and hand the
+        new connection to the run loop (Clause AB.5.2)."""
+        if _debug:
+            SCHubConnector._debug("_retry_primary")
+
+        delay = self.minimum_reconnect_time
+        while (
+            not self._closing
+            and self._state == HubConnectorState.CONNECTED
+            and self._uri_index != 0
+        ):
+            await asyncio.sleep(delay)
+            if self._closing or self._state != HubConnectorState.CONNECTED:
+                break
+            try:
+                conn = await self._connect(self._uris[0])
+            except Exception as err:
+                if _debug:
+                    SCHubConnector._debug("    - primary still unavailable: %r", err)
+                delay = min(delay * 2, self.maximum_reconnect_time)
+                continue
+
+            # primary is back, drop the failover hub connection
+            if _debug:
+                SCHubConnector._debug("    - primary hub reachable")
+            self._primary_conn = conn
+            self._primary_task = None
+            await self._disconnect()
+            break
+
     async def _close_connection(self) -> None:
         """Close the active WebSocket connection (if any) and return to IDLE."""
         if _debug:
             SCHubConnector._debug("_close_connection")
+
+        # stop retrying the primary hub, unless this is that task
+        primary_task = self._primary_task
+        self._primary_task = None
+        if (primary_task is not None) and (primary_task is not asyncio.current_task()):
+            primary_task.cancel()
 
         self._cancel_all_timers()
         self._state = HubConnectorState.IDLE
@@ -1098,38 +1226,86 @@ class SCHubConnector(Server[PDU]):
             self._run_task = asyncio.ensure_future(self._run())
 
     async def _run(self) -> None:
+        """Establish and maintain the hub connection.  The primary hub is
+        tried first, then the failover hub (if configured), then back to the
+        primary after the reconnect timeout, which increases between
+        unsuccessful attempts up to the maximum (Clauses AB.5.2, AB.6.1)."""
         backoff = self.minimum_reconnect_time
+        self._uri_index = 0
         while not self._closing:
-            uri = self._current_uri()
-            self._state = HubConnectorState.AWAITING_WEBSOCKET
-            try:
-                conn = await self._connect(uri)
-            except Exception as err:
-                SCHubConnector._warning("connect to %s failed: %r", uri, err)
-                self._state = HubConnectorState.IDLE
-                self._advance_uri()
-                await asyncio.sleep(backoff)
+            # a connection to the primary hub made while on the failover hub
+            conn = self._primary_conn
+            self._primary_conn = None
+            if conn is not None:
+                self._uri_index = 0
+            else:
+                uri = self._current_uri()
+                self._state = HubConnectorState.AWAITING_WEBSOCKET
+                try:
+                    conn = await self._connect(uri)
+                except asyncio.CancelledError:
+                    raise
+                except Exception as err:
+                    SCHubConnector._warning("connect to %s failed: %r", uri, err)
+                    self._state = HubConnectorState.IDLE
+                    if not await self._next_attempt(established=False, backoff=backoff):
+                        backoff = min(backoff * 2, self.maximum_reconnect_time)
+                    continue
+
+            established = await self._session(conn)
+            if established:
+                backoff = self.minimum_reconnect_time
+            if not await self._next_attempt(established=established, backoff=backoff):
                 backoff = min(backoff * 2, self.maximum_reconnect_time)
-                continue
 
-            self._conn = conn
-            backoff = self.minimum_reconnect_time
-            try:
-                await self._fsm_ws_established()
-                async for message in conn:
-                    if isinstance(message, str):
-                        message = message.encode()
-                    await self._fsm_message(message)
-            except asyncio.CancelledError:
-                raise
-            except Exception as err:
-                if _debug:
-                    SCHubConnector._debug("    - connection ended: %r", err)
-            finally:
-                await self._close_connection()
+    async def _session(self, conn: Any) -> bool:
+        """Run the BACnet/SC connection over an established WebSocket
+        connection until it ends, return True if it was accepted."""
+        self._conn = conn
+        established = False
+        try:
+            await self._fsm_ws_established()
+            async for message in conn:
+                if isinstance(message, str):
+                    message = message.encode()
+                await self._fsm_message(message)
+                if self._state == HubConnectorState.CONNECTED:
+                    established = True
+        except asyncio.CancelledError:
+            raise
+        except Exception as err:
+            if _debug:
+                SCHubConnector._debug("    - connection ended: %r", err)
+        finally:
+            await self._close_connection()
 
-            if not self._closing:
-                await asyncio.sleep(backoff)
+        return established
+
+    async def _next_attempt(self, *, established: bool, backoff: float) -> bool:
+        """Pick the hub for the next attempt and wait as needed.  Returns True
+        if the attempt is immediate, i.e. the back-off was not used."""
+        if self._closing:
+            return True
+
+        # primary is back, use it right away
+        if self._primary_conn is not None:
+            return True
+
+        # a lost connection is retried on the primary hub first
+        if established:
+            self._uri_index = 0
+            await asyncio.sleep(self.minimum_reconnect_time)
+            return True
+
+        # primary failed, try the failover hub right away
+        if self._uri_index == 0 and len(self._uris) > 1:
+            self._uri_index = 1
+            return True
+
+        # both failed (or no failover), wait and start over with the primary
+        self._uri_index = 0
+        await asyncio.sleep(backoff)
+        return False
 
     async def close(self) -> None:
         """Gracefully disconnect and stop maintaining the connection."""
@@ -1138,16 +1314,16 @@ class SCHubConnector(Server[PDU]):
 
         self._closing = True
 
-        # attempt a graceful disconnect
-        if self._state == HubConnectorState.CONNECTED and self._conn is not None:
-            request = DisconnectRequest()
-            request.bvlcMessageID = self._next_message_id()
+        # graceful disconnect, waits for the Disconnect-ACK
+        await self._disconnect()
+
+        # a connection to the primary hub that was not used yet
+        if self._primary_conn is not None:
+            conn, self._primary_conn = self._primary_conn, None
             try:
-                await self._send(request)
+                await conn.close()
             except Exception:
                 pass
-
-        await self._close_connection()
 
         if self._run_task is not None:
             self._run_task.cancel()

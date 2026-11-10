@@ -11,7 +11,15 @@ import unittest
 from bacpypes3.debugging import bacpypes_debugging, ModuleLogger, xtob
 from bacpypes3.comm import Client, Server, bind
 from bacpypes3.pdu import PDU, Address, LocalBroadcast, SecureConnectAddress
-from bacpypes3.sc.bvll import LPCI, BVLLCodec, EncapsulatedNPDU, pdu_types
+from bacpypes3.basetypes import ErrorClass, ErrorCode
+from bacpypes3.sc.bvll import (
+    LPCI,
+    BVLLCodec,
+    EncapsulatedNPDU,
+    HeaderOption,
+    Result,
+    pdu_types,
+)
 from bacpypes3.sc.service import SCBVLLServiceAccessPoint
 
 # some debugging
@@ -120,6 +128,77 @@ class TestSCBVLLServiceAccessPoint(unittest.IsolatedAsyncioTestCase):
         pdu = capture.received[0]
         assert pdu.pduSource.addrAddr == xtob("010203040506")
         assert pdu.pduDestination.addrType == Address.localBroadcastAddr
+
+    async def test_unicast_with_destination_dropped(self):
+        capture, sap, codec, stub = self.build_stack()
+
+        # a unicast message for this node from the hub has no destination,
+        # one with a (non-broadcast) destination is dropped (Clause AB.5.4)
+        lpdu = EncapsulatedNPDU(xtob("0104cafe"))
+        lpdu.bvlcMessageID = 0x0003
+        lpdu.bvlcOriginatingVirtualAddress = SecureConnectAddress(xtob("010203040506"))
+        lpdu.bvlcDestinationVirtualAddress = SecureConnectAddress(xtob("AABBCCDDEEFF"))
+        await stub.inject(PDU(lpdu.encode().pduData))
+
+        assert capture.received == []
+        assert stub.sent == []
+
+    async def test_must_understand_unicast_nak(self):
+        capture, sap, codec, stub = self.build_stack()
+
+        # an unsupported destination option that must be understood
+        lpdu = EncapsulatedNPDU(xtob("0104cafe"))
+        lpdu.bvlcMessageID = 0x1234
+        lpdu.bvlcOriginatingVirtualAddress = SecureConnectAddress(xtob("010203040506"))
+        lpdu.bvlcDestinationOptions = [
+            HeaderOption(option_type=5, must_understand=True)
+        ]
+        await stub.inject(PDU(lpdu.encode().pduData))
+
+        # not delivered, a NAK goes back to the originating node
+        assert capture.received == []
+        assert len(stub.sent) == 1
+        nak = decode_lpdu(stub.sent[0].pduData)
+        assert isinstance(nak, Result)
+        assert nak.result_function == EncapsulatedNPDU.bvlcFunction
+        assert nak.result_code == 0x01
+        assert nak.error_header_marker == 0x45
+        assert nak.error_class == ErrorClass.communication
+        assert nak.error_code == ErrorCode.headerNotUnderstood
+        assert nak.bvlcMessageID == 0x1234
+        assert nak.bvlcDestinationVirtualAddress.addrAddr == xtob("010203040506")
+        assert nak.bvlcOriginatingVirtualAddress is None
+
+    async def test_must_understand_broadcast_ignored(self):
+        capture, sap, codec, stub = self.build_stack()
+
+        lpdu = EncapsulatedNPDU(xtob("0120"))
+        lpdu.bvlcMessageID = 0x0004
+        lpdu.bvlcOriginatingVirtualAddress = SecureConnectAddress(xtob("010203040506"))
+        lpdu.bvlcDestinationVirtualAddress = SecureConnectAddress(
+            SecureConnectAddress.local_broadcast
+        )
+        lpdu.bvlcDestinationOptions = [
+            HeaderOption(option_type=5, must_understand=True)
+        ]
+        await stub.inject(PDU(lpdu.encode().pduData))
+
+        # ignored, no NAK for a broadcast
+        assert capture.received == []
+        assert stub.sent == []
+
+    async def test_optional_destination_option_ignored(self):
+        capture, sap, codec, stub = self.build_stack()
+
+        # a destination option that need not be understood is skipped
+        lpdu = EncapsulatedNPDU(xtob("0104cafe"))
+        lpdu.bvlcMessageID = 0x0005
+        lpdu.bvlcOriginatingVirtualAddress = SecureConnectAddress(xtob("010203040506"))
+        lpdu.bvlcDestinationOptions = [HeaderOption(option_type=5)]
+        await stub.inject(PDU(lpdu.encode().pduData))
+
+        assert len(capture.received) == 1
+        assert stub.sent == []
 
 
 if __name__ == "__main__":

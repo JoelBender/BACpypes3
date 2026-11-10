@@ -10,6 +10,8 @@ through its ``_fsm_*`` handlers with a fake WebSocket connection, so no live
 TLS socket is required.
 """
 
+import asyncio
+import time
 import unittest
 from uuid import UUID
 
@@ -26,7 +28,13 @@ from bacpypes3.sc.bvll import (
     EncapsulatedNPDU,
     Result,
 )
-from bacpypes3.sc.service import SCHubConnector, HubConnectorState
+from bacpypes3.sc.service import (
+    HUB_CONNECTOR_CONNECTED_FAILOVER,
+    HUB_CONNECTOR_CONNECTED_PRIMARY,
+    HUB_CONNECTOR_NO_CONNECTION,
+    HubConnectorState,
+    SCHubConnector,
+)
 
 # some debugging
 _debug = 0
@@ -248,6 +256,200 @@ class TestHubConnectorFSM(unittest.IsolatedAsyncioTestCase):
         connector._conn.sent.clear()
         await connector.indication(PDU(xtob("deadbeef")))
         assert connector._conn.sent == [xtob("deadbeef")]
+
+
+class ScriptedConn(FakeConn):
+    """A WebSocket connection to a hub that accepts the Connect-Request and
+    (optionally) acknowledges a Disconnect-Request."""
+
+    def __init__(self, ack_disconnect=True):
+        super().__init__()
+        self.ack_disconnect = ack_disconnect
+        self.queue = asyncio.Queue()
+
+    async def send(self, data):
+        self.sent.append(bytes(data))
+        lpdu = decode(data)
+        if isinstance(lpdu, ConnectRequest):
+            self.queue.put_nowait(connect_accept_bytes(lpdu.bvlcMessageID))
+        elif isinstance(lpdu, DisconnectRequest) and self.ack_disconnect:
+            ack = DisconnectACK()
+            ack.bvlcMessageID = lpdu.bvlcMessageID
+            self.queue.put_nowait(ack.encode().pduData)
+
+    async def close(self, *args, **kwargs):
+        self.closed = True
+        self.queue.put_nowait(None)
+
+    def lost(self):
+        """The hub went away."""
+        self.queue.put_nowait(None)
+
+    def __aiter__(self):
+        return self
+
+    async def __anext__(self):
+        message = await self.queue.get()
+        if message is None:
+            raise StopAsyncIteration
+        return message
+
+    def sent_types(self):
+        return [type(decode(data)) for data in self.sent]
+
+
+class ScriptedConnector(SCHubConnector):
+    """A connector whose _connect() follows a script, each URI has a list of
+    outcomes, an exception is raised and a connection is returned."""
+
+    def __init__(self, script, **kwargs):
+        kwargs.setdefault("minimum_reconnect_time", 0.01)
+        kwargs.setdefault("maximum_reconnect_time", 0.04)
+        kwargs.setdefault("disconnect_wait_timeout", 0.05)
+        super().__init__(
+            SecureConnectAddress(xtob("AABBCCDDEEFF")),
+            DEVICE_UUID,
+            "wss://primary/",
+            "wss://failover/" if "wss://failover/" in script else None,
+            **kwargs,
+        )
+        self.script = script
+        self.attempts = []
+        self.states = []
+        self.on_connector_state_change = self.states.append
+
+    async def _connect(self, uri):
+        self.attempts.append(uri)
+        outcomes = self.script[uri]
+        outcome = outcomes.pop(0) if len(outcomes) > 1 else outcomes[0]
+        if isinstance(outcome, BaseException):
+            raise outcome
+        return outcome
+
+
+async def wait_for(predicate, timeout=1.0):
+    """Wait for the predicate to become true."""
+    deadline = time.monotonic() + timeout
+    while not predicate():
+        if time.monotonic() > deadline:
+            raise AssertionError("timeout")
+        await asyncio.sleep(0.005)
+
+
+@bacpypes_debugging
+class TestHubConnectorRun(unittest.IsolatedAsyncioTestCase):
+    """The run loop with scripted hub connections (Clauses AB.5.2, AB.6)."""
+
+    _debug = None  # type: ignore[assignment]
+
+    async def asyncTearDown(self):
+        if hasattr(self, "connector"):
+            await self.connector.close()
+
+    async def test_primary(self):
+        conn = ScriptedConn()
+        self.connector = connector = ScriptedConnector({"wss://primary/": [conn]})
+        connector.start()
+        await wait_for(lambda: connector.connected.is_set())
+
+        assert connector.attempts == ["wss://primary/"]
+        assert connector.states == [HUB_CONNECTOR_CONNECTED_PRIMARY]
+
+    async def test_close_waits_for_disconnect_ack(self):
+        conn = ScriptedConn()
+        connector = ScriptedConnector({"wss://primary/": [conn]})
+        connector.start()
+        await wait_for(lambda: connector.connected.is_set())
+
+        await connector.close()
+
+        assert conn.sent_types() == [ConnectRequest, DisconnectRequest]
+        assert conn.closed
+        assert connector.states[-1] == HUB_CONNECTOR_NO_CONNECTION
+
+    async def test_close_disconnect_wait_timeout(self):
+        conn = ScriptedConn(ack_disconnect=False)
+        connector = ScriptedConnector(
+            {"wss://primary/": [conn]}, disconnect_wait_timeout=0.05
+        )
+        connector.start()
+        await wait_for(lambda: connector.connected.is_set())
+
+        start = time.monotonic()
+        await connector.close()
+        elapsed = time.monotonic() - start
+
+        # waited for the Disconnect-ACK that never came, then closed
+        assert elapsed >= 0.04
+        assert conn.sent_types() == [ConnectRequest, DisconnectRequest]
+        assert conn.closed
+
+    async def test_failover_when_primary_down(self):
+        conn = ScriptedConn()
+        self.connector = connector = ScriptedConnector(
+            {
+                "wss://primary/": [OSError("primary down")],
+                "wss://failover/": [conn],
+            }
+        )
+        connector.start()
+        await wait_for(lambda: connector.connected.is_set())
+
+        # the failover hub is tried right after the primary fails
+        assert connector.attempts[:2] == ["wss://primary/", "wss://failover/"]
+        assert connector.states == [HUB_CONNECTOR_CONNECTED_FAILOVER]
+
+    async def test_primary_restored(self):
+        failover_conn = ScriptedConn()
+        primary_conn = ScriptedConn()
+        self.connector = connector = ScriptedConnector(
+            {
+                "wss://primary/": [
+                    OSError("primary down"),
+                    OSError("still down"),
+                    primary_conn,
+                ],
+                "wss://failover/": [failover_conn],
+            }
+        )
+        connector.start()
+
+        # on the failover hub, the primary keeps being retried and when it
+        # comes back the failover connection is terminated
+        await wait_for(
+            lambda: connector.states[-1:] == [HUB_CONNECTOR_CONNECTED_PRIMARY]
+        )
+        assert connector.states == [
+            HUB_CONNECTOR_CONNECTED_FAILOVER,
+            HUB_CONNECTOR_NO_CONNECTION,
+            HUB_CONNECTOR_CONNECTED_PRIMARY,
+        ]
+        assert failover_conn.sent_types() == [ConnectRequest, DisconnectRequest]
+        assert failover_conn.closed
+        assert primary_conn.sent_types() == [ConnectRequest]
+        assert connector._conn is primary_conn
+
+    async def test_lost_connection_retries_primary_first(self):
+        first_conn = ScriptedConn()
+        second_conn = ScriptedConn()
+        failover_conn = ScriptedConn()
+        self.connector = connector = ScriptedConnector(
+            {
+                "wss://primary/": [first_conn, second_conn],
+                "wss://failover/": [failover_conn],
+            }
+        )
+        connector.start()
+        await wait_for(lambda: connector.connected.is_set())
+
+        # the primary hub goes away
+        first_conn.lost()
+        await wait_for(
+            lambda: connector._conn is second_conn and connector.connected.is_set()
+        )
+
+        assert connector.attempts == ["wss://primary/", "wss://primary/"]
+        assert failover_conn.sent == []
 
 
 if __name__ == "__main__":

@@ -10,6 +10,7 @@ network port and the network adapter.
 
 from __future__ import annotations
 
+import asyncio
 import logging
 import uuid
 
@@ -122,3 +123,39 @@ async def test_vmac_change_updates_port_and_adapter():
     assert app.nsap.local_adapter.adapterAddr == new_vmac
 
     app.close()
+
+
+async def test_async_close_runs(monkeypatch):
+    closed = []
+
+    async def close(self):
+        closed.append(self)
+
+    monkeypatch.setattr(SCNodeLinkLayer, "close", close)
+
+    port = make_port(VMAC)
+    app = Application.from_object_list(
+        [make_device(deviceUUID=DEVICE_UUID.bytes), port]
+    )
+    link_layer = app.link_layers[port.objectIdentifier]
+
+    # deleting the port closes its link layer
+    app.delete_object(port)
+    assert port.objectIdentifier not in app.link_layers
+    assert len(app._closing_tasks) == 1
+
+    # the task runs, then its done callback forgets it
+    await asyncio.sleep(0)
+    await asyncio.sleep(0)
+    assert closed == [link_layer]
+    assert not app._closing_tasks
+
+    # so does closing the application
+    port = make_port(VMAC)
+    app = Application.from_object_list(
+        [make_device(deviceUUID=DEVICE_UUID.bytes), port]
+    )
+    link_layer = app.link_layers[port.objectIdentifier]
+    app.close()
+    await asyncio.sleep(0)
+    assert closed[-1] is link_layer

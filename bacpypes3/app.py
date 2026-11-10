@@ -308,6 +308,7 @@ class Application(
     objectName: Dict[str, _Any]
     objectIdentifier: Dict[ObjectIdentifier, _Any]
     link_layers: Dict[ObjectIdentifier, _Any]
+    _closing_tasks: Set[asyncio.Task]
 
     next_invoke_id: int
     _requests: Dict[Address, List[Tuple[APDU, APDUFuture]]]
@@ -326,8 +327,10 @@ class Application(
         self.objectName = {}
         self.objectIdentifier = {}
 
-        # references to link layer objects
+        # references to link layer objects, and the tasks of link layers that
+        # are closing asynchronously
         self.link_layers = {}
+        self._closing_tasks = set()
 
         # use the provided cache or make a default one
         self.device_info_cache = device_info_cache or DeviceInfoCache()
@@ -825,8 +828,29 @@ class Application(
             if _debug:
                 Application._debug("     - link_layer: %r", link_layer)
             if link_layer:
-                link_layer.close()
+                self._close_link_layer(link_layer)
                 del self.link_layers[obj.objectIdentifier]
+
+    def _close_link_layer(self, link_layer) -> None:
+        """Close a link layer.  Some link layers (e.g. BACnet/SC) close
+        asynchronously, make sure the returned coroutine runs to completion
+        rather than being dropped."""
+        result = link_layer.close()
+        if not asyncio.iscoroutine(result):
+            return
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop is None:
+            asyncio.run(result)
+            return
+
+        # the event loop only keeps a weak reference to tasks
+        task = loop.create_task(result)
+        self._closing_tasks.add(task)
+        task.add_done_callback(self._closing_tasks.discard)
 
     def get_object_id(self, objid):
         """Return a local object or None."""
@@ -1158,19 +1182,7 @@ class Application(
         for link_layer in self.link_layers.values():
             if _debug:
                 Application._debug("    - link_layer: %r", link_layer)
-            result = link_layer.close()
-
-            # some link layers (e.g. BACnet/SC) close asynchronously; make sure
-            # the returned coroutine is actually awaited rather than dropped
-            if asyncio.iscoroutine(result):
-                try:
-                    loop = asyncio.get_running_loop()
-                except RuntimeError:
-                    loop = None
-                if loop is not None:
-                    loop.create_task(result)
-                else:
-                    asyncio.run(result)
+            self._close_link_layer(link_layer)
 
     # -----
 
