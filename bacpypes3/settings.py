@@ -32,6 +32,10 @@ settings = Settings(
     backup_count=5,
     route_aware=False,
     cov_lifetime=60,
+    # BACnet/SC operational credentials, PEM file paths
+    sc_operational_certificate="",
+    sc_private_key="",
+    sc_issuer_certificates="",
 )
 
 
@@ -46,6 +50,9 @@ def os_settings() -> None:
         ("max_bytes", "BACPYPES_MAX_BYTES"),
         ("backup_count", "BACPYPES_BACKUP_COUNT"),
         ("route_aware", "BACPYPES_ROUTE_AWARE"),
+        ("sc_operational_certificate", "BACPYPES_SC_OPERATIONAL_CERTIFICATE"),
+        ("sc_private_key", "BACPYPES_SC_PRIVATE_KEY"),
+        ("sc_issuer_certificates", "BACPYPES_SC_ISSUER_CERTIFICATES"),
         ("cov_lifetime", "BACPYPES_COV_LIFETIME"),
     ):
         env_value = os.getenv(env_name, None)

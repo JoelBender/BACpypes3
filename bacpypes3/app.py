@@ -8,6 +8,7 @@ import argparse
 import asyncio
 import dataclasses
 import re
+import uuid
 
 from functools import partial
 from typing import TYPE_CHECKING
@@ -65,9 +66,10 @@ from .netservice import (
     RouterInfoCache,
 )
 from .object import DeviceObject, Object
-from .pdu import Address
+from .pdu import Address, SecureConnectAddress
 from .primitivedata import ObjectIdentifier, ObjectType
 from .service.cov import ChangeOfValueServices
+from .settings import settings
 
 # basic services
 from .service.device import WhoHasIHaveServices, WhoIsIAmServices
@@ -523,6 +525,11 @@ class Application(
         if _debug:
             Application._debug("    - device_object: %r", device_object)
 
+        # the device UUID, required for BACnet/SC
+        sc_uuid = getattr(args, "sc_uuid", None)
+        if sc_uuid:
+            device_object.deviceUUID = uuid.UUID(sc_uuid).bytes
+
         # get the network port object class and make an instance
         network_port_object_class = vendor_info.get_object_class(ObjectType.networkPort)
         if not network_port_object_class:
@@ -534,10 +541,29 @@ class Application(
                 "    - network_port_object_class: %r", network_port_object_class
             )
 
-        # default address is 'host' or 'host:0' for a foreign device
-        address = args.address
-        if not address:
-            address = "host:0" if args.foreign else "host"
+        sc_hub = getattr(args, "sc_hub", None)
+        if sc_hub:
+            # a BACnet/SC node, the VMAC should be configured
+            sc_vmac = getattr(args, "sc_vmac", None)
+            if sc_vmac:
+                address = SecureConnectAddress(sc_vmac)
+            else:
+                address = SecureConnectAddress.random()
+                Application._warning(
+                    "generated VMAC %s, use --sc-vmac %s to keep it stable",
+                    address,
+                    address,
+                )
+            sc_kwargs = {"scPrimaryHubUri": sc_hub}
+            sc_failover = getattr(args, "sc_failover", None)
+            if sc_failover:
+                sc_kwargs["scFailoverHubUri"] = sc_failover
+        else:
+            # default address is 'host' or 'host:0' for a foreign device
+            address = args.address
+            if not address:
+                address = "host:0" if args.foreign else "host"
+            sc_kwargs = {}
 
         # make a network port object
         network_port_object = network_port_object_class(
@@ -546,6 +572,7 @@ class Application(
             objectName="NetworkPort-1",
             networkNumber=args.network,
             networkNumberQuality="configured" if args.network else "unknown",
+            **sc_kwargs,
         )
         if _debug:
             Application._debug("    - network_port_object: %r", network_port_object)
@@ -695,9 +722,8 @@ class Application(
 
             elif obj.networkType == NetworkType.secureConnect:
                 # imported here so 'websockets' remains an optional dependency
-                import uuid as _uuid
-                from .pdu import SecureConnectAddress
                 from .sc.link import SCNodeLinkLayer
+                from .sc.tls import create_ssl_context, require_wss
 
                 # the device UUID comes from the device object
                 if self.device_object is None:
@@ -724,9 +750,9 @@ class Application(
                 # every BACnet/SC device requires a device UUID that is
                 # maintained across restarts, same as the VMAC
                 if self.device_object.deviceUUID:
-                    device_uuid = _uuid.UUID(bytes=bytes(self.device_object.deviceUUID))
+                    device_uuid = uuid.UUID(bytes=bytes(self.device_object.deviceUUID))
                 else:
-                    device_uuid = _uuid.uuid4()
+                    device_uuid = uuid.uuid4()
                     self.device_object.deviceUUID = device_uuid.bytes
                     Application._warning(
                         "%s has no deviceUUID, generated %s, configure it to keep"
@@ -735,18 +761,44 @@ class Application(
                         device_uuid,
                     )
 
-                # hub URIs
+                # hub URIs, only "wss" is supported and the hub connector
+                # does not initiate a connection to anything else
                 if not obj.scPrimaryHubUri:
                     raise RuntimeError("scPrimaryHubUri is required for BACnet/SC")
                 primary_hub_uri = str(obj.scPrimaryHubUri)
+                require_wss(primary_hub_uri)
                 failover_hub_uri = (
                     str(obj.scFailoverHubUri) if obj.scFailoverHubUri else None
                 )
+                if failover_hub_uri:
+                    require_wss(failover_hub_uri)
 
-                # the TLS context is supplied out-of-band on the network port
-                # object for initial bring-up (file-path credentials); a leading
-                # underscore stores it as plain data outside the property system
+                # BACnet/SC requires mutual TLS.  The context can be supplied
+                # on the network port object (a leading underscore stores it
+                # as plain data outside the property system), otherwise it is
+                # built from the PEM files in the settings.  Modelling the
+                # credentials as File objects is not supported yet.
                 ssl_context = getattr(obj, "_ssl_context", None)
+                if ssl_context is None:
+                    credentials = (
+                        settings.sc_operational_certificate,
+                        settings.sc_private_key,
+                        settings.sc_issuer_certificates,
+                    )
+                    if not all(credentials):
+                        raise RuntimeError(
+                            "BACnet/SC requires the operational certificate,"
+                            " private key and issuer certificates, use --sc-cert,"
+                            " --sc-key and --sc-ca or the BACPYPES_SC_* environment"
+                            " variables"
+                        )
+                    try:
+                        ssl_context = create_ssl_context(*credentials)
+                    except (OSError, ValueError) as err:
+                        raise RuntimeError(
+                            "BACnet/SC credentials (certificate %r, key %r, issuer"
+                            " certificates %r): %s" % (*credentials, err)
+                        ) from err
 
                 link_layer = SCNodeLinkLayer(
                     link_address,

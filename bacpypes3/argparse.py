@@ -54,6 +54,10 @@ BACPYPES_VENDOR_IDENTIFIER = _getenv("BACPYPES_VENDOR_IDENTIFIER", 999)
 BACPYPES_FOREIGN_BBMD = _getenv("BACPYPES_FOREIGN_BBMD")
 BACPYPES_FOREIGN_TTL = _getenv("BACPYPES_FOREIGN_TTL", 30)
 BACPYPES_BBMD_BDT = _getenv("BACPYPES_BBMD_BDT")
+BACPYPES_SC_PRIMARY_HUB = _getenv("BACPYPES_SC_PRIMARY_HUB")
+BACPYPES_SC_FAILOVER_HUB = _getenv("BACPYPES_SC_FAILOVER_HUB")
+BACPYPES_SC_VMAC = _getenv("BACPYPES_SC_VMAC")
+BACPYPES_SC_DEVICE_UUID = _getenv("BACPYPES_SC_DEVICE_UUID")
 
 # keep track of the logging handlers
 logging_handlers: Dict[logging.Logger, List[logging.StreamHandler]] = {}
@@ -264,6 +268,9 @@ class ArgumentParser(argparse.ArgumentParser):
         --debug [DEBUG [DEBUG ...]]     attach a handler to loggers
         --color                         debug in color
         --route-aware                   turn on route aware
+        --sc-cert CERT                  BACnet/SC operational certificate
+        --sc-key KEY                    BACnet/SC private key
+        --sc-ca CA                      BACnet/SC issuer certificates
     """
 
     _debug: Callable[..., None]
@@ -306,6 +313,25 @@ class ArgumentParser(argparse.ArgumentParser):
             "--route-aware",
             help="turn on route aware",
             action="store_true",
+            default=None,
+        )
+
+        # BACnet/SC operational credentials for any secure-connect network
+        # port, the defaults come from the BACPYPES_SC_* environment variables
+        sc_credentials = self.add_argument_group("BACnet/SC credentials")
+        sc_credentials.add_argument(
+            "--sc-cert",
+            help="operational certificate (PEM file)",
+            default=None,
+        )
+        sc_credentials.add_argument(
+            "--sc-key",
+            help="private key of the operational certificate (PEM file)",
+            default=None,
+        )
+        sc_credentials.add_argument(
+            "--sc-ca",
+            help="issuer (CA) certificates (PEM file)",
             default=None,
         )
 
@@ -389,6 +415,16 @@ class ArgumentParser(argparse.ArgumentParser):
                 ArgumentParser._debug("    - route_aware: %r", result_args.route_aware)
             settings.route_aware = result_args.route_aware
 
+        # BACnet/SC credentials
+        for arg_name, setting_name in (
+            ("sc_cert", "sc_operational_certificate"),
+            ("sc_key", "sc_private_key"),
+            ("sc_ca", "sc_issuer_certificates"),
+        ):
+            arg_value = getattr(result_args, arg_name, None)
+            if arg_value is not None:
+                settings[setting_name] = arg_value
+
     def interpret_debugging(self, result_args: argparse.Namespace) -> None:
         """Take the result of parsing the args and interpret them."""
         if _debug:
@@ -471,6 +507,29 @@ class SimpleArgumentParser(ArgumentParser):
             default=BACPYPES_BBMD_BDT,
         )
 
+        # a BACnet/SC node rather than BACnet/IP
+        sc_node = self.add_argument_group("BACnet/SC node")
+        sc_node.add_argument(
+            "--sc-hub",
+            help="primary hub URI, e.g. wss://hub.example.org:443/",
+            default=BACPYPES_SC_PRIMARY_HUB,
+        )
+        sc_node.add_argument(
+            "--sc-failover",
+            help="failover hub URI",
+            default=BACPYPES_SC_FAILOVER_HUB,
+        )
+        sc_node.add_argument(
+            "--sc-vmac",
+            help="node VMAC, e.g. 0x123456789abc",
+            default=BACPYPES_SC_VMAC,
+        )
+        sc_node.add_argument(
+            "--sc-uuid",
+            help="device UUID",
+            default=BACPYPES_SC_DEVICE_UUID,
+        )
+
     def expand_args(self, result_args: argparse.Namespace) -> None:
         """Expand the arguments and/or update the settings."""
         if _debug:
@@ -479,6 +538,12 @@ class SimpleArgumentParser(ArgumentParser):
         # do some error checking
         if (result_args.foreign is not None) and (result_args.bbmd is not None):
             raise RuntimeError("cannot be both a foreign device and a BBMD")
+        if result_args.sc_hub and (
+            (result_args.foreign is not None) or (result_args.bbmd is not None)
+        ):
+            raise RuntimeError("a BACnet/SC node cannot be a foreign device or a BBMD")
+        if (result_args.sc_failover or result_args.sc_vmac) and not result_args.sc_hub:
+            raise RuntimeError("--sc-failover and --sc-vmac require --sc-hub")
 
         # call the parent to continue expanding
         ArgumentParser.expand_args(self, result_args)

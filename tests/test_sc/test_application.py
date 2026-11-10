@@ -16,12 +16,17 @@ import uuid
 
 import pytest
 
+import bacpypes3.sc.tls
 from bacpypes3.app import Application
+from bacpypes3.argparse import SimpleArgumentParser
+from bacpypes3.basetypes import NetworkType
 from bacpypes3.debugging import ModuleLogger
 from bacpypes3.local.device import DeviceObject
 from bacpypes3.local.networkport import NetworkPortObject
 from bacpypes3.pdu import SecureConnectAddress
+from bacpypes3.primitivedata import ObjectIdentifier
 from bacpypes3.sc.link import SCNodeLinkLayer
+from bacpypes3.settings import settings
 
 # some debugging
 _debug = 0
@@ -159,3 +164,117 @@ async def test_async_close_runs(monkeypatch):
     app.close()
     await asyncio.sleep(0)
     assert closed[-1] is link_layer
+
+
+@pytest.fixture
+def sc_settings(monkeypatch):
+    """Restore the BACnet/SC credential settings after the test."""
+    for name in (
+        "sc_operational_certificate",
+        "sc_private_key",
+        "sc_issuer_certificates",
+    ):
+        monkeypatch.setitem(settings, name, "")
+    return settings
+
+
+@pytest.fixture
+def ssl_contexts(monkeypatch):
+    """Capture the create_ssl_context() calls rather than reading files."""
+    calls = []
+
+    def create_ssl_context(*args, **kwargs):
+        calls.append(args)
+        return object()
+
+    monkeypatch.setattr(bacpypes3.sc.tls, "create_ssl_context", create_ssl_context)
+    return calls
+
+
+async def test_credentials_from_settings(sc_settings, ssl_contexts):
+    sc_settings.sc_operational_certificate = "node.pem"
+    sc_settings.sc_private_key = "node.key"
+    sc_settings.sc_issuer_certificates = "ca.pem"
+
+    port = make_port(VMAC)
+    del port._ssl_context
+    app = Application.from_object_list(
+        [make_device(deviceUUID=DEVICE_UUID.bytes), port]
+    )
+
+    assert ssl_contexts == [("node.pem", "node.key", "ca.pem")]
+    app.close()
+
+
+async def test_credentials_required(sc_settings, ssl_contexts):
+    sc_settings.sc_operational_certificate = "node.pem"
+
+    port = make_port(VMAC)
+    del port._ssl_context
+    with pytest.raises(RuntimeError, match="--sc-cert"):
+        Application.from_object_list([make_device(deviceUUID=DEVICE_UUID.bytes), port])
+    assert ssl_contexts == []
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"scPrimaryHubUri": "ws://hub.example.org/"},
+        {"scPrimaryHubUri": "wss://hub.example.org/", "scFailoverHubUri": "hub:443"},
+    ],
+)
+async def test_wss_required(kwargs):
+    port = NetworkPortObject(
+        VMAC, objectIdentifier=("network-port", 1), objectName="sc", **kwargs
+    )
+    port._ssl_context = object()
+    with pytest.raises(ValueError, match="wss"):
+        Application.from_object_list([make_device(deviceUUID=DEVICE_UUID.bytes), port])
+
+
+async def test_from_args(sc_settings, ssl_contexts):
+    args = SimpleArgumentParser().parse_args(
+        [
+            "--instance",
+            "3456",
+            "--sc-hub",
+            "wss://primary.example.org/",
+            "--sc-failover",
+            "wss://failover.example.org/",
+            "--sc-vmac",
+            "0x123456789abc",
+            "--sc-uuid",
+            str(DEVICE_UUID),
+            "--sc-cert",
+            "node.pem",
+            "--sc-key",
+            "node.key",
+            "--sc-ca",
+            "ca.pem",
+        ]
+    )
+    assert sc_settings.sc_operational_certificate == "node.pem"
+
+    app = Application.from_args(args)
+    port = app.get_object_id(ObjectIdentifier("network-port,1"))
+    link_layer = app.link_layers[port.objectIdentifier]
+
+    assert port.networkType == NetworkType.secureConnect
+    assert str(port.scPrimaryHubUri) == "wss://primary.example.org/"
+    assert str(port.scFailoverHubUri) == "wss://failover.example.org/"
+    assert link_layer.local_vmac == VMAC
+    assert link_layer.connector.device_uuid == DEVICE_UUID
+    assert link_layer.connector._uris == [
+        "wss://primary.example.org/",
+        "wss://failover.example.org/",
+    ]
+    assert ssl_contexts == [("node.pem", "node.key", "ca.pem")]
+
+    app.close()
+
+
+def test_args_sc_and_foreign():
+    with pytest.raises(RuntimeError, match="BACnet/SC"):
+        SimpleArgumentParser().parse_args(
+            ["--sc-hub", "wss://hub.example.org/", "--foreign", "10.0.0.1"]
+        )
