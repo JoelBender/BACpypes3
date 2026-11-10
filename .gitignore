@@ -68,3 +68,7 @@ claude-resume-session
 # by mistake). The canonical location for both is $HOME.
 .pypirc
 .uv-publish.*.env
+
+# BACnet/SC operational credentials - never commit private keys or certificates
+*.pem
+*.key
