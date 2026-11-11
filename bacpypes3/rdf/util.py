@@ -44,8 +44,8 @@ _debug = 0
 _log = ModuleLogger(globals())
 
 
-# note: defined in both core.py and util.py
-BACNET = Namespace("http://data.ashrae.org/bacnet/")
+# note: defined in both core.py and util.py, matches csml2rdf bacnet.ttl
+BACNET = Namespace("http://data.ashrae.org/bacnet/2024#")
 
 # enumeration names are analog-value rather that analogValue
 _unupper_re = re.compile("[A-Z]{2,}(?:(?=[A-Z][a-z])|$)")
@@ -95,6 +95,79 @@ _enumerated_as_datatype = 0
 
 _octetstring_as_base64Binary = 0
 _octetstring_as_hexBinary = 1
+
+# dates, times and object identifiers are strings matching the csml2rdf
+# shapes, "2026-11-10 2", "12:34:56.78" and "analog-input,1", which keep the
+# BACnet details (day of week, hundredths, wildcards) that xsd:date and
+# xsd:time do not have
+_date_as_string = 1
+_time_as_string = 1
+_objectidentifier_as_string = 1
+
+# date and time strings, an unspecified (255) field is "*"
+_date_string_re = re.compile(
+    r"^([0-9]{4}|[*])-([0-9]{1,2}|[*])-([0-9]{1,2}|[*])(?: ([0-9]|[*]))?$"
+)
+_time_string_re = re.compile(
+    r"^([0-9]{1,2}|[*]):([0-9]{1,2}|[*]):([0-9]{1,2}|[*])(?:[.]([0-9]{1,2}|[*]))?$"
+)
+
+
+def _field_encode(value: int, width: int, offset: int = 0) -> str:
+    return "*" if value == 255 else "{:0{}d}".format(value + offset, width)
+
+
+def _field_decode(value: Optional[str], offset: int = 0) -> int:
+    return 255 if (value is None) or (value == "*") else int(value) - offset
+
+
+def _date_string(value) -> str:
+    year, month, day, day_of_week = value
+    return "{}-{}-{} {}".format(
+        _field_encode(year, 4, 1900),
+        _field_encode(month, 2),
+        _field_encode(day, 2),
+        _field_encode(day_of_week, 1),
+    )
+
+
+def _date_from_string(value: str) -> Date:
+    match = _date_string_re.match(value)
+    if not match:
+        raise ValueError(f"date string expected: {value!r}")
+    year, month, day, day_of_week = match.groups()
+    if (day_of_week is None) and ("*" not in (year, month, day)):
+        # the day of the week is optional, Date() calculates it
+        return Date("{}-{}-{}".format(year, month, day))
+    return Date(
+        (
+            _field_decode(year, 1900),
+            _field_decode(month),
+            _field_decode(day),
+            _field_decode(day_of_week),
+        )
+    )
+
+
+def _time_string(value) -> str:
+    return ":".join(_field_encode(field, 2) for field in value[:3]) + (
+        "." + _field_encode(value[3], 2)
+    )
+
+
+def _time_from_string(value: str) -> Time:
+    match = _time_string_re.match(value)
+    if not match:
+        raise ValueError(f"time string expected: {value!r}")
+    hour, minute, second, hundredth = match.groups()
+    return Time(
+        (
+            _field_decode(hour),
+            _field_decode(minute),
+            _field_decode(second),
+            0 if hundredth is None else _field_decode(hundredth),
+        )
+    )
 
 
 def null_encode(graph: Graph, value):
@@ -300,6 +373,8 @@ def enumerated_decode(graph: Graph, value, class_):
 
 
 def date_encode(graph: Graph, value):
+    if _date_as_string:
+        return Literal(_date_string(value))
     if value.is_special:
         return Literal(str(value), datatype=BACNET.datePattern)
     else:
@@ -308,7 +383,9 @@ def date_encode(graph: Graph, value):
 
 def date_decode(graph: Graph, value):
     assert isinstance(value, Literal)
-    if value.datatype == BACNET.datePattern:
+    if value.datatype in (None, XSD.string):
+        return _date_from_string(str(value))
+    elif value.datatype == BACNET.datePattern:
         return Date(str(value))
     elif value.datatype == XSD.date:
         return Date(value.value)
@@ -317,6 +394,8 @@ def date_decode(graph: Graph, value):
 
 
 def time_encode(graph: Graph, value):
+    if _time_as_string:
+        return Literal(_time_string(value))
     if value.is_special:
         return Literal(str(value), datatype=BACNET.timePattern)
     else:
@@ -325,7 +404,9 @@ def time_encode(graph: Graph, value):
 
 def time_decode(graph: Graph, value):
     assert isinstance(value, Literal)
-    if value.datatype == BACNET.timePattern:
+    if value.datatype in (None, XSD.string):
+        return _time_from_string(str(value))
+    elif value.datatype == BACNET.timePattern:
         return Time(str(value))
     elif value.datatype == XSD.time:
         return Time(value.value)
@@ -334,13 +415,18 @@ def time_decode(graph: Graph, value):
 
 
 def objectidentifier_encode(graph: Graph, value):
+    # always the type,instance form, "analog-input,0" or "128,1"
     obj_type, obj_instance = value
     objectidentifier_string = "{},{}".format(obj_type, obj_instance)
+    if _objectidentifier_as_string:
+        return Literal(objectidentifier_string)
     return Literal(objectidentifier_string, datatype=BACNET.objectIdentifier)
 
 
 def objectidentifier_decode(graph: Graph, value):
-    assert isinstance(value, Literal) and (value.datatype is BACNET.objectIdentifier)
+    assert isinstance(value, Literal) and (
+        value.datatype in (None, XSD.string, BACNET.objectIdentifier)
+    )
     return ObjectIdentifier(str(value))
 
 
