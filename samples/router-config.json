@@ -55,7 +55,7 @@
                 "active-cov-subscriptions"
             ],
             "protocol-object-types-supported": [],
-            "protocol-revision": 22,
+            "protocol-revision": 31,
             "protocol-services-supported": [
                 "acknowledge-alarm",
                 "confirmed-cov-notification",
