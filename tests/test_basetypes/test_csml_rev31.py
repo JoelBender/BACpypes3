@@ -129,10 +129,10 @@ def test_element_names():
 
     rdf_util = pytest.importorskip("bacpypes3.rdf.util")
     predicate = rdf_util.element_predicate(server, "signingKey1")
-    assert str(predicate).endswith("/signing-key-1")
+    assert str(predicate).endswith("#signing-key-1")
     entry = DeviceAddressProxyTableEntry()
     assert str(rdf_util.element_predicate(entry, "lastIAmTime")).endswith(
-        "/last-i-am-time"
+        "#last-i-am-time"
     )
 
 

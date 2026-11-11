@@ -152,7 +152,7 @@ def test_element_json_key(attr, name):
 @pytest.mark.parametrize("attr, name", ELEMENTS)
 def test_element_rdf_predicate(attr, name):
     rdf_util = pytest.importorskip("bacpypes3.rdf.util")
-    assert str(rdf_util.attr_to_predicate(attr)).rsplit("/", 1)[1] == name
+    assert str(rdf_util.attr_to_predicate(attr)).rsplit("#", 1)[1] == name
 
 
 def test_property_value_json():
