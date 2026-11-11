@@ -569,7 +569,7 @@ class EventAlgorithm(Algorithm, DebugContents):
         }[new_state_group]
 
         # store the timestamp
-        time_stamp = TimeStamp.as_dateTime()
+        time_stamp = TimeStamp.as_datetime()
         event_initiating_object.eventTimeStamps[new_state_index] = time_stamp
 
         # when a transition is reported and Ack_Required is TRUE for that

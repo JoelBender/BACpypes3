@@ -64,12 +64,12 @@ async def test_write_property_multiple_error():
 
     # the first object exists, the second one does not
     request = WritePropertyMultipleRequest(
-        listOfWriteAccessSpecs=[
+        listOfWriteAccessSpecifications=[
             WriteAccessSpecification(
                 objectIdentifier=ObjectIdentifier("analog-value,1"),
                 listOfProperties=[
                     PropertyValue(
-                        propertyIdentifier="present-value", value=Any(Real(2.0))
+                        propertyIdentifier="present-value", propertyValue=Any(Real(2.0))
                     )
                 ],
             ),
@@ -77,7 +77,7 @@ async def test_write_property_multiple_error():
                 objectIdentifier=ObjectIdentifier("analog-value,99"),
                 listOfProperties=[
                     PropertyValue(
-                        propertyIdentifier="present-value", value=Any(Real(3.0))
+                        propertyIdentifier="present-value", propertyValue=Any(Real(3.0))
                     )
                 ],
             ),
