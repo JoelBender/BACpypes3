@@ -4,7 +4,7 @@ Core
 
 from __future__ import annotations
 
-from typing import Any, Callable, Optional
+from typing import Any, Callable, List, Optional
 
 from rdflib import Graph, Literal, BNode, URIRef  # type: ignore[import]
 from rdflib.namespace import Namespace, RDF, RDFS, XSD  # type: ignore[import]
@@ -19,6 +19,8 @@ from ..primitivedata import (
     ObjectIdentifier,
 )
 from ..basetypes import DateTime, PropertyIdentifier
+from ..object import Object
+from ..vendor import get_vendor_info
 from ..constructeddata import Sequence, ExtendedList
 
 from .util import (
@@ -36,7 +38,8 @@ _debug = 0
 _log = ModuleLogger(globals())
 
 
-BACNET = Namespace("http://data.ashrae.org/bacnet/")
+# note: defined in both core.py and util.py, matches csml2rdf bacnet.ttl
+BACNET = Namespace("http://data.ashrae.org/bacnet/2024#")
 BACnetURI = Namespace("bacnet:")
 
 #
@@ -95,6 +98,68 @@ def set_identifier_functions(
     _device_node = device_node_fn
     _object_node = object_node_fn
     _blank_node = blank_node_fn
+
+
+#
+#   Object Classes
+#
+
+# BACpypes3 class names use mixed case words like BitString and MultiState,
+# the ontology (csml2rdf bacnet.ttl) uses Bitstring and Multistate.  Only the
+# RDF class names are translated, the Python classes keep their names.
+_class_name_map = (
+    ("BitString", "Bitstring"),
+    ("CharacterString", "Characterstring"),
+    ("DateTime", "Datetime"),
+    ("MultiState", "Multistate"),
+    ("OctetString", "Octetstring"),
+)
+
+
+def class_node(object_class: type) -> URIRef:
+    """Given a BACpypes3 object class return the URI reference of the
+    ontology class, for example MultiStateValueObject becomes
+    bacnet:MultistateValueObject."""
+    class_name = object_class.__name__
+    for old, new in _class_name_map:
+        class_name = class_name.replace(old, new)
+    return BACNET[class_name]
+
+
+def object_class_nodes(
+    object_identifier: ObjectIdentifier,
+    object_class: Optional[type] = None,
+) -> List[URIRef]:
+    """Return the ontology classes for an object, most specific first, ending
+    with bacnet:Object, so queries do not need RDFS reasoning to find an
+    analog input as a bacnet:Object.  When the class is not provided it is
+    looked up from the standard (ASHRAE) object classes, an object type
+    without a standard class is a bacnet:ProprietaryObject.
+    """
+    ashrae_vendor_info = get_vendor_info(0)
+    standard_classes = set(ashrae_vendor_info.registered_object_classes.values())
+    if object_class is None:
+        object_class = ashrae_vendor_info.get_object_class(object_identifier[0])
+
+    class_nodes: List[URIRef] = []
+    extends_standard = False
+    if object_class is not None:
+        for cls in object_class.__mro__:
+            if (cls is Object) or (not issubclass(cls, Object)):
+                continue
+            extends_standard = extends_standard or (cls in standard_classes)
+            class_iri = class_node(cls)
+            if class_iri not in class_nodes:
+                class_nodes.append(class_iri)
+
+    # ProprietaryAnalogInputObject -> AnalogInputObject -> Object but a
+    # proprietary object type that does not extend a standard object class
+    # is ProprietaryObject -> Object
+    if not extends_standard:
+        class_nodes.append(BACNET.ProprietaryObject)
+
+    class_nodes.append(BACNET.Object)
+    return class_nodes
 
 
 #
@@ -256,9 +321,21 @@ class DeviceGraph:
         self.graph = graph
         self.device_iri = device_iri
 
-    def create_object(self, object_identifier: ObjectIdentifier) -> ObjectProxy:
-        """Given an object identifier return an ObjectProxy for the object."""
+    def create_object(
+        self,
+        object_identifier: ObjectIdentifier,
+        object_class: Optional[type] = None,
+    ) -> ObjectProxy:
+        """Given an object identifier (and optionally its BACpypes3 object
+        class, like a vendor specific subclass) return an ObjectProxy for the
+        object."""
         object_iri = _object_node(self.device_iri, object_identifier)
+
+        # type the object node with every class in its inheritance chain,
+        # bacnet:AnalogInputObject and bacnet:Object, so SPARQL queries work
+        # without RDFS reasoning
+        for class_iri in object_class_nodes(object_identifier, object_class):
+            self.graph.graph.add((object_iri, RDF.type, class_iri))
 
         object_proxy = ObjectProxy(self.graph, object_iri)
         object_proxy.objectType = object_identifier[0]
