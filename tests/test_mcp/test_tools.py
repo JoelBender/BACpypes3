@@ -4,6 +4,7 @@ Test the bacpypes3.mcp tool functions called directly as a library.
 These tests do not need the optional ``mcp`` SDK.
 """
 
+import asyncio
 import re
 import sys
 from typing import Any
@@ -12,9 +13,17 @@ import pytest
 
 from bacpypes3 import mcp as bacpypes_mcp
 from bacpypes3.errors import AbortOther
+from bacpypes3.ipv4.bvll import (
+    ReadBroadcastDistributionTableAck,
+    ReadForeignDeviceTableAck,
+)
 from bacpypes3.pdu import Address
 
+from ..clocked_test import ClockedTest
+from ..test_ipv4 import test_service_element
 from .conftest import DEVICE_ADDRESS, DEVICE_INSTANCE
+
+bvll_service = test_service_element.service
 
 # result keys use the kebab-case ASN.1 style of sequence_to_json output
 _KEBAB_CASE = re.compile(r"^[a-z0-9]+(-[a-z0-9]+)*$")
@@ -127,7 +136,85 @@ class TestReadWrite:
         assert by_property["present-value"]["value"] == 12.5
         assert by_property["event-state"]["error-class"] == "property"
         assert by_property["event-state"]["error-code"] == "unknown-property"
+        assert by_property["event-state"]["error"] == "property: unknown-property"
         assert_kebab_case_keys(result)
+
+    async def test_read_property_multiple_unknown_object(self, apps) -> None:
+        result = await bacpypes_mcp.read_property_multiple(
+            DEVICE_ADDRESS, ["analog-value,99", "present-value"]
+        )
+        assert result == [
+            {
+                "error": "object: unknown-object",
+                "type": "Error(read-property-multiple)",
+                "error-class": "object",
+                "error-code": "unknown-object",
+                "reason": "unknown-object",
+            }
+        ]
+
+    @pytest.mark.parametrize("multiple", [False, True])
+    async def test_unknown_property_context(self, apps, multiple) -> None:
+        with pytest.raises(
+            ValueError, match="property reference.*not-a-property"
+        ) as caught:
+            if multiple:
+                await bacpypes_mcp.read_property_multiple(
+                    DEVICE_ADDRESS, ["analog-value,1", "not-a-property"]
+                )
+            else:
+                await bacpypes_mcp.read_property(
+                    DEVICE_ADDRESS, "analog-value,1", "not-a-property"
+                )
+        assert isinstance(caught.value.__cause__, ValueError)
+
+    async def test_invalid_object_context(self, apps) -> None:
+        with pytest.raises(
+            ValueError, match="invalid object or property reference.*not-an-object"
+        ) as caught:
+            await bacpypes_mcp.read_property(
+                DEVICE_ADDRESS, "not-an-object,1", "present-value"
+            )
+        assert isinstance(caught.value.__cause__, ValueError)
+
+
+class TestTableReads:
+    @pytest.mark.parametrize(
+        "tool,ack,timeout_result",
+        [
+            (
+                bacpypes_mcp.read_broadcast_distribution_table,
+                ReadBroadcastDistributionTableAck,
+                ["error: no response"],
+            ),
+            (
+                bacpypes_mcp.read_foreign_device_table,
+                ReadForeignDeviceTableAck,
+                [{"error": "no response"}],
+            ),
+        ],
+        ids=["bdt", "fdt"],
+    )
+    @pytest.mark.parametrize("empty_reply", [False, True], ids=["timeout", "empty"])
+    async def test_table_response(
+        self, bvll_service, monkeypatch, tool, ack, timeout_result, empty_reply
+    ) -> None:
+        monkeypatch.setattr(bacpypes_mcp, "_bvll_ase", bvll_service)
+        with ClockedTest(asyncio.get_running_loop()) as clock:
+            task = asyncio.create_task(tool(str(test_service_element.PEER)))
+            try:
+                await asyncio.sleep(0)
+                if empty_reply:
+                    await bvll_service.confirmation(
+                        ack([], source=test_service_element.PEER)
+                    )
+                else:
+                    await clock.advance(3.0)
+                assert await task == ([] if empty_reply else timeout_result)
+            finally:
+                if not task.done():
+                    task.cancel()
+                await asyncio.gather(task, return_exceptions=True)
 
 
 class TestDiscovery:

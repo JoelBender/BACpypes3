@@ -128,7 +128,7 @@ def _encode_property_value(value: Any) -> Any:
         return _encode_error(value)
     if isinstance(value, ErrorType):
         return {
-            "error": str(value),
+            "error": f"{value.errorClass}: {value.errorCode}",
             "error-class": str(value.errorClass),
             "error-code": str(value.errorCode),
         }
@@ -461,11 +461,17 @@ async def read_property(
     app = get_application()
     addr = Address(address)
 
-    opr = await app.parse_object_property_reference(
-        object_identifier,
-        property_identifier,
-        device_address=addr,
-    )
+    try:
+        opr = await app.parse_object_property_reference(
+            object_identifier,
+            property_identifier,
+            device_address=addr,
+        )
+    except ValueError as err:
+        raise ValueError(
+            "invalid object or property reference: "
+            f"{object_identifier!r} / {property_identifier!r}"
+        ) from err
 
     try:
         value = await app.read_property(
@@ -727,9 +733,13 @@ async def read_property_multiple(
         parameter_list.append(object_identifier)
         property_reference_list = []
         for prop_str in prop_strs:
-            property_reference_list.append(
-                await app.parse_property_reference(prop_str, vendor_info=vendor_info)
-            )
+            try:
+                property_reference = await app.parse_property_reference(
+                    prop_str, vendor_info=vendor_info
+                )
+            except ValueError as err:
+                raise ValueError(f"invalid property reference: {prop_str!r}") from err
+            property_reference_list.append(property_reference)
         parameter_list.append(property_reference_list)
 
     if not parameter_list:
@@ -748,9 +758,7 @@ async def read_property_multiple(
             "property-array-index": array_index,
         }
         if isinstance(property_value, ErrorType):
-            entry["error"] = str(property_value)
-            entry["error-class"] = str(property_value.errorClass)
-            entry["error-code"] = str(property_value.errorCode)
+            entry.update(_encode_property_value(property_value))
         else:
             entry["value"] = _encode_property_value(property_value)
         results.append(entry)
@@ -901,6 +909,7 @@ async def read_broadcast_distribution_table(address: str) -> List[str]:
         ``"192.168.1.10/255.255.255.0"``). Empty list if the BBMD replied
         with no entries. A single-element list starting with
         ``"bvll error: ..."`` on a BVLL-level protocol error.
+        If the BBMD does not respond, return ``["error: no response"]``.
     """
     if _debug:
         read_broadcast_distribution_table._debug(
@@ -912,7 +921,7 @@ async def read_broadcast_distribution_table(address: str) -> List[str]:
     except IPv4BVLLResult as err:
         return [f"bvll error: {err.bvlciResultCode}"]
     if result is None:
-        return []
+        return ["error: no response"]
     return [f"{entry}/{entry.netmask}" for entry in result]
 
 
@@ -988,8 +997,9 @@ async def read_foreign_device_table(address: str) -> List[Dict[str, Any]]:
         ``address`` (str: the foreign device's IPv4 address),
         ``ttl`` (int: seconds the registration was granted for),
         ``remain`` (int: seconds until it expires unless renewed).
-        Empty list if no foreign devices are registered. A single-element
+        Empty list if the BBMD replies with no entries. A single-element
         list with an ``error`` field on a BVLL protocol error.
+        If the BBMD does not respond, return ``[{"error": "no response"}]``.
     """
     if _debug:
         read_foreign_device_table._debug("read_foreign_device_table %r", address)
@@ -999,7 +1009,7 @@ async def read_foreign_device_table(address: str) -> List[Dict[str, Any]]:
     except IPv4BVLLResult as err:
         return [{"error": f"bvll error: {err.bvlciResultCode}"}]
     if result is None:
-        return []
+        return [{"error": "no response"}]
     return [
         {
             "address": str(entry.fdAddress),
