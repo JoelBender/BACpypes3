@@ -35,6 +35,7 @@ from .primitivedata import (
     Boolean,
     CharacterString,
     Date,
+    DatePattern,
     Double,
     Enumerated,
     Integer,
@@ -46,6 +47,7 @@ from .primitivedata import (
     PropertyIdentifier,
     Real,
     Time,
+    TimePattern,
     Unsigned,
     Unsigned8,
     Unsigned16,
@@ -2301,10 +2303,10 @@ _datetime_re = re.compile(
 )
 
 
-class DateTime(Sequence):
+class DateTimePattern(Sequence):
     _order = ("date", "time")
-    date = Date
-    time = Time
+    date = DatePattern
+    time = TimePattern
 
     def __init__(
         self,
@@ -2317,9 +2319,9 @@ class DateTime(Sequence):
             match = _datetime_re.match(arg)
             if not match:
                 raise ValueError(arg)
-            kwargs["date"] = Date(match.group("date"))
-            kwargs["time"] = Time(match.group("time") or (0, 0, 0, 0))
-        elif isinstance(arg, DateTime):
+            kwargs["date"] = DatePattern(match.group("date"))
+            kwargs["time"] = TimePattern(match.group("time") or (0, 0, 0, 0))
+        elif isinstance(arg, DateTimePattern):
             kwargs["date"] = arg.date
             kwargs["time"] = arg.time
         elif isinstance(arg, datetime.datetime):
@@ -2342,7 +2344,7 @@ class DateTime(Sequence):
         super().__init__(**kwargs)
 
     @classmethod
-    def now(cls: type, when: Optional[float] = None) -> DateTime:
+    def now(cls: type, when: Optional[float] = None) -> DateTimePattern:
         """
         Return the current date and time.
         """
@@ -2350,11 +2352,15 @@ class DateTime(Sequence):
             when = time.time()
 
         # return an instance
-        return cast(DateTime, cls(date=Date.now(when), time=Time.now(when)))
+        return cast(DateTimePattern, cls(date=Date.now(when), time=Time.now(when)))
 
     @property
     def is_special(self) -> bool:
         return self.date.is_special or self.time.is_special
+
+    @property
+    def is_unspecified(self) -> bool:
+        return self.date.is_unspecified and self.time.is_unspecified
 
     @property
     def datetime(self) -> datetime.datetime:
@@ -2372,7 +2378,7 @@ class DateTime(Sequence):
         return self.datetime.isoformat()
 
     @classmethod
-    def fromisoformat(cls: type, datetime_string: str) -> Date:
+    def fromisoformat(cls: type, datetime_string: str) -> DateTimePattern:
         datetime_value = datetime.datetime.fromisoformat(datetime_string)
 
         date_value = (
@@ -2389,20 +2395,33 @@ class DateTime(Sequence):
         )
 
         # return an instance
-        return cast(Date, cls(date=date_value, time=time_value))
+        return cast(DateTimePattern, cls(date=date_value, time=time_value))
 
     @classmethod
     def cast(cls, arg):
-        if _debug:
-            HostAddress._debug("DeviceAddress.cast %r", arg)
-
-        if isinstance(arg, (str, DateTime, datetime.datetime)):
+        if isinstance(arg, (str, DateTimePattern, datetime.datetime)):
             return arg
         else:
             raise TypeError(type(arg))
 
     def __str__(self) -> str:
         return f"{self.date} {self.time}"
+
+
+class DateTime(DateTimePattern):
+    """
+    A date and time restricted to be a specific datetime or an unspecified
+    datetime, see Clause 3.  Like Date and Time the restriction is not
+    enforced, use is_valid to check.
+    """
+
+    date: Date
+    time: Time
+
+    @property
+    def is_valid(self) -> bool:
+        """Specific date and time, or unspecified date and time."""
+        return (not self.is_special) or self.is_unspecified
 
 
 class TimeValue(Sequence):
@@ -3594,10 +3613,10 @@ class NotificationParametersChangeOfDiscreteValueNewValue(Choice):
     enumerated = Enumerated()
     characterstring = CharacterString()
     octetstring = OctetString()
-    date = Date()
-    time = Time()
+    date = DatePattern()
+    time = TimePattern()
     objectidentifier = ObjectIdentifier()
-    datetime = DateTime(_context=0)
+    datetime = DateTimePattern(_context=0)
 
 
 class NotificationParametersChangeOfDiscreteValue(Sequence):
@@ -3812,8 +3831,8 @@ class EventParameterExtendedParameters(Choice):
     characterstring = CharacterString()
     bitstring = BitString()
     enumerated = Enumerated()
-    date = Date()
-    time = Time()
+    date = DatePattern()
+    time = TimePattern()
     objectidentifier = ObjectIdentifier()
     reference = DeviceObjectPropertyReference(_context=0)
 
@@ -4179,7 +4198,7 @@ class AnyAtomicExtended(AnyAtomic):
             return arg
 
         # make sure it is atomic
-        if not isinstance(arg, (Atomic, DateTime)):
+        if not isinstance(arg, (Atomic, DateTimePattern)):
             raise TypeError("atomic or DateTime element expected")
 
         # let the argument encode itself
@@ -4199,7 +4218,7 @@ class AnyAtomicExtended(AnyAtomic):
                 and (self.tagList[1].tag_class == TagClass.application)
                 and (self.tagList[1].tag_number == TagNumber.time)
             ):
-                return DateTime
+                return DateTimePattern
 
         raise TypeError("unable to determine encoded type")
 
@@ -4586,7 +4605,7 @@ class WeekNDay(OctetString(_length=3)):
 
 
 class CalendarEntry(Choice):
-    date = Date(_context=0)
+    date = DatePattern(_context=0)
     dateRange = DateRange(_context=1)
     weeknday = WeekNDay(_context=2)
 
@@ -4747,7 +4766,7 @@ class OptionalDate(Choice):
 
 class OptionalDatePattern(Choice):
     null = Null()
-    datepattern = Date()
+    datepattern = DatePattern()
 
 
 class OptionalDateTime(Choice):
@@ -4757,7 +4776,7 @@ class OptionalDateTime(Choice):
 
 class OptionalDateTimePattern(Choice):
     null = Null()
-    datetimepattern = DateTime(_context=1)
+    datetimepattern = DateTimePattern(_context=1)
 
 
 class OptionalDoorValue(Choice):
@@ -4797,7 +4816,7 @@ class OptionalTime(Choice):
 
 class OptionalTimePattern(Choice):
     null = Null()
-    timepattern = Time()
+    timepattern = TimePattern()
 
 
 class OptionalUnsigned(Choice):
@@ -4848,7 +4867,7 @@ class PriorityValue(Choice):
             kwargs["boolean"] = arg
         elif isinstance(arg, Integer):
             kwargs["integer"] = arg
-        elif isinstance(arg, Time):
+        elif isinstance(arg, TimePattern):
             kwargs["time"] = arg
         elif isinstance(arg, CharacterString):
             kwargs["characterString"] = arg
@@ -4856,11 +4875,11 @@ class PriorityValue(Choice):
             kwargs["octetString"] = arg
         elif isinstance(arg, BitString):
             kwargs["bitString"] = arg
-        elif isinstance(arg, Date):
+        elif isinstance(arg, DatePattern):
             kwargs["date"] = arg
         elif isinstance(arg, ObjectIdentifier):
             kwargs["objectidentifier"] = arg
-        elif isinstance(arg, DateTime):
+        elif isinstance(arg, DateTimePattern):
             kwargs["datetime"] = arg
         elif isinstance(arg, Sequence):
             kwargs["constructedValue"] = arg
@@ -4913,12 +4932,12 @@ class TimerStateChangeValue(Choice):
     characterstring = CharacterString()
     bitstring = BitString()
     enumerated = Enumerated()
-    date = Date()
-    time = Time()
+    date = DatePattern()
+    time = TimePattern()
     objectidentifier = ObjectIdentifier()
     noValue = Null(_context=0)
     constructedValue = Any(_context=1)
-    datetime = DateTime(_context=2)
+    datetime = DateTimePattern(_context=2)
     lightingCommand = LightingCommand(_context=3)
 
 

@@ -18,7 +18,7 @@ from ..primitivedata import (
     Element,
     ObjectIdentifier,
 )
-from ..basetypes import DateTime, PropertyIdentifier
+from ..basetypes import DateTimePattern, PropertyIdentifier
 from ..object import Object
 from ..vendor import get_vendor_info
 from ..constructeddata import Sequence, ExtendedList
@@ -428,7 +428,7 @@ class ObjectProxy:
             g.remove((s, p, None))
             extendedlist_to_graph(value, s, p, g)
             return
-        elif isinstance(value, Sequence) and not isinstance(value, DateTime):
+        elif isinstance(value, Sequence) and not isinstance(value, DateTimePattern):
             o = _blank_node()
             sequence_to_graph(value, o, g)
         elif isinstance(value, Element):

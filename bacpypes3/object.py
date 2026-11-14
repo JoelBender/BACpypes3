@@ -26,6 +26,7 @@ from .primitivedata import (
     Boolean,
     CharacterString,
     Date,
+    DatePattern,
     Double,
     Integer,
     ObjectIdentifier,
@@ -33,6 +34,7 @@ from .primitivedata import (
     OctetString,
     Real,
     Time,
+    TimePattern,
     Unsigned,
     Unsigned16,
     Unsigned8,
@@ -90,6 +92,7 @@ from .basetypes import (
     DailySchedule,
     DateRange,
     DateTime,
+    DateTimePattern,
     Destination,
     DeviceAddressProxyTableEntry,
     DeviceObjectPropertyReference,
@@ -1448,7 +1451,7 @@ class CredentialDataInputObject(Object):
 class DatePatternValueObject(Object):
     _required = ("presentValue", "statusFlags")
     objectType = ObjectType("datepatternValue")
-    presentValue: Date
+    presentValue: DatePattern
     statusFlags: StatusFlags
     eventState: EventState
     reliability: Reliability
@@ -1475,7 +1478,7 @@ class DatePatternValueObject(Object):
 class DateTimePatternValueObject(Object):
     _required = ("presentValue", "statusFlags")
     objectType = ObjectType("datetimepatternValue")
-    presentValue: DateTime
+    presentValue: DateTimePattern
     statusFlags: StatusFlags
     eventState: EventState
     reliability: Reliability
@@ -2816,7 +2819,7 @@ class StructuredViewObject(Object):
 class TimePatternValueObject(Object):
     _required = ("presentValue", "statusFlags")
     objectType = ObjectType("timepatternValue")
-    presentValue: Time
+    presentValue: TimePattern
     statusFlags: StatusFlags
     eventState: EventState
     reliability: Reliability

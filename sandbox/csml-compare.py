@@ -74,7 +74,6 @@ ALIASES = {
     "error": "errortype",
     "address": "deviceaddress",
     "confirmedeventnotificationrequest": "eventnotificationparameters",
-    "datetimepattern": "datetime",
 }
 
 # CSML references that bacpypes3 implements with an equivalent structure
@@ -119,14 +118,30 @@ PRIMITIVES = {
     "Date": primitivedata.Date,
     "Time": primitivedata.Time,
     "DateTime": basetypes.DateTime,
-    "DatePattern": primitivedata.Date,
-    "TimePattern": primitivedata.Time,
-    "DateTimePattern": basetypes.DateTime,
+    "DatePattern": primitivedata.DatePattern,
+    "TimePattern": primitivedata.TimePattern,
+    "DateTimePattern": basetypes.DateTimePattern,
     "WeekNDay": basetypes.WeekNDay,
     "BitString": primitivedata.BitString,
     "Enumerated": primitivedata.Enumerated,
     "Any": constructeddata.Any,
 }
+
+# the restricted primitives are subclasses of the patterns, a pattern element
+# must not use them
+NARROWED = {
+    "DatePattern": primitivedata.Date,
+    "TimePattern": primitivedata.Time,
+    "DateTimePattern": basetypes.DateTime,
+}
+
+
+def is_primitive(cls, kind):
+    """The class implements the CSML primitive kind."""
+    if not issubclass(cls, PRIMITIVES[kind]):
+        return False
+    return not ((kind in NARROWED) and issubclass(cls, NARROWED[kind]))
+
 
 # CSML element kinds that are encoded with opening and closing tags (or as
 # more than one application tag) rather than as one primitive tag
@@ -415,7 +430,7 @@ class Compare:
                 return
             member = f.get("memberType")
             if member in PRIMITIVES:
-                if not issubclass(cls._subtype, PRIMITIVES[member]):
+                if not is_primitive(cls._subtype, member):
                     self.problem(
                         path, f"MEMBER {self.name_of(cls._subtype)} should be {member}"
                     )
@@ -443,7 +458,7 @@ class Compare:
 
         if kind not in PRIMITIVES:
             self.problem(path, f"unknown CSML element {kind}")
-        elif not issubclass(cls, PRIMITIVES[kind]):
+        elif not is_primitive(cls, kind):
             self.problem(path, f"TYPE {self.name_of(cls)} should be {kind}")
 
         for attr in ("minimum", "maximum", "minimumLength", "maximumLength"):
@@ -574,7 +589,7 @@ class ObjectCompare(Compare):
 
     def member_type(self, member, cls, path):
         if member in PRIMITIVES:
-            if not issubclass(cls, PRIMITIVES[member]):
+            if not is_primitive(cls, member):
                 self.problem(path, f"MEMBER {self.name_of(cls)} should be {member}")
         else:
             self.named_type(member, cls, path, "MEMBER")
@@ -613,7 +628,7 @@ class ObjectCompare(Compare):
             self.named_type(p.get("type"), cls, path, "TYPE")
         elif kind not in PRIMITIVES:
             self.problem(path, f"unknown CSML element {kind}")
-        elif not issubclass(cls, PRIMITIVES[kind]):
+        elif not is_primitive(cls, kind):
             self.problem(path, f"TYPE {self.name_of(cls)} should be {kind}")
 
         for attr in ("minimum", "maximum"):

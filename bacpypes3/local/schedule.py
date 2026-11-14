@@ -5,7 +5,7 @@ from time import mktime as _mktime
 from typing import Any, Optional, Tuple
 
 from ..debugging import bacpypes_debugging, ModuleLogger
-from ..primitivedata import Atomic, Null, Unsigned, Date, Time
+from ..primitivedata import Atomic, Null, Unsigned, Date, DatePattern, Time
 from ..basetypes import CalendarEntry, WeekNDay, Reliability
 from ..constructeddata import Array
 from ..object import ScheduleObject as _ScheduleObject
@@ -22,7 +22,7 @@ _log = ModuleLogger(globals())
 #
 
 
-def match_date(date: Date, date_pattern: Date) -> bool:
+def match_date(date: Date, date_pattern: DatePattern) -> bool:
     """
     Match a specific date, a four-tuple with no special values, with a date
     pattern, four-tuple possibly having special values.

@@ -26,7 +26,9 @@ from ..primitivedata import (
     BitString,
     Enumerated,
     Date,
+    DatePattern,
     Time,
+    TimePattern,
     ObjectIdentifier,
     Tag,
     TagClass,
@@ -37,7 +39,7 @@ from ..constructeddata import (
     Sequence,  # covers both Sequence and Choice
     ExtendedList,  # covers SequenceOf, ArrayOf, and ListOf
 )
-from ..basetypes import DateTime, AnyAtomicExtended
+from ..basetypes import DateTime, DateTimePattern, AnyAtomicExtended
 
 # some debugging
 _debug = 0
@@ -131,15 +133,15 @@ def _date_string(value) -> str:
     )
 
 
-def _date_from_string(value: str) -> Date:
+def _date_from_string(value: str, class_: type = Date) -> DatePattern:
     match = _date_string_re.match(value)
     if not match:
         raise ValueError(f"date string expected: {value!r}")
     year, month, day, day_of_week = match.groups()
     if (day_of_week is None) and ("*" not in (year, month, day)):
         # the day of the week is optional, Date() calculates it
-        return Date("{}-{}-{}".format(year, month, day))
-    return Date(
+        return class_("{}-{}-{}".format(year, month, day))
+    return class_(
         (
             _field_decode(year, 1900),
             _field_decode(month),
@@ -155,12 +157,12 @@ def _time_string(value) -> str:
     )
 
 
-def _time_from_string(value: str) -> Time:
+def _time_from_string(value: str, class_: type = Time) -> TimePattern:
     match = _time_string_re.match(value)
     if not match:
         raise ValueError(f"time string expected: {value!r}")
     hour, minute, second, hundredth = match.groups()
-    return Time(
+    return class_(
         (
             _field_decode(hour),
             _field_decode(minute),
@@ -381,14 +383,14 @@ def date_encode(graph: Graph, value):
         return Literal(value.date)
 
 
-def date_decode(graph: Graph, value):
+def date_decode(graph: Graph, value, class_: type = Date):
     assert isinstance(value, Literal)
     if value.datatype in (None, XSD.string):
-        return _date_from_string(str(value))
+        return _date_from_string(str(value), class_)
     elif value.datatype == BACNET.datePattern:
-        return Date(str(value))
+        return class_(str(value))
     elif value.datatype == XSD.date:
-        return Date(value.value)
+        return class_(value.value)
     else:
         raise TypeError(value.datatype)
 
@@ -402,14 +404,14 @@ def time_encode(graph: Graph, value):
         return Literal(value.time)  # normalize=False?
 
 
-def time_decode(graph: Graph, value):
+def time_decode(graph: Graph, value, class_: type = Time):
     assert isinstance(value, Literal)
     if value.datatype in (None, XSD.string):
-        return _time_from_string(str(value))
+        return _time_from_string(str(value), class_)
     elif value.datatype == BACNET.timePattern:
-        return Time(str(value))
+        return class_(str(value))
     elif value.datatype == XSD.time:
-        return Time(value.value)
+        return class_(value.value)
     else:
         raise TypeError(value.datatype)
 
@@ -437,12 +439,12 @@ def datetime_encode(graph: Graph, value):
         return Literal(value.datetime)  # normalize=False?
 
 
-def datetime_decode(graph: Graph, value):
+def datetime_decode(graph: Graph, value, class_: type = DateTime):
     assert isinstance(value, Literal)
     if value.datatype == BACNET.dateTimePattern:
-        return DateTime(str(value))
+        return class_(str(value))
     elif value.datatype == XSD.dateTime:
-        return DateTime(value.value)
+        return class_(value.value)
     else:
         raise TypeError(value.datatype)
 
@@ -473,13 +475,13 @@ def atomic_encode(graph: Graph, value) -> Literal:
         literal = bitstring_encode(graph, value)
     elif isinstance(value, Enumerated):
         literal = enumerated_encode(graph, value)
-    elif isinstance(value, Date):
+    elif isinstance(value, DatePattern):
         literal = date_encode(graph, value)
-    elif isinstance(value, Time):
+    elif isinstance(value, TimePattern):
         literal = time_encode(graph, value)
     elif isinstance(value, ObjectIdentifier):
         literal = objectidentifier_encode(graph, value)
-    elif isinstance(value, DateTime):
+    elif isinstance(value, DateTimePattern):
         literal = datetime_encode(graph, value)
     else:
         raise TypeError("atomic element expected: " + str(type(value)))
@@ -508,14 +510,14 @@ def atomic_decode(graph: Graph, literal, class_) -> Atomic:
         value = bitstring_decode(graph, literal, class_)
     elif issubclass(class_, Enumerated):
         value = enumerated_decode(graph, literal, class_)
-    elif issubclass(class_, Date):
-        value = date_decode(graph, literal)
-    elif issubclass(class_, Time):
-        value = time_decode(graph, literal)
+    elif issubclass(class_, DatePattern):
+        value = date_decode(graph, literal, class_)
+    elif issubclass(class_, TimePattern):
+        value = time_decode(graph, literal, class_)
     elif issubclass(class_, ObjectIdentifier):
         value = objectidentifier_decode(graph, literal)
-    elif issubclass(class_, DateTime):
-        value = datetime_decode(graph, literal)
+    elif issubclass(class_, DateTimePattern):
+        value = datetime_decode(graph, literal, class_)
     else:
         raise TypeError("not an atomic element")
 
@@ -607,7 +609,7 @@ def value_encode(graph: Graph, value: Any) -> Union[Literal, URIRef, BNode]:
     triples to the graph for blank nodes and lists as needed."""
     if isinstance(value, Atomic):
         return atomic_encode(graph, value)
-    if isinstance(value, DateTime):
+    if isinstance(value, DateTimePattern):
         # DateTime is a Sequence, check it first
         return datetime_encode(graph, value)
     if isinstance(value, Sequence):
@@ -677,8 +679,8 @@ def graph_to_sequence(graph: Graph, node: URIRef, seq_class: type) -> Sequence:
 
         if issubclass(element, Atomic):
             value = atomic_decode(graph, literal, element)
-        elif issubclass(element, DateTime):
-            value = datetime_decode(graph, literal)
+        elif issubclass(element, DateTimePattern):
+            value = datetime_decode(graph, literal, element)
         elif issubclass(element, Sequence):
             value = graph_to_sequence(graph, literal, element)
         elif issubclass(element, ExtendedList):

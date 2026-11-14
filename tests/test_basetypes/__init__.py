@@ -9,3 +9,4 @@ from . import test_csml_names
 from . import test_csml_wire
 from . import test_constructors
 from . import test_csml_rev31
+from . import test_patterns

@@ -2109,9 +2109,11 @@ _date_patterns = [
 
 
 @bacpypes_debugging
-class Date(Atomic, tuple):
+class DatePattern(Atomic, tuple):
     """
-    Amazing documentation here.
+    A date pattern is a date that may contain one or more unspecified octets
+    (X'FF') or special month and day values (odd/even months, last/odd/even
+    days of the month), see Clause 20.2.12.
     """
 
     _debug: Callable[..., None]
@@ -2120,7 +2122,7 @@ class Date(Atomic, tuple):
     def cast(cls: type, arg: _Any) -> _Any:
         """Return True if arg is valid value for the class."""
         if _debug:
-            Date._debug("Date.cast %r", arg)
+            DatePattern._debug("DatePattern.cast %r", arg)
 
         if isinstance(arg, tuple):
             if len(arg) != 4:
@@ -2242,7 +2244,7 @@ class Date(Atomic, tuple):
         return arg
 
     @classmethod
-    def now(cls: type, when: Optional[float] = None) -> Date:
+    def now(cls: type, when: Optional[float] = None) -> DatePattern:
         """Set the current value to the correct tuple based on the seconds
         since the epoch.
         """
@@ -2254,7 +2256,7 @@ class Date(Atomic, tuple):
         value = (tup[0] - 1900, tup[1], tup[2], tup[6] + 1)
 
         # return an instance
-        return cast(Date, cls(value))
+        return cast(DatePattern, cls(value))
 
     @property
     def is_special(self) -> bool:
@@ -2268,6 +2270,11 @@ class Date(Atomic, tuple):
             or (day in _special_day_inv)
             or (day_of_week == 255)
         )
+
+    @property
+    def is_unspecified(self) -> bool:
+        """Date is composed entirely of unspecified octets."""
+        return all(octet == 255 for octet in self)
 
     @property
     def date(self) -> datetime.date:
@@ -2284,7 +2291,7 @@ class Date(Atomic, tuple):
         return self.date.isoformat()
 
     @classmethod
-    def fromisoformat(cls: type, date_string: str) -> Date:
+    def fromisoformat(cls: type, date_string: str) -> DatePattern:
         date_value = datetime.date.fromisoformat(date_string)
 
         value = (
@@ -2295,7 +2302,7 @@ class Date(Atomic, tuple):
         )
 
         # return an instance
-        return cast(Date, cls(value))
+        return cast(DatePattern, cls(value))
 
     def __str__(self) -> str:
         """String representation of the date."""
@@ -2321,12 +2328,12 @@ class Date(Atomic, tuple):
     def encode(self) -> TagList:
         """Encode an enumerated element as a tag list."""
         if _debug:
-            Date._debug("Date.encode")
+            DatePattern._debug("DatePattern.encode")
 
         # pack the value
         data = bytearray(self)
         if _debug:
-            Date._debug("    - data: %r", data)
+            DatePattern._debug("    - data: %r", data)
 
         tag: Tag
         if self._context is None:
@@ -2334,15 +2341,15 @@ class Date(Atomic, tuple):
         else:
             tag = ContextTag(self._context, data)
         if _debug:
-            Date._debug(f"    - tag: {tag}")
+            DatePattern._debug(f"    - tag: {tag}")
 
         return TagList([tag])
 
     @classmethod
-    def decode(cls, tag_list: TagList) -> Date:
+    def decode(cls, tag_list: TagList) -> DatePattern:
         """Decode an enumerated element from a tag list."""
         if _debug:
-            Date._debug("Date.decode %r", tag_list)
+            DatePattern._debug("DatePattern.decode %r", tag_list)
 
         tag: Optional[Tag] = tag_list.pop()
         if not tag:
@@ -2365,10 +2372,24 @@ class Date(Atomic, tuple):
         # get the data
         value = tuple(tag.tag_data)
         if _debug:
-            Date._debug("    - value: %r", value)
+            DatePattern._debug("    - value: %r", value)
 
         # return an instance of this thing
         return cls(value)
+
+
+class Date(DatePattern):
+    """
+    A date is a date pattern restricted to be a specific date or an
+    unspecified date, see Clause 3.  The restriction is not enforced so
+    values from devices that do not follow it can still be decoded, use
+    is_valid to check.
+    """
+
+    @property
+    def is_valid(self) -> bool:
+        """Date is a specific date or an unspecified date."""
+        return (not self.is_special) or self.is_unspecified
 
 
 #
@@ -2381,9 +2402,10 @@ _time_regex = re.compile(
 
 
 @bacpypes_debugging
-class Time(Atomic, tuple):
+class TimePattern(Atomic, tuple):
     """
-    Amazing documentation here.
+    A time pattern is a time that may contain one or more unspecified octets
+    (X'FF'), see Clause 20.2.13.
     """
 
     _debug: Callable[..., None]
@@ -2392,7 +2414,7 @@ class Time(Atomic, tuple):
     def cast(cls: type, arg: _Any) -> _Any:
         """Return True if arg is valid value for the class."""
         if _debug:
-            Time._debug("Time.cast %r")
+            TimePattern._debug("TimePattern.cast %r", arg)
 
         if isinstance(arg, tuple):
             if len(arg) != 4:
@@ -2436,7 +2458,7 @@ class Time(Atomic, tuple):
         return arg
 
     @classmethod
-    def now(cls: type, when: Optional[float] = None) -> Time:
+    def now(cls: type, when: Optional[float] = None) -> TimePattern:
         """
         Set the current value to the correct tuple based on the seconds
         since the epoch.
@@ -2449,15 +2471,20 @@ class Time(Atomic, tuple):
         value = (tup[3], tup[4], tup[5], int((when - int(when)) * 100))
 
         # return an instance
-        return cast(Time, cls(value))
+        return cast(TimePattern, cls(value))
 
     @property
     def is_special(self) -> bool:
-        """Date has wildcard values."""
+        """Time has wildcard values."""
         # rip it apart
         hour, minute, second, hundredth = self
 
         return (hour == 255) or (minute == 255) or (second == 255) or (hundredth == 255)
+
+    @property
+    def is_unspecified(self) -> bool:
+        """Time is composed entirely of unspecified octets."""
+        return all(octet == 255 for octet in self)
 
     @property
     def time(self) -> datetime.time:
@@ -2473,7 +2500,7 @@ class Time(Atomic, tuple):
         return self.time.isoformat()
 
     @classmethod
-    def fromisoformat(cls: type, time_string: str) -> Time:
+    def fromisoformat(cls: type, time_string: str) -> TimePattern:
         time_value = datetime.time.fromisoformat(time_string)
 
         value = (
@@ -2484,7 +2511,7 @@ class Time(Atomic, tuple):
         )
 
         # return an instance
-        return cast(Time, cls(value))
+        return cast(TimePattern, cls(value))
 
     def __str__(self) -> str:
         # rip it apart
@@ -2513,12 +2540,12 @@ class Time(Atomic, tuple):
     def encode(self) -> TagList:
         """Encode an enumerated element as a tag list."""
         if _debug:
-            Time._debug("Time.encode")
+            TimePattern._debug("TimePattern.encode")
 
         # pack the value
         data = bytearray(self)
         if _debug:
-            Date._debug("    - data: %r", data)
+            TimePattern._debug("    - data: %r", data)
 
         tag: Tag
         if self._context is None:
@@ -2526,15 +2553,15 @@ class Time(Atomic, tuple):
         else:
             tag = ContextTag(self._context, data)
         if _debug:
-            Date._debug(f"    - tag: {tag}")
+            TimePattern._debug(f"    - tag: {tag}")
 
         return TagList([tag])
 
     @classmethod
-    def decode(cls, tag_list: TagList) -> Time:
+    def decode(cls, tag_list: TagList) -> TimePattern:
         """Decode an enumerated element from a tag list."""
         if _debug:
-            Time._debug("Time.decode %r", tag_list)
+            TimePattern._debug("TimePattern.decode %r", tag_list)
 
         tag: Optional[Tag] = tag_list.pop()
         if not tag:
@@ -2557,10 +2584,24 @@ class Time(Atomic, tuple):
         # get the data
         value = tuple(tag.tag_data)
         if _debug:
-            Time._debug("    - value: %r", value)
+            TimePattern._debug("    - value: %r", value)
 
         # return an instance of this thing
         return cls(value)
+
+
+class Time(TimePattern):
+    """
+    A time is a time pattern restricted to be a specific time or an
+    unspecified time, see Clause 3.  The restriction is not enforced so
+    values from devices that do not follow it can still be decoded, use
+    is_valid to check.
+    """
+
+    @property
+    def is_valid(self) -> bool:
+        """Time is a specific time or an unspecified time."""
+        return (not self.is_special) or self.is_unspecified
 
 
 class ObjectType(Enumerated):
@@ -3294,7 +3335,7 @@ class ObjectIdentifier(Atomic, tuple):
         # get the data
         value = struct.unpack(">L", tag.tag_data)[0]
         if _debug:
-            Time._debug("    - value: %r", value)
+            ObjectIdentifier._debug("    - value: %r", value)
 
         # return an instance of this thing
         return cls(value)
@@ -3311,8 +3352,8 @@ Tag._app_tag_class = [
     CharacterString,
     BitString,
     Enumerated,
-    Date,
-    Time,
+    DatePattern,
+    TimePattern,
     ObjectIdentifier,
     None,  # type: ignore[list-item]
     None,  # type: ignore[list-item]
