@@ -12,6 +12,7 @@ import time
 import datetime
 
 from typing import (
+    Dict,
     Union,
     cast,
     Any as _Any,
@@ -20,7 +21,6 @@ from typing import (
 )
 
 from .debugging import ModuleLogger, bacpypes_debugging
-from .errors import MissingRequiredParameter
 from .pdu import (
     ipv4_address_port_re,
     ipv6_address_port_re,
@@ -30,7 +30,6 @@ from .pdu import (
     IPv6Address,
 )
 from .primitivedata import (
-    Atomic,
     BitString,
     Boolean,
     CharacterString,
@@ -52,9 +51,6 @@ from .primitivedata import (
     Unsigned8,
     Unsigned16,
     Unsigned32,
-    TagClass,
-    TagNumber,
-    Tag,
     TagList,
 )
 from .constructeddata import (
@@ -4186,122 +4182,10 @@ class LogRecord(Sequence):
     statusFlags = StatusFlags(_context=2, _optional=True)
 
 
-@bacpypes_debugging
-class AnyAtomicExtended(AnyAtomic):
-    @classmethod
-    def cast(cls: type, arg: _Any) -> _Any:
-        """Return a valid value for the class."""
-        if _debug:
-            AnyAtomicExtended._debug("cast %r %r", cls, arg)
-        # tag list is fine the way it is
-        if isinstance(arg, TagList):
-            return arg
-
-        # make sure it is atomic
-        if not isinstance(arg, (Atomic, DateTimePattern)):
-            raise TypeError("atomic or DateTime element expected")
-
-        # let the argument encode itself
-        tag_list = arg.encode()
-
-        return tag_list
-
-    def get_value_type(self) -> type:
-        """Return the datatype encoded in the Any iff possible."""
-        if len(self.tagList) == 1:
-            if self.tagList[0].tag_class == TagClass.application:
-                return Tag._app_tag_class[self.tagList[0].tag_number]
-        elif len(self.tagList) == 2:
-            if (
-                (self.tagList[0].tag_class == TagClass.application)
-                and (self.tagList[0].tag_number == TagNumber.date)
-                and (self.tagList[1].tag_class == TagClass.application)
-                and (self.tagList[1].tag_number == TagNumber.time)
-            ):
-                return DateTimePattern
-
-        raise TypeError("unable to determine encoded type")
-
-
-@bacpypes_debugging
 class NameValue(Sequence):
     _order = ("name", "value")
     name = CharacterString(_context=0)
-    value = AnyAtomicExtended(_optional=True)
-
-    def encode(self) -> TagList:
-        if _debug:
-            NameValue._debug("(%r)encode", self.__class__.__name__)
-
-        # start with a fresh tag list
-        tag_list = TagList()
-
-        # append the name
-        name = self.name
-        if name is None:
-            raise MissingRequiredParameter(
-                "name is a missing required element of %s" % (self.__class__.__name__,)
-            )
-        tag_list.extend(name.encode())
-
-        # append the value
-        if self.value is not None:
-            tag_list.extend(self.value.encode())
-
-        return tag_list
-
-    @classmethod
-    def decode(cls, tag_list: TagList) -> NameValue:
-        """Decode an element from a tag list."""
-        if _debug:
-            NameValue._debug("(%r)decode %r", cls.__name__, tag_list)
-
-        tag: Tag
-
-        # look for the context encoded character string
-        tag = tag_list.peek()
-        if _debug:
-            NameValue._debug("    - name tag: %r", tag)
-        if (
-            (tag is None)
-            or (tag.tag_class != TagClass.context)
-            or (tag.tag_number != 0)
-        ):
-            raise MissingRequiredParameter(
-                "name is a missing required element of %s" % (cls.__name__,)
-            )
-
-        # pop it off and save the value
-        tag_list.pop()
-        tag = tag.context_to_app(TagNumber.characterString)
-        name = tag.app_to_object()
-
-        # look for the optional application encoded value
-        tag = tag_list.peek()
-        if _debug:
-            NameValue._debug("    - value tag: %r", tag)
-
-        value_tags = []
-        if tag and (tag.tag_class == TagClass.application):
-            # this is one of ours
-            value_tags.append(tag_list.pop())
-
-            # if it is a date check the next one for a time
-            if tag.tag_number == TagNumber.date:
-                next_tag = tag_list.peek()
-                if _debug:
-                    NameValue._debug("    - next_tag: %r", next_tag)
-
-                if (
-                    next_tag
-                    and (next_tag.tag_class == TagClass.application)
-                    and (next_tag.tag_number == TagNumber.time)
-                ):
-                    # this is the time part
-                    value_tags.append(tag_list.pop())
-
-        # build one and return it, the value is optional
-        return cls(name=name, value=TagList(value_tags) if value_tags else None)
+    value = AnyAtomic(_optional=True)
 
 
 class NameValueCollection(Sequence):
@@ -4764,9 +4648,43 @@ class OptionalDate(Choice):
     date = Date()
 
 
+def _optional_pattern_arg(
+    arg: _Any, kwargs: Dict[str, _Any], pattern: type, choice: str, priority: str
+) -> _Any:
+    """
+    The priority arrays of the pattern value objects are arrays of
+    BACnetOptional...Pattern, accept a value of the pattern (which includes the
+    restricted Date, Time or DateTime), a Null, or a PriorityValue with one of
+    those as the choice.  Returns the arg to pass along to Choice.__init__().
+    """
+    if (arg is None) or isinstance(arg, dict):
+        return arg
+    if isinstance(arg, PriorityValue):
+        if arg._choice == "null":
+            kwargs["null"] = arg.null
+        elif arg._choice == priority:
+            kwargs[choice] = getattr(arg, priority)
+        else:
+            raise TypeError(f"PriorityValue choice not accepted: {arg._choice}")
+    elif isinstance(arg, Choice):
+        return arg
+    elif isinstance(arg, Null):
+        kwargs["null"] = arg
+    elif isinstance(arg, pattern):
+        kwargs[choice] = arg
+    else:
+        raise TypeError(type(arg))
+
+    return None
+
+
 class OptionalDatePattern(Choice):
     null = Null()
     datepattern = DatePattern()
+
+    def __init__(self, arg: _Any = None, **kwargs) -> None:
+        arg = _optional_pattern_arg(arg, kwargs, DatePattern, "datepattern", "date")
+        super().__init__(arg, **kwargs)
 
 
 class OptionalDateTime(Choice):
@@ -4777,6 +4695,12 @@ class OptionalDateTime(Choice):
 class OptionalDateTimePattern(Choice):
     null = Null()
     datetimepattern = DateTimePattern(_context=1)
+
+    def __init__(self, arg: _Any = None, **kwargs) -> None:
+        arg = _optional_pattern_arg(
+            arg, kwargs, DateTimePattern, "datetimepattern", "datetime"
+        )
+        super().__init__(arg, **kwargs)
 
 
 class OptionalDoorValue(Choice):
@@ -4817,6 +4741,10 @@ class OptionalTime(Choice):
 class OptionalTimePattern(Choice):
     null = Null()
     timepattern = TimePattern()
+
+    def __init__(self, arg: _Any = None, **kwargs) -> None:
+        arg = _optional_pattern_arg(arg, kwargs, TimePattern, "timepattern", "time")
+        super().__init__(arg, **kwargs)
 
 
 class OptionalUnsigned(Choice):

@@ -39,7 +39,7 @@ from ..constructeddata import (
     Sequence,  # covers both Sequence and Choice
     ExtendedList,  # covers SequenceOf, ArrayOf, and ListOf
 )
-from ..basetypes import DateTime, DateTimePattern, AnyAtomicExtended
+from ..basetypes import DateTime, DateTimePattern
 
 # some debugging
 _debug = 0
@@ -169,6 +169,21 @@ def _time_from_string(value: str, class_: type = Time) -> TimePattern:
             _field_decode(second),
             0 if hundredth is None else _field_decode(hundredth),
         )
+    )
+
+
+def _datetime_string(value) -> str:
+    return _date_string(value.date) + " " + _time_string(value.time)
+
+
+def _datetime_from_string(value: str, class_: type = DateTime) -> DateTimePattern:
+    # the date, an optional day of the week, and the time
+    parts = value.split()
+    if len(parts) not in (2, 3):
+        raise ValueError(f"datetime string expected: {value!r}")
+    return class_(
+        date=_date_from_string(" ".join(parts[:-1]), class_._elements["date"]),
+        time=_time_from_string(parts[-1], class_._elements["time"]),
     )
 
 
@@ -375,6 +390,9 @@ def enumerated_decode(graph: Graph, value, class_):
 
 
 def date_encode(graph: Graph, value):
+    if not isinstance(value, Date):
+        # a date pattern is always typed
+        return Literal(_date_string(value), datatype=BACNET.datePattern)
     if _date_as_string:
         return Literal(_date_string(value))
     if value.is_special:
@@ -384,11 +402,14 @@ def date_encode(graph: Graph, value):
 
 
 def date_decode(graph: Graph, value, class_: type = Date):
+    """Decode a date or a date pattern from any of the date forms."""
     assert isinstance(value, Literal)
-    if value.datatype in (None, XSD.string):
-        return _date_from_string(str(value), class_)
-    elif value.datatype == BACNET.datePattern:
-        return class_(str(value))
+    if value.datatype in (None, XSD.string, BACNET.datePattern):
+        try:
+            return _date_from_string(str(value), class_)
+        except ValueError:
+            # the Date string forms, like "2026-11-10 tue"
+            return class_(str(value))
     elif value.datatype == XSD.date:
         return class_(value.value)
     else:
@@ -396,6 +417,9 @@ def date_decode(graph: Graph, value, class_: type = Date):
 
 
 def time_encode(graph: Graph, value):
+    if not isinstance(value, Time):
+        # a time pattern is always typed
+        return Literal(_time_string(value), datatype=BACNET.timePattern)
     if _time_as_string:
         return Literal(_time_string(value))
     if value.is_special:
@@ -405,11 +429,13 @@ def time_encode(graph: Graph, value):
 
 
 def time_decode(graph: Graph, value, class_: type = Time):
+    """Decode a time or a time pattern from any of the time forms."""
     assert isinstance(value, Literal)
-    if value.datatype in (None, XSD.string):
-        return _time_from_string(str(value), class_)
-    elif value.datatype == BACNET.timePattern:
-        return class_(str(value))
+    if value.datatype in (None, XSD.string, BACNET.timePattern):
+        try:
+            return _time_from_string(str(value), class_)
+        except ValueError:
+            return class_(str(value))
     elif value.datatype == XSD.time:
         return class_(value.value)
     else:
@@ -433,6 +459,9 @@ def objectidentifier_decode(graph: Graph, value):
 
 
 def datetime_encode(graph: Graph, value):
+    if not isinstance(value, DateTime):
+        # a datetime pattern is always typed
+        return Literal(_datetime_string(value), datatype=BACNET.dateTimePattern)
     if value.is_special:
         return Literal(str(value), datatype=BACNET.dateTimePattern)
     else:
@@ -440,9 +469,14 @@ def datetime_encode(graph: Graph, value):
 
 
 def datetime_decode(graph: Graph, value, class_: type = DateTime):
+    """Decode a datetime or a datetime pattern from any of the forms."""
     assert isinstance(value, Literal)
-    if value.datatype == BACNET.dateTimePattern:
-        return class_(str(value))
+    if value.datatype in (None, XSD.string, BACNET.dateTimePattern):
+        try:
+            return _datetime_from_string(str(value), class_)
+        except ValueError:
+            # the DateTime string forms, like "2026-11-10 tue 12:00:00.00"
+            return class_(str(value))
     elif value.datatype == XSD.dateTime:
         return class_(value.value)
     else:
@@ -530,10 +564,10 @@ def atomic_decode(graph: Graph, literal, class_) -> Atomic:
 
 
 def any_encode(graph: Graph, value: AnyElement) -> Union[Literal, URIRef, BNode]:
-    """Encode an Any, AnyAtomic or AnyAtomicExtended.  When the content is a
-    single application tagged value (or a DateTime) it is encoded like any
-    other value of that type, so a schedule-default of 72.0 is the same
-    literal as a present-value of 72.0.  Anything else (context tagged or
+    """Encode an Any or AnyAtomic.  When the content is a single application
+    tagged value it is encoded like any other value of that type, so a
+    schedule-default of 72.0 is the same literal as a present-value of
+    72.0.  Anything else (context tagged or
     constructed content whose type is not known without the property
     context) becomes a blank node whose bacnet:any is an RDF list with one
     node per tag, following Any.dict_contents() (the analysis module JSON):
@@ -546,7 +580,7 @@ def any_encode(graph: Graph, value: AnyElement) -> Union[Literal, URIRef, BNode]
     if value.tagList is None:
         return BACNET.Null
 
-    if isinstance(value, (AnyAtomic, AnyAtomicExtended)):
+    if isinstance(value, AnyAtomic):
         try:
             return value_encode(graph, value.get_value())
         except TypeError:
@@ -619,7 +653,7 @@ def value_encode(graph: Graph, value: Any) -> Union[Literal, URIRef, BNode]:
     if isinstance(value, ExtendedList):
         return extendedlist_to_node(value, graph)
     if isinstance(value, AnyElement):
-        # covers AnyAtomic and AnyAtomicExtended
+        # covers AnyAtomic
         return any_encode(graph, value)
 
     raise TypeError(f"unable to encode {type(value).__name__}")
@@ -687,7 +721,7 @@ def graph_to_sequence(graph: Graph, node: URIRef, seq_class: type) -> Sequence:
             value = graph_to_extendedlist(
                 graph, node, element_predicate(seq, attr), element
             )
-        elif issubclass(element, (AnyAtomic, AnyAtomicExtended)):
+        elif issubclass(element, AnyAtomic):
             if literal == BACNET.Null:
                 value = Null(())
             elif isinstance(literal, Literal):
@@ -715,8 +749,6 @@ def graph_to_sequence(graph: Graph, node: URIRef, seq_class: type) -> Sequence:
                     value = time_decode(graph, literal)
                 elif literal.datatype == BACNET.objectIdentifier:
                     value = objectidentifier_decode(graph, literal)
-                elif literal.datatype in (BACNET.dateTimePattern, XSD.dateTime):
-                    value = datetime_decode(graph, literal)
                 else:
                     raise ValueError(literal.datatype)
             else:

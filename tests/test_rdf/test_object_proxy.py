@@ -29,7 +29,6 @@ from bacpypes3.primitivedata import (
 )
 from bacpypes3.constructeddata import Any, AnyAtomic, ArrayOf, ListOf
 from bacpypes3.basetypes import (
-    AnyAtomicExtended,
     DailySchedule,
     DateTime,
     LogRecord,
@@ -117,7 +116,7 @@ class TestObjectProxy(unittest.TestCase):
 
 
 #
-#   Any, AnyAtomic and AnyAtomicExtended values
+#   Any and AnyAtomic values
 #
 
 
@@ -150,12 +149,12 @@ class TestAnyValues(unittest.TestCase):
         value = g.value(obj._object_iri, BACNET["relinquish-default"])
         assert value == Literal(1, datatype=namespace.XSD.nonNegativeInteger)
 
-    def test_anyatomicextended_datetime(self):
+    def test_anyatomic_date(self):
         g, obj = object_proxy()
-        obj.presentValue = AnyAtomicExtended(date_time())
+        obj.presentValue = AnyAtomic(Date("2026-11-04"))
         no_python_repr(g)
         value = g.value(obj._object_iri, BACNET["present-value"])
-        assert value.datatype == namespace.XSD.dateTime
+        assert value == Literal("2026-11-04 3")
 
     def test_datetime_same_inside_and_outside_sequence(self):
         g, obj = object_proxy()

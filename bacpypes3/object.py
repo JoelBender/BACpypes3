@@ -157,8 +157,11 @@ from .basetypes import (
     ObjectTypesSupported,
     OptionalBinaryPV,
     OptionalCharacterString,
+    OptionalDatePattern,
+    OptionalDateTimePattern,
     OptionalPriorityFilter,
     OptionalReal,
+    OptionalTimePattern,
     OptionalUnsigned,
     Polarity,
     PortPermission,
@@ -1456,7 +1459,7 @@ class DatePatternValueObject(Object):
     eventState: EventState
     reliability: Reliability
     outOfService: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalDatePattern, _length=16)
     relinquishDefault: Date
     reliabilityEvaluationInhibit: Boolean
     eventDetectionEnable: Boolean
@@ -1484,7 +1487,7 @@ class DateTimePatternValueObject(Object):
     reliability: Reliability
     outOfService: Boolean
     isUTC: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalDateTimePattern, _length=16)
     relinquishDefault: DateTime
     reliabilityEvaluationInhibit: Boolean
     eventDetectionEnable: Boolean
@@ -2824,7 +2827,7 @@ class TimePatternValueObject(Object):
     eventState: EventState
     reliability: Reliability
     outOfService: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalTimePattern, _length=16)
     relinquishDefault: Time
     reliabilityEvaluationInhibit: Boolean
     eventDetectionEnable: Boolean

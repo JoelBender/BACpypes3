@@ -14,9 +14,20 @@ import pytest
 from rdflib import Graph, Literal  # type: ignore[import]
 from rdflib.namespace import XSD  # type: ignore[import]
 
-from bacpypes3.primitivedata import Date, Time, ObjectIdentifier
+from bacpypes3.basetypes import DateTime, DateTimePattern
+from bacpypes3.primitivedata import (
+    Date,
+    DatePattern,
+    Time,
+    TimePattern,
+    ObjectIdentifier,
+)
 from bacpypes3.rdf.core import BACNET
 from bacpypes3.rdf.util import (
+    atomic_decode,
+    atomic_encode,
+    datetime_decode,
+    datetime_encode,
     date_encode,
     date_decode,
     time_encode,
@@ -108,3 +119,115 @@ def test_object_identifier_pattern():
     assert OBJECT_IDENTIFIER_RE.match("analog-input,1")
     # the shape pattern itself does not allow instance 0
     assert not OBJECT_IDENTIFIER_RE.match("analog-input,0")
+
+
+#
+#   Patterns are always typed, Date, Time and DateTime are not, and the
+#   decoders accept any of the forms for either one
+#
+
+XMAS = (255, 12, 25, 255)
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (XMAS, "*-12-25 *"),
+        ((126, 11, 10, 2), "2026-11-10 2"),
+        ((255, 255, 255, 255), "*-*-* *"),
+    ],
+)
+def test_date_pattern_typed(value, expected):
+    literal = date_encode(Graph(), DatePattern(value))
+    assert literal == Literal(expected, datatype=BACNET.datePattern)
+    assert DATE_PATTERN_RE.match(expected)
+
+    result = date_decode(Graph(), literal, DatePattern)
+    assert type(result) is DatePattern
+    assert result == value
+
+    # the same value as a Date is not typed
+    assert date_encode(Graph(), Date(value)).datatype is None
+
+
+@pytest.mark.parametrize(
+    "literal",
+    [
+        Literal("*-12-25 *"),
+        Literal("*-12-25 *", datatype=BACNET.datePattern),
+        Literal("*-12-25", datatype=XSD.string),
+    ],
+)
+def test_date_decode_generous(literal):
+    for class_ in (Date, DatePattern):
+        result = date_decode(Graph(), literal, class_)
+        assert type(result) is class_
+        assert result == XMAS
+
+    # specific dates in any form
+    for literal in (
+        Literal("2026-11-10 2", datatype=BACNET.datePattern),
+        Literal("2026-11-10", datatype=XSD.date),
+        Literal("2026-11-10 tue", datatype=BACNET.datePattern),
+    ):
+        assert date_decode(Graph(), literal, DatePattern) == (126, 11, 10, 2)
+
+
+def test_time_pattern_typed():
+    literal = time_encode(Graph(), TimePattern("12:*"))
+    assert literal == Literal("12:*:*.*", datatype=BACNET.timePattern)
+    assert TIME_PATTERN_RE.match(str(literal))
+
+    for literal in (
+        literal,
+        Literal("12:*:*.*"),
+        Literal("12:00:00", datatype=XSD.time),
+    ):
+        for class_ in (Time, TimePattern):
+            result = time_decode(Graph(), literal, class_)
+            assert type(result) is class_
+
+    assert time_encode(Graph(), Time("12:*")).datatype is None
+
+
+def test_datetime_pattern_typed():
+    value = DateTimePattern(date=XMAS, time=(12, 0, 0, 0))
+    literal = datetime_encode(Graph(), value)
+    assert literal == Literal("*-12-25 * 12:00:00.00", datatype=BACNET.dateTimePattern)
+
+    # a wildcard year decodes, the Date string parser finds that ambiguous
+    result = datetime_decode(Graph(), literal, DateTimePattern)
+    assert type(result) is DateTimePattern
+    assert result.date == XMAS
+    assert result.time == (12, 0, 0, 0)
+
+    # a specific datetime pattern is still typed
+    literal = datetime_encode(Graph(), DateTimePattern("2026-11-10 12:00"))
+    assert literal == Literal(
+        "2026-11-10 2 12:00:00.00", datatype=BACNET.dateTimePattern
+    )
+
+    # DateTime is unchanged, and the pattern forms decode as a DateTime too
+    assert (
+        datetime_encode(Graph(), DateTime("2026-11-10 12:00")).datatype == XSD.dateTime
+    )
+    result = datetime_decode(Graph(), literal, DateTime)
+    assert type(result) is DateTime
+    assert result.date == (126, 11, 10, 2)
+    result = datetime_decode(
+        Graph(), Literal("2026-11-10T12:00:00", datatype=XSD.dateTime), DateTimePattern
+    )
+    assert type(result) is DateTimePattern
+
+
+def test_atomic_dispatch():
+    graph = Graph()
+    for value, datatype in (
+        (DatePattern(XMAS), BACNET.datePattern),
+        (TimePattern("12:*"), BACNET.timePattern),
+        (DateTimePattern(date=XMAS, time=(12, 0, 0, 0)), BACNET.dateTimePattern),
+    ):
+        literal = atomic_encode(graph, value)
+        assert literal.datatype == datatype
+        result = atomic_decode(graph, literal, type(value))
+        assert type(result) is type(value)

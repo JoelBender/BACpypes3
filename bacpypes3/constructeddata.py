@@ -555,7 +555,7 @@ class Sequence(Element, DebugContents, metaclass=SequenceMetaclass):
 
             # application encoded atomic value
             elif issubclass(element, Atomic):
-                if issubclass(element, Tag._app_tag_class[tag.tag_number]):
+                if issubclass(element, Tag._app_tag_match[tag.tag_number]):
                     value = element.decode(tag_list)
                     tag = tag_list.peek()
                     if _debug:
@@ -873,7 +873,7 @@ class Choice(Sequence):
 
             # application encoded atomic value
             elif issubclass(element, Atomic):
-                if issubclass(element, Tag._app_tag_class[tag.tag_number]):
+                if issubclass(element, Tag._app_tag_match[tag.tag_number]):
                     value = element.decode(tag_list)
                     tag = tag_list.peek()
                     if _debug:

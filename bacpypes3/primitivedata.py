@@ -120,7 +120,11 @@ class Tag:
         "reserved14",
         "reserved15",
     ]
+    # the class to build for an application tag
     _app_tag_class: _List[type]
+
+    # classes an application tagged element must be a subclass of
+    _app_tag_match: _List[type]
 
     def __init__(self, *args: _Any) -> None:
         if args:
@@ -3352,10 +3356,15 @@ Tag._app_tag_class = [
     CharacterString,
     BitString,
     Enumerated,
-    DatePattern,
-    TimePattern,
+    Date,
+    Time,
     ObjectIdentifier,
     None,  # type: ignore[list-item]
     None,  # type: ignore[list-item]
     None,  # type: ignore[list-item]
 ]
+
+# an application tagged date or time may be a pattern
+Tag._app_tag_match = list(Tag._app_tag_class)
+Tag._app_tag_match[TagNumber.date] = DatePattern
+Tag._app_tag_match[TagNumber.time] = TimePattern

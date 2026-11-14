@@ -9,21 +9,25 @@ DatePattern, TimePattern and BACnetDateTimePattern may have unspecified
 octets (and special month and day values), Date, Time and BACnetDateTime are
 the same types restricted to a specific or unspecified value (Clause 3,
 Clause 21) and are implemented as subclasses of the patterns.  The
-restriction is not enforced, is_valid checks it.
+restriction is not enforced, is_valid checks it.  Values decoded without a
+declared type are Date, Time and DateTime even when they have wildcards.
 """
 
 import pytest
 
 from bacpypes3.basetypes import (
-    AnyAtomicExtended,
     CalendarEntry,
     DateTime,
     DateTimePattern,
+    NameValue,
+    NameValueCollection,
     OptionalDatePattern,
     OptionalDateTimePattern,
+    OptionalTimePattern,
     PriorityValue,
     TimerStateChangeValue,
 )
+from bacpypes3.constructeddata import AnyAtomic, ArrayOf
 from bacpypes3.debugging import ModuleLogger, xtob
 from bacpypes3.json.util import atomic_decode, atomic_encode
 from bacpypes3.object import (
@@ -34,8 +38,11 @@ from bacpypes3.object import (
 )
 from bacpypes3.pdu import PDUData
 from bacpypes3.primitivedata import (
+    CharacterString,
     Date,
     DatePattern,
+    Null,
+    Real,
     Tag,
     TagClass,
     TagList,
@@ -127,16 +134,18 @@ def test_cast_between():
 
 
 def test_application_tags():
-    """The application tags decode as the patterns."""
+    """Without a declared type the application tags decode as Date and Time."""
     tag = Tag(TagClass.application, TagNumber.date, 4, xtob("ff0c19ff"))
     obj = tag.app_to_object()
-    assert type(obj) is DatePattern
+    assert type(obj) is Date
     assert obj == (255, 12, 25, 255)
+    assert not obj.is_valid
 
     tag = Tag(TagClass.application, TagNumber.time, 4, xtob("0cffffff"))
     obj = tag.app_to_object()
-    assert type(obj) is TimePattern
+    assert type(obj) is Time
     assert obj == (12, 255, 255, 255)
+    assert not obj.is_valid
 
     # the application tag matches both the pattern and restricted elements
     assert type(decode(DatePattern, xtob("a4 ff0c19ff"))) is DatePattern
@@ -232,16 +241,78 @@ def test_priority_value_patterns():
     assert PriorityValue(DateTime("2025-12-25 12:00"))._choice == "datetime"
 
 
-def test_any_atomic_extended_datetime():
-    obj = AnyAtomicExtended(DateTimePattern(date=XMAS, time=NOON))
-    assert obj.get_value_type() is DateTimePattern
-    value = obj.get_value()
-    assert type(value) is DateTimePattern
-    assert value.date == XMAS
+def test_optional_pattern_values():
+    """The Optional...Pattern choices accept values and PriorityValues."""
+    assert OptionalDatePattern(Null(()))._choice == "null"
+    for value in (DatePattern(XMAS), Date("2025-12-25")):
+        obj = OptionalDatePattern(value)
+        assert obj._choice == "datepattern"
+        assert type(obj.datepattern) is DatePattern
+        assert obj.datepattern == value
 
-    # a restricted value is accepted and encoded the same way
-    obj = AnyAtomicExtended(DateTime("2025-12-25 12:00"))
-    assert obj.get_value().date == (125, 12, 25, 4)
+    obj = OptionalDatePattern(PriorityValue(date=Date("2025-12-25")))
+    assert obj._choice == "datepattern"
+    assert obj.datepattern == (125, 12, 25, 4)
+    assert OptionalDatePattern(PriorityValue(null=()))._choice == "null"
+
+    obj = OptionalTimePattern(Time("12:00"))
+    assert obj._choice == "timepattern"
+    assert type(obj.timepattern) is TimePattern
+
+    obj = OptionalDateTimePattern(DateTime("2025-12-25 12:00"))
+    assert obj._choice == "datetimepattern"
+    assert isinstance(obj.datetimepattern, DateTimePattern)
+    assert not isinstance(obj.datetimepattern, DateTime)
+    obj = OptionalDateTimePattern(PriorityValue(datetime=DateTime("2025-12-25 12:00")))
+    assert obj._choice == "datetimepattern"
+
+    # the keyword form still works
+    assert OptionalDatePattern(datepattern=XMAS).datepattern == XMAS
+
+    with pytest.raises(TypeError):
+        OptionalDatePattern(Time("12:00"))
+    with pytest.raises(TypeError):
+        OptionalDatePattern(PriorityValue(real=Real(1.0)))
+
+
+def test_any_atomic_date():
+    """Without a declared type an AnyAtomic date is a Date."""
+    obj = AnyAtomic(DatePattern(XMAS))
+    assert obj.get_value_type() is Date
+    value = obj.get_value()
+    assert type(value) is Date
+    assert value == XMAS
+
+    # a DateTime is not atomic
+    with pytest.raises(TypeError):
+        AnyAtomic(DateTime("2025-12-25 12:00"))
+
+
+def test_name_value():
+    """The value of a BACnetNameValue is a single primitive value."""
+    obj = NameValue(name="xmas", value=DatePattern(XMAS))
+    assert encode(obj) == xtob("0d 05 00786d6173 a4ff0c19ff")
+    result = decode(NameValue, encode(obj))
+    assert result.name == "xmas"
+    assert result.value.get_value() == XMAS
+
+    obj = NameValue(name="none")
+    result = decode(NameValue, encode(obj))
+    assert result.name == "none"
+    assert result.value is None
+
+    obj = NameValueCollection(
+        members=[
+            NameValue(name="a"),
+            NameValue(name="b", value=CharacterString("c")),
+            NameValue(name="d"),
+        ]
+    )
+    result = decode(NameValueCollection, encode(obj))
+    assert [member.name for member in result.members] == ["a", "b", "d"]
+    assert result.members[0].value is None
+    assert result.members[1].value.get_value() == "c"
+    assert result.members[2].value is None
 
 
 def test_pattern_value_objects():
@@ -253,6 +324,24 @@ def test_pattern_value_objects():
     obj = DatePatternValueObject(presentValue=XMAS)
     assert type(obj.presentValue) is DatePattern
     assert obj.presentValue == (255, 12, 25, 255)
+
+    # the priority arrays are the CSML BACnetOptional...Pattern
+    for cls, subtype in (
+        (DatePatternValueObject, OptionalDatePattern),
+        (TimePatternValueObject, OptionalTimePattern),
+        (DateTimePatternValueObject, OptionalDateTimePattern),
+    ):
+        assert cls._elements["priorityArray"]._subtype is subtype
+        assert cls._elements["priorityArray"]._length == 16
+
+    array_class = ArrayOf(OptionalDatePattern, _length=16)
+    obj = array_class(
+        [OptionalDatePattern(DatePattern(XMAS))]
+        + [OptionalDatePattern(Null(())) for _ in range(15)]
+    )
+    result = decode(array_class, encode(obj))
+    assert result[0].datepattern == XMAS
+    assert result[1]._choice == "null"
 
 
 def test_json_patterns():
@@ -266,25 +355,3 @@ def test_json_patterns():
     result = atomic_decode("12:*:*.*", TimePattern)
     assert type(result) is TimePattern
     assert result == (12, 255, 255, 255)
-
-
-def test_rdf_patterns():
-    pytest.importorskip("rdflib")
-    from rdflib import Graph  # type: ignore[import]
-
-    from bacpypes3.rdf.util import atomic_decode as rdf_atomic_decode
-    from bacpypes3.rdf.util import atomic_encode as rdf_atomic_encode
-
-    graph = Graph()
-    for value in (DatePattern(XMAS), TimePattern("12:*")):
-        literal = rdf_atomic_encode(graph, value)
-        result = rdf_atomic_decode(graph, literal, type(value))
-        assert type(result) is type(value)
-        assert result == value
-
-    value = DateTimePattern(date=(125, 12, 255, 255), time=(12, 255, 255, 255))
-    literal = rdf_atomic_encode(graph, value)
-    result = rdf_atomic_decode(graph, literal, DateTimePattern)
-    assert type(result) is DateTimePattern
-    assert result.date == value.date
-    assert result.time == value.time
