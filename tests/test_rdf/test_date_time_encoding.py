@@ -2,8 +2,8 @@
 # -*- coding: utf-8 -*-
 
 """
-Test RDF Date, Time and ObjectIdentifier Encoding
--------------------------------------------------
+Test RDF Date, Time, WeekNDay and ObjectIdentifier Encoding
+-----------------------------------------------------------
 
 The values are strings matching the csml2rdf bacnet.ttl shapes.
 """
@@ -14,7 +14,7 @@ import pytest
 from rdflib import Graph, Literal  # type: ignore[import]
 from rdflib.namespace import XSD  # type: ignore[import]
 
-from bacpypes3.basetypes import DateTime, DateTimePattern
+from bacpypes3.basetypes import CalendarEntry, DateTime, DateTimePattern, WeekNDay
 from bacpypes3.primitivedata import (
     Date,
     DatePattern,
@@ -34,6 +34,8 @@ from bacpypes3.rdf.util import (
     time_decode,
     objectidentifier_encode,
     objectidentifier_decode,
+    weeknday_decode,
+    weeknday_encode,
 )
 
 # patterns from csml2rdf bacnet.ttl
@@ -46,6 +48,7 @@ TIME_PATTERN_RE = re.compile(
     r"^([0-9]{2}|[*]):([0-9]{2}|[*]):([0-9]{2}|[*])[.]([0-9]{2}|[*])$"
 )
 OBJECT_IDENTIFIER_RE = re.compile(r"^[A-Za-z0-9-]+,[1-9][0-9]*$")
+WEEKNDAY_RE = re.compile(r"^([1-9][0-9]*|[*]),([1-9][0-9]*|[*]),([1-9][0-9]*|[*])$")
 
 
 def test_local_date():
@@ -231,3 +234,49 @@ def test_atomic_dispatch():
         assert literal.datatype == datatype
         result = atomic_decode(graph, literal, type(value))
         assert type(result) is type(value)
+
+
+#
+#   WeekNDay is the month, week of month and day of week
+#
+
+
+@pytest.mark.parametrize(
+    "value,expected",
+    [
+        (b"\x0c\xff\x07", "12,*,7"),  # every Sunday in December
+        (b"\x0d\x01\x01", "13,1,1"),  # first Monday of odd months
+        (b"\xff\xff\x05", "*,*,5"),  # every Friday
+        (b"\xff\xff\xff", "*,*,*"),
+    ],
+)
+def test_weeknday(value, expected):
+    literal = weeknday_encode(Graph(), WeekNDay(value))
+    assert literal == Literal(expected, datatype=BACNET.weekNDay)
+    assert WEEKNDAY_RE.match(expected)
+
+    result = weeknday_decode(Graph(), literal)
+    assert type(result) is WeekNDay
+    assert result == value
+
+
+def test_weeknday_decode_generous():
+    for literal in (
+        Literal("12,*,7"),
+        Literal("12,*,7", datatype=XSD.string),
+        Literal("0cff07", datatype=XSD.hexBinary),
+    ):
+        assert weeknday_decode(Graph(), literal) == b"\x0c\xff\x07"
+
+    with pytest.raises(ValueError):
+        weeknday_decode(Graph(), Literal("12,7", datatype=BACNET.weekNDay))
+
+
+def test_weeknday_atomic_dispatch():
+    """WeekNDay is an OctetString but is not encoded as one."""
+    element = CalendarEntry._elements["weeknday"]
+    literal = atomic_encode(Graph(), element(b"\x0c\xff\x07"))
+    assert literal == Literal("12,*,7", datatype=BACNET.weekNDay)
+    result = atomic_decode(Graph(), literal, element)
+    assert isinstance(result, WeekNDay)
+    assert result == b"\x0c\xff\x07"

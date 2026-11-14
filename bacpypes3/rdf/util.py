@@ -39,7 +39,7 @@ from ..constructeddata import (
     Sequence,  # covers both Sequence and Choice
     ExtendedList,  # covers SequenceOf, ArrayOf, and ListOf
 )
-from ..basetypes import DateTime, DateTimePattern
+from ..basetypes import DateTime, DateTimePattern, WeekNDay
 
 # some debugging
 _debug = 0
@@ -113,6 +113,9 @@ _date_string_re = re.compile(
 _time_string_re = re.compile(
     r"^([0-9]{1,2}|[*]):([0-9]{1,2}|[*]):([0-9]{1,2}|[*])(?:[.]([0-9]{1,2}|[*]))?$"
 )
+
+# month, week of month and day of week, "12,*,7" is every Sunday in December
+_weeknday_string_re = re.compile(r"^([0-9]+|[*]),([0-9]+|[*]),([0-9]+|[*])$")
 
 
 def _field_encode(value: int, width: int, offset: int = 0) -> str:
@@ -483,6 +486,27 @@ def datetime_decode(graph: Graph, value, class_: type = DateTime):
         raise TypeError(value.datatype)
 
 
+def weeknday_encode(graph: Graph, value):
+    return Literal(
+        ",".join(_field_encode(field, 1) for field in value),
+        datatype=BACNET.weekNDay,
+    )
+
+
+def weeknday_decode(graph: Graph, value, class_: type = WeekNDay):
+    """Decode a BACnetWeekNDay from the string form or the octet string."""
+    assert isinstance(value, Literal)
+    if value.datatype in (None, XSD.string, BACNET.weekNDay):
+        match = _weeknday_string_re.match(str(value))
+        if not match:
+            raise ValueError(f"weeknday string expected: {str(value)!r}")
+        return class_(bytes(_field_decode(field) for field in match.groups()))
+    elif value.datatype in (XSD.hexBinary, XSD.base64Binary):
+        return class_(value.value)
+    else:
+        raise TypeError(value.datatype)
+
+
 #
 #
 #
@@ -501,6 +525,9 @@ def atomic_encode(graph: Graph, value) -> Literal:
         literal = real_encode(graph, value)
     elif isinstance(value, Double):
         literal = double_encode(graph, value)
+    elif isinstance(value, WeekNDay):
+        # WeekNDay is an OctetString, check it first
+        literal = weeknday_encode(graph, value)
     elif isinstance(value, OctetString):
         literal = octetstring_encode(graph, value)
     elif isinstance(value, CharacterString):
@@ -536,6 +563,8 @@ def atomic_decode(graph: Graph, literal, class_) -> Atomic:
         value = real_decode(graph, literal)
     elif issubclass(class_, Double):
         value = double_decode(graph, literal)
+    elif issubclass(class_, WeekNDay):
+        value = weeknday_decode(graph, literal, class_)
     elif issubclass(class_, OctetString):
         value = octetstring_decode(graph, literal)
     elif issubclass(class_, CharacterString):
