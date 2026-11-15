@@ -155,19 +155,27 @@ from .basetypes import (
     ObjectPropertyReference,
     ObjectSelector,
     ObjectTypesSupported,
+    OptionalBinaryLightingPV,
     OptionalBinaryPV,
+    OptionalBitString,
     OptionalCharacterString,
+    OptionalDate,
     OptionalDatePattern,
+    OptionalDateTime,
     OptionalDateTimePattern,
+    OptionalDoorValue,
+    OptionalDouble,
+    OptionalInteger,
+    OptionalOctetString,
     OptionalPriorityFilter,
     OptionalReal,
+    OptionalTime,
     OptionalTimePattern,
     OptionalUnsigned,
     Polarity,
     PortPermission,
     Prescale,
     PriorityFilter,
-    PriorityValue,
     ProcessIdSelection,
     ProgramError,
     ProgramRequest,
@@ -570,7 +578,7 @@ class AccessDoorObject(Object):
     eventState: EventState
     reliability: Reliability
     outOfService: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalDoorValue, _length=16)
     relinquishDefault: DoorValue
     doorStatus: DoorStatus
     lockStatus: LockStatus
@@ -895,7 +903,7 @@ class AnalogOutputObject(Object):
     minPresValue: Real
     maxPresValue: Real
     resolution: Real
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalReal, _length=16)
     relinquishDefault: Real
     covIncrement: Real
     timeDelay: Unsigned
@@ -936,7 +944,7 @@ class AnalogValueObject(Object):
     minPresValue: Real
     maxPresValue: Real
     resolution: Real
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalReal, _length=16)
     relinquishDefault: Real
     covIncrement: Real
     timeDelay: Unsigned
@@ -1120,7 +1128,7 @@ class BinaryLightingOutputObject(Object):
     egressTime: Unsigned
     egressActive: Boolean
     feedbackValue: BinaryLightingPV
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalBinaryLightingPV, _length=16)
     relinquishDefault: BinaryLightingPV
     power: Real
     polarity: Polarity
@@ -1176,7 +1184,7 @@ class BinaryOutputObject(Object):
     timeOfActiveTimeReset: DateTime
     minimumOffTime: Unsigned
     minimumOnTime: Unsigned
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalBinaryPV, _length=16)
     relinquishDefault: BinaryPV
     timeDelay: Unsigned
     notificationClass: Unsigned
@@ -1218,7 +1226,7 @@ class BinaryValueObject(Object):
     timeOfActiveTimeReset: DateTime
     minimumOffTime: Unsigned
     minimumOnTime: Unsigned
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalBinaryPV, _length=16)
     relinquishDefault: BinaryPV
     timeDelay: Unsigned
     notificationClass: Unsigned
@@ -1251,7 +1259,7 @@ class BitStringValueObject(Object):
     eventState: EventState
     reliability: Reliability
     outOfService: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalBitString, _length=16)
     relinquishDefault: BitString
     timeDelay: Unsigned
     notificationClass: Unsigned
@@ -1328,7 +1336,7 @@ class CharacterStringValueObject(Object):
     eventState: EventState
     reliability: Reliability
     outOfService: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalCharacterString, _length=16)
     relinquishDefault: CharacterString
     timeDelay: Unsigned
     notificationClass: Unsigned
@@ -1514,7 +1522,7 @@ class DateTimeValueObject(Object):
     eventState: EventState
     reliability: Reliability
     outOfService: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalDateTime, _length=16)
     relinquishDefault: DateTime
     isUTC: Boolean
     reliabilityEvaluationInhibit: Boolean
@@ -1542,7 +1550,7 @@ class DateValueObject(Object):
     eventState: EventState
     reliability: Reliability
     outOfService: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalDate, _length=16)
     relinquishDefault: Date
     reliabilityEvaluationInhibit: Boolean
     eventDetectionEnable: Boolean
@@ -1893,7 +1901,7 @@ class IntegerValueObject(Object):
     reliability: Reliability
     outOfService: Boolean
     units: EngineeringUnits
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalInteger, _length=16)
     relinquishDefault: Integer
     covIncrement: Unsigned
     timeDelay: Unsigned
@@ -1935,7 +1943,7 @@ class LargeAnalogValueObject(Object):
     reliability: Reliability
     outOfService: Boolean
     units: EngineeringUnits
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalDouble, _length=16)
     relinquishDefault: Double
     covIncrement: Double
     timeDelay: Unsigned
@@ -2164,7 +2172,7 @@ class LightingOutputObject(Object):
     defaultStepIncrement: Real
     transition: LightingTransition
     feedbackValue: Real
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalReal, _length=16)
     relinquishDefault: Real
     power: Real
     instantaneousPower: Real
@@ -2359,7 +2367,7 @@ class MultiStateOutputObject(Object):
     outOfService: Boolean
     numberOfStates: Unsigned
     stateText: ArrayOf(CharacterString)
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalUnsigned, _length=16)
     relinquishDefault: Unsigned
     timeDelay: Unsigned
     notificationClass: Unsigned
@@ -2400,7 +2408,7 @@ class MultiStateValueObject(Object):
     outOfService: Boolean
     numberOfStates: Unsigned
     stateText: ArrayOf(CharacterString)
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalUnsigned, _length=16)
     relinquishDefault: Unsigned
     timeDelay: Unsigned
     notificationClass: Unsigned
@@ -2601,7 +2609,7 @@ class OctetStringValueObject(Object):
     eventState: EventState
     reliability: Reliability
     outOfService: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalOctetString, _length=16)
     relinquishDefault: OctetString
     reliabilityEvaluationInhibit: Boolean
     currentCommandPriority: OptionalUnsigned
@@ -2621,7 +2629,7 @@ class PositiveIntegerValueObject(Object):
     reliability: Reliability
     outOfService: Boolean
     units: EngineeringUnits
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalUnsigned, _length=16)
     relinquishDefault: Unsigned
     covIncrement: Unsigned
     timeDelay: Unsigned
@@ -2854,7 +2862,7 @@ class TimeValueObject(Object):
     eventState: EventState
     reliability: Reliability
     outOfService: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalTime, _length=16)
     relinquishDefault: Time
     reliabilityEvaluationInhibit: Boolean
     eventDetectionEnable: Boolean

@@ -3315,9 +3315,11 @@ class ArrayOfDailySchedule(ArrayOf(DailySchedule)):
 
 
 class DateRange(Sequence):
+    # the members are date patterns, so a range can be open ended or
+    # unspecified (for example "*-*-* *"), see the CSML BACnetDateRange
     _order = ("startDate", "endDate")
-    startDate = Date()
-    endDate = Date()
+    startDate = DatePattern()
+    endDate = DatePattern()
 
 
 class Destination(Sequence):

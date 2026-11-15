@@ -17,6 +17,7 @@ import pytest
 
 from bacpypes3.basetypes import (
     CalendarEntry,
+    DateRange,
     DateTime,
     DateTimePattern,
     NameValue,
@@ -199,6 +200,19 @@ def test_calendar_entry_date_pattern():
     assert isinstance(result.date, DatePattern)
     assert not isinstance(result.date, Date)
     assert result.date == (255, 12, 25, 255)
+
+
+def test_date_range_date_patterns():
+    """BACnetDateRange start and end dates are DatePatterns."""
+    obj = DateRange(startDate=DatePattern(XMAS), endDate=DatePattern("*-*-* *"))
+    assert encode(obj) == xtob("a4 ff0c19ff a4 ffffffff")
+
+    result = decode(DateRange, encode(obj))
+    for member in (result.startDate, result.endDate):
+        assert isinstance(member, DatePattern)
+        assert not isinstance(member, Date)
+    assert result.startDate == XMAS
+    assert result.endDate.is_unspecified
 
 
 def test_timer_state_change_value_patterns():

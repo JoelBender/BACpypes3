@@ -14,7 +14,16 @@ import pytest
 from rdflib import Graph, Literal  # type: ignore[import]
 from rdflib.namespace import XSD  # type: ignore[import]
 
-from bacpypes3.basetypes import CalendarEntry, DateTime, DateTimePattern, WeekNDay
+from bacpypes3.basetypes import (
+    CalendarEntry,
+    DateRange,
+    DateTime,
+    DateTimePattern,
+    WeekNDay,
+)
+from bacpypes3.object import ScheduleObject
+from bacpypes3.pdu import Address
+from bacpypes3.rdf import BACnetGraph
 from bacpypes3.primitivedata import (
     Date,
     DatePattern,
@@ -280,3 +289,20 @@ def test_weeknday_atomic_dispatch():
     result = atomic_decode(Graph(), literal, element)
     assert isinstance(result, WeekNDay)
     assert result == b"\x0c\xff\x07"
+
+
+def test_effective_period_date_patterns():
+    """A schedule's effective period is a pair of typed date patterns."""
+    g = Graph()
+    device_graph = BACnetGraph(g).create_device(
+        Address("192.168.0.10"), ObjectIdentifier("device,1")
+    )
+    obj = device_graph.create_object(ObjectIdentifier("schedule,1"), ScheduleObject)
+    obj.effectivePeriod = DateRange(
+        startDate=DatePattern("*-*-* *"), endDate=DatePattern("*-*-* *")
+    )
+
+    period = g.value(obj._object_iri, BACNET["effective-period"])
+    for predicate in ("start-date", "end-date"):
+        value = g.value(period, BACNET[predicate])
+        assert value == Literal("*-*-* *", datatype=BACNET.datePattern)

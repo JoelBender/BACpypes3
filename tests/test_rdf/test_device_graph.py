@@ -8,15 +8,20 @@ Test RDF DeviceGraph
 
 import unittest
 
-from rdflib import Graph  # type: ignore[import]
-from rdflib.namespace import RDF  # type: ignore[import]
+from rdflib import Graph, Literal  # type: ignore[import]
+from rdflib.namespace import RDF, XSD  # type: ignore[import]
 
 from bacpypes3.debugging import ModuleLogger
 from bacpypes3.pdu import Address
 from bacpypes3.object import AnalogInputObject, Object
 from bacpypes3.primitivedata import ObjectIdentifier
 from bacpypes3.rdf import BACnetGraph
-from bacpypes3.rdf.core import BACNET, class_node, object_class_nodes
+from bacpypes3.rdf.core import (
+    BACNET,
+    class_node,
+    find_device_by_instance,
+    object_class_nodes,
+)
 
 # some debugging
 _debug = 0
@@ -24,6 +29,28 @@ _log = ModuleLogger(globals())
 
 
 class TestDeviceGraph(unittest.TestCase):
+    def test_device_instance_is_unsigned(self):
+        g = Graph()
+        device_graph = BACnetGraph(g).create_device(
+            Address("192.168.0.10"), ObjectIdentifier("device,510")
+        )
+
+        # encoded like other unsigned values, not a plain xsd:integer
+        value = g.value(device_graph.device_iri, BACNET["device-instance"])
+        assert value == Literal(510, datatype=XSD.nonNegativeInteger)
+        assert value.datatype == XSD.nonNegativeInteger
+
+        # the prepared query finds it with a matching binding
+        rows = list(
+            g.query(
+                find_device_by_instance,
+                initBindings={
+                    "device_instance": Literal(510, datatype=XSD.nonNegativeInteger)
+                },
+            )
+        )
+        assert [row[0] for row in rows] == [device_graph.device_iri]
+
     def test_create_object_types_object(self):
         g = Graph()
         device_graph = BACnetGraph(g).create_device(

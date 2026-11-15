@@ -274,8 +274,13 @@ class BACnetGraph:
             device_address_proxy.macAddress = device_address_mac
 
         if device_identifier is not None:
+            # device instances are unsigned, like other unsigned values
             self.graph.add(
-                (device_iri, BACNET["device-instance"], Literal(device_identifier[1]))
+                (
+                    device_iri,
+                    BACNET["device-instance"],
+                    unsigned_encode(self.graph, device_identifier[1]),
+                )
             )
 
         return DeviceGraph(self, device_iri)

@@ -2156,8 +2156,14 @@ class DatePattern(Atomic, tuple):
             if not matches:
                 raise ValueError("unmatched")
 
+            # the "YYYY-MM-DD" form (Annex Y, the first pattern) wins, so a
+            # wildcard year like "*-06-01 *" is not read as month-day-year
+            iso_match = _date_patterns[0].match(arg)
+            if iso_match:
+                match = iso_match.groupdict()
+
             # if there is only one, success
-            if len(matches) == 1:
+            elif len(matches) == 1:
                 match = matches[0]
             else:
                 # check to see if they really are the same

@@ -6,7 +6,7 @@ from typing import Any, Optional, Tuple
 
 from ..debugging import bacpypes_debugging, ModuleLogger
 from ..primitivedata import Atomic, Null, Unsigned, Date, DatePattern, Time
-from ..basetypes import CalendarEntry, WeekNDay, Reliability
+from ..basetypes import CalendarEntry, DateRange, WeekNDay, Reliability
 from ..constructeddata import Array
 from ..object import ScheduleObject as _ScheduleObject
 from ..vendor import get_vendor_info
@@ -93,13 +93,37 @@ def match_date(date: Date, date_pattern: DatePattern) -> bool:
 #
 
 
-def match_date_range(date: Date, date_range: Date) -> bool:
+def match_date_range(date: Date, date_range: DateRange) -> bool:
     """
     Match a specific date, a four-tuple with no special values, with a DateRange
-    object which as a start date and end date.
+    object which as a start date and end date.  Both ends are inclusive.
+
+    An unspecified (X'FF') year, month, or day in the start or end date takes
+    its value from the date being matched, and the day of the week is ignored:
+
+    - "*-*-* *" as the start date is the beginning of time and as the end date
+      is the end of time
+    - "*-06-01" .. "*-08-31" is from the first of June to the end of August of
+      the same year, every year; a range like "*-11-01" .. "*-02-28" does not
+      wrap into the next year so it never matches
     """
-    return (date[:3] >= date_range.startDate[:3]) and (
-        date[:3] <= date_range.endDate[:3]
+    date_ymd = tuple(date[:3])
+
+    return (
+        _resolve_date(date_range.startDate, date_ymd)
+        <= date_ymd
+        <= _resolve_date(date_range.endDate, date_ymd)
+    )
+
+
+def _resolve_date(date_pattern: DatePattern, date_ymd: tuple) -> tuple:
+    """
+    Return the (year, month, day) of a date pattern with each unspecified field
+    replaced by the same field of the date being matched.
+    """
+    return tuple(
+        date_field if pattern_field == 255 else pattern_field
+        for pattern_field, date_field in zip(date_pattern[:3], date_ymd)
     )
 
 

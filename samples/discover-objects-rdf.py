@@ -4,6 +4,8 @@
 Discover Devices and Objects
 """
 
+from __future__ import annotations
+
 import sys
 import asyncio
 import argparse
@@ -35,6 +37,28 @@ def device_node(
 
 # use this function for device node identifiers
 set_identifier_functions(device_node_fn=device_node)
+
+
+# properties written by DeviceGraph.create_object, no need to read them
+CREATED_PROPERTIES = ("object-identifier", "object-type")
+
+# optional properties that are interesting enough to read when supported
+OPTIONAL_PROPERTIES = ("description", "reliability")
+
+
+def required_properties(obj_class: type) -> list[str]:
+    """
+    Return the names of the required properties of an object class.  Each
+    class only lists its own required properties in `_required`, so collect
+    them from the class and all of its base classes, base classes first.
+    """
+    property_names: list[str] = []
+    for cls in reversed(obj_class.__mro__):
+        for attr in cls.__dict__.get("_required", ()):
+            property_name = str(PropertyIdentifier(attr))
+            if property_name not in property_names:
+                property_names.append(property_name)
+    return property_names
 
 
 async def main() -> None:
@@ -95,7 +119,13 @@ async def main() -> None:
                 sys.stderr.write(
                     f"error reading object-list from {device_identifier} at {device_address}: {e}\n"
                 )
-                continue
+                obj_list = []
+
+            # the device object is always there, even when the object list
+            # is empty or could not be read, so read its required properties
+            obj_list = list(obj_list)
+            if device_identifier not in obj_list:
+                obj_list.insert(0, device_identifier)
 
             for object_identifier in obj_list:
                 obj_proxy = dev_graph.create_object(object_identifier)
@@ -106,16 +136,17 @@ async def main() -> None:
                 if not obj_class:
                     continue
 
+                # all of the required properties and some optional ones
                 props = [
-                    "object-name",
-                    "object-type",
-                    "description",
-                    "present-value",
-                    "units",
-                    "reliability",
-                    "out-of-service",
-                    # "priority-array",
+                    property_name
+                    for property_name in required_properties(obj_class)
+                    if property_name not in CREATED_PROPERTIES
                 ]
+                props.extend(
+                    property_name
+                    for property_name in OPTIONAL_PROPERTIES
+                    if property_name not in props
+                )
 
                 for property_name in props:
                     property_identifier = PropertyIdentifier(property_name)
