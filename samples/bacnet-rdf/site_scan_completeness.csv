@@ -1,0 +1,73 @@
+DeviceID,ObjType,ObjInst,ObjectIdentifier,Name,NameStatus,Description,DescriptionStatus,Units,UnitsStatus,Failed,RowStatus
+0,device,0,"device,0",BASRT-B00d6c2,pass,BACnet/IP to MS/TP Router,pass,,n/a,,complete
+5007,analog-input,10014,"analog-input,10014",STAT ZN-T,pass,Zone Temperature,pass,http://data.ashrae.org/bacnet/2024#EngineeringUnits.degrees-fahrenheit,pass,,complete
+5007,analog-input,10044,"analog-input,10044",ACTUATOR-POS,pass,ACTUATOR POSTION,pass,http://data.ashrae.org/bacnet/2024#EngineeringUnits.percent,pass,,complete
+5007,analog-input,1168,"analog-input,1168",OA-H,pass,4-20MA HUMIDITY INPUT,pass,http://data.ashrae.org/bacnet/2024#EngineeringUnits.percent-relative-humidity,pass,,complete
+5007,analog-input,1173,"analog-input,1173",OA-T,pass,4-20MA TEMP INPUT,pass,http://data.ashrae.org/bacnet/2024#EngineeringUnits.degrees-fahrenheit,pass,,complete
+5007,analog-input,1179,"analog-input,1179",SSPLATE-T,pass,SS WA;LPLATE TEMP,pass,http://data.ashrae.org/bacnet/2024#EngineeringUnits.degrees-fahrenheit,pass,,complete
+5007,analog-input,1192,"analog-input,1192",DUCT-T,pass,DUCT PROBE SENSOR,pass,http://data.ashrae.org/bacnet/2024#EngineeringUnits.degrees-fahrenheit,pass,,complete
+5007,analog-input,9334,"analog-input,9334",DUCT-P,pass,DUCT INWC SENSOR,pass,http://data.ashrae.org/bacnet/2024#EngineeringUnits.inches-of-water,pass,,complete
+5007,analog-output,10032,"analog-output,10032",C06-0-10VDC-O,pass,C06 0-10V OUTPUT,pass,http://data.ashrae.org/bacnet/2024#EngineeringUnits.percent,pass,,complete
+5007,analog-output,10035,"analog-output,10035",C07-0-10VDC-O,pass,C07 0-10V OUTPUT,pass,http://data.ashrae.org/bacnet/2024#EngineeringUnits.percent,pass,,complete
+5007,analog-output,10038,"analog-output,10038",AO9-4-20MA-O,pass,AO9 4-20MA OUTPUT,pass,http://data.ashrae.org/bacnet/2024#EngineeringUnits.percent,pass,,complete
+5007,analog-output,2466,"analog-output,2466",ACTUATOR-0,pass,ACTUATOR OUTPUT,pass,http://data.ashrae.org/bacnet/2024#EngineeringUnits.percent,pass,,complete
+5007,analog-value,10007,"analog-value,10007",Priority,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,analog-value,10010,"analog-value,10010",Priority,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,analog-value,10011,"analog-value,10011",STAT ZN WC-ADJ,pass,Warmer/Cooler Request,pass,http://data.ashrae.org/bacnet/2024#EngineeringUnits.degrees-fahrenheit,pass,,complete
+5007,analog-value,10012,"analog-value,10012",Priority,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,analog-value,10013,"analog-value,10013",O1,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,analog-value,10015,"analog-value,10015",Priority,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,analog-value,10016,"analog-value,10016",O1,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,analog-value,10021,"analog-value,10021",Priority,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,analog-value,10025,"analog-value,10025",Priority,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,analog-value,10028,"analog-value,10028",Priority,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,analog-value,10031,"analog-value,10031",Priority,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,analog-value,10033,"analog-value,10033",I1,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.percent,pass,description:blank,partial
+5007,analog-value,10034,"analog-value,10034",Priority,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,analog-value,10036,"analog-value,10036",I1,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.percent,pass,description:blank,partial
+5007,analog-value,10037,"analog-value,10037",Priority,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,analog-value,10039,"analog-value,10039",I1,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.percent,pass,description:blank,partial
+5007,analog-value,10040,"analog-value,10040",Priority,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,analog-value,169012,"analog-value,169012",O1,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.percent-relative-humidity,pass,description:blank,partial
+5007,analog-value,169013,"analog-value,169013",Priority,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,analog-value,169020,"analog-value,169020",O1,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.degrees-fahrenheit,pass,description:blank,partial
+5007,analog-value,169021,"analog-value,169021",Priority,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,analog-value,169030,"analog-value,169030",O1,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.degrees-fahrenheit,pass,description:blank,partial
+5007,analog-value,169031,"analog-value,169031",Priority,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,analog-value,169040,"analog-value,169040",O1,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.degrees-fahrenheit,pass,description:blank,partial
+5007,analog-value,169041,"analog-value,169041",Priority,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,analog-value,237957,"analog-value,237957",Priority,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,analog-value,237958,"analog-value,237958",I1,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.percent,pass,description:blank,partial
+5007,analog-value,238001,"analog-value,238001",O1,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.inches-of-water,pass,description:blank,partial
+5007,analog-value,238002,"analog-value,238002",Priority,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,analog-value,238198,"analog-value,238198",Priority,pass,,blank,http://data.ashrae.org/bacnet/2024#EngineeringUnits.no-units,pass,description:blank,partial
+5007,binary-input,10020,"binary-input,10020",BI8-S,pass,INPUT 8 STATUS,pass,,n/a,,complete
+5007,binary-input,9429,"binary-input,9429",CURRENT-S,pass,CURRENT SENSING DONUT,pass,,n/a,,complete
+5007,binary-output,10005,"binary-output,10005",RIBRELAY1- C,pass,RIB RELAY #1 COMMAND,pass,,n/a,,complete
+5007,binary-output,10008,"binary-output,10008",RIBRELAY#2-C,pass,RIB RELAY #2 COMMAND,pass,,n/a,,complete
+5007,binary-output,10023,"binary-output,10023",BO3-C,pass,B03 COMMAND,pass,,n/a,,complete
+5007,binary-output,10026,"binary-output,10026",C04-DRY-C,pass,C04 DRY CONTACT COMMAND,pass,,n/a,,complete
+5007,binary-output,10029,"binary-output,10029",C05-DRY-C,pass,C05 DRY CONTACT COMMAND,pass,,n/a,,complete
+5007,binary-value,10001,"binary-value,10001",I2,pass,,blank,,n/a,description:blank,partial
+5007,binary-value,10002,"binary-value,10002",O2,pass,,blank,,n/a,description:blank,partial
+5007,device,5007,"device,5007",BENS BENCHTEST BOX,pass,"CTRL 6UI, 2BI, 3BO, 2AO, 4CO",pass,,n/a,,complete
+5007,file,1,"file,1",8-1/Boot,pass,,blank,,n/a,description:blank,partial
+5007,file,11,"file,11",8-1/Static,pass,,blank,,n/a,description:blank,partial
+5007,file,12,"file,12",8-1/Dynamic,pass,,blank,,n/a,description:blank,partial
+5007,file,2,"file,2",8-1/Main,pass,,blank,,n/a,description:blank,partial
+5007,file,25,"file,25",8-1/FLASH_MEMORY,pass,,blank,,n/a,description:blank,partial
+5007,file,3,"file,3",8-1/Archive,pass,,blank,,n/a,description:blank,partial
+5007,multi-state-value,10003,"multi-state-value,10003",O1,pass,,blank,,n/a,description:blank,partial
+5007,multi-state-value,10004,"multi-state-value,10004",I1,pass,,blank,,n/a,description:blank,partial
+5007,multi-state-value,10006,"multi-state-value,10006",I1,pass,,blank,,n/a,description:blank,partial
+5007,multi-state-value,10009,"multi-state-value,10009",I1,pass,,blank,,n/a,description:blank,partial
+5007,multi-state-value,10022,"multi-state-value,10022",O1,pass,,blank,,n/a,description:blank,partial
+5007,multi-state-value,10024,"multi-state-value,10024",I1,pass,,blank,,n/a,description:blank,partial
+5007,multi-state-value,10027,"multi-state-value,10027",I1,pass,,blank,,n/a,description:blank,partial
+5007,multi-state-value,10030,"multi-state-value,10030",I1,pass,,blank,,n/a,description:blank,partial
+5007,multi-state-value,238197,"multi-state-value,238197",O1,pass,,blank,,n/a,description:blank,partial
+54545,analog-value,1,"analog-value,1",WEB OA-T,pass,"Open-Meteo outdoor air dry bulb, Ben's Bench (obs 2026-11-10T15:00)",pass,http://data.ashrae.org/bacnet/2024#EngineeringUnits.degrees-fahrenheit,pass,,complete
+54545,analog-value,2,"analog-value,2",WEB OA-H,pass,"Open-Meteo outdoor air RH, Ben's Bench (obs 2026-11-10T15:00)",pass,http://data.ashrae.org/bacnet/2024#EngineeringUnits.percent-relative-humidity,pass,,complete
+54545,analog-value,3,"analog-value,3",WEB OA-DP,pass,"Open-Meteo outdoor air dewpoint, Ben's Bench (obs 2026-11-10T15:00)",pass,http://data.ashrae.org/bacnet/2024#EngineeringUnits.degrees-fahrenheit,pass,,complete
+54545,device,54545,"device,54545",BensBenchNF,pass,,missing,,n/a,description:missing,partial
+54545,network-port,1,"network-port,1",BACnet/IP Port 1,pass,,missing,,n/a,description:missing,partial

@@ -1,0 +1,6 @@
+kind,router_address,network,device_id,device_address,vendor_id,device_name
+router,192.168.204.200,2000,,,,
+router,192.168.204.200,28271,,,,
+device,,local,54545,192.168.204.12,1417,BensBenchNF
+device,,28271,0,28271:0x0050db00d6c2,245,BASRT-B00d6c2
+device,,2000,5007,2000:7,5,BENS BENCHTEST BOX

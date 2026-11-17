@@ -1,0 +1,79 @@
+# Default completeness shapes for a BACnet site-scan graph.
+# Swap this file, or pass another with --shapes, to change requirements
+# without editing Python.
+#
+# Required string properties must be present AND non-blank (sh:pattern "\\S").
+# A missing triple is a different failure from a present but empty value.
+#
+# A SHACL-AF TripleRule types anything a device bacnet:contains as bacnet:Object,
+# so older scans that lack that type triple still validate on engines that
+# support SHACL-AF. The report script also does an equivalent pre-pass.
+
+@prefix bacnet: <http://data.ashrae.org/bacnet/2024#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:     <http://www.w3.org/ns/shacl#> .
+@prefix report: <urn:bacnet-site-scan:report:> .
+
+bacnet:TypeContainedObjects
+    a sh:NodeShape ;
+    rdfs:comment "Infer rdf:type bacnet:Object on anything a device contains." ;
+    sh:targetObjectsOf bacnet:contains ;
+    sh:rule [
+        a sh:TripleRule ;
+        sh:subject sh:this ;
+        sh:predicate rdf:type ;
+        sh:object bacnet:Object ;
+    ] .
+
+bacnet:ObjectShape
+    a sh:NodeShape ;
+    sh:targetClass bacnet:Object ;
+    sh:property [
+        sh:path bacnet:object-name ;
+        sh:name "object-name" ;
+        sh:order 1 ;
+        sh:minCount 1 ;
+        sh:pattern "\\S" ;
+        sh:message "object-name is missing or blank" ;
+    ] ;
+    sh:property [
+        sh:path bacnet:description ;
+        sh:name "description" ;
+        sh:order 2 ;
+        sh:minCount 1 ;
+        sh:pattern "\\S" ;
+        sh:message "description is missing or blank" ;
+    ] .
+
+bacnet:AnalogUnitsShape
+    a sh:NodeShape ;
+    sh:targetClass bacnet:Object ;
+    rdfs:comment "Units are required on analog input, output, and value objects." ;
+    # The property shape below carries report metadata for the fast
+    # rdflib path (appliesWhenObjectType). It has no sh:minCount, so a
+    # SHACL engine will not demand units on every bacnet:Object. The
+    # SPARQL constraint is what SHACL uses to require units on analog types.
+    sh:property [
+        sh:path bacnet:units ;
+        sh:name "units" ;
+        sh:order 3 ;
+        report:appliesWhenObjectType "analog-input", "analog-output", "analog-value" ;
+    ] ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "analog object is missing units" ;
+        sh:select """
+            PREFIX bacnet: <http://data.ashrae.org/bacnet/2024#>
+            SELECT $this
+            WHERE {
+                $this bacnet:object-type ?t .
+                FILTER(
+                    STR(?t) = "http://data.ashrae.org/bacnet/2024#ObjectType.analog-input"
+                    || STR(?t) = "http://data.ashrae.org/bacnet/2024#ObjectType.analog-output"
+                    || STR(?t) = "http://data.ashrae.org/bacnet/2024#ObjectType.analog-value"
+                )
+                FILTER NOT EXISTS { $this bacnet:units ?u }
+            }
+        """ ;
+    ] .

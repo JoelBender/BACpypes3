@@ -1,0 +1,1380 @@
+@prefix bacnet: <http://data.ashrae.org/bacnet/2024#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix scan: <urn:bacnet-site-scan:> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<bacnet://0> a bacnet:Device ;
+    bacnet:contains <bacnet://0/device,0> ;
+    bacnet:device-address [ rdfs:label "28271:0x0050db00d6c2" ;
+            bacnet:mac-address "0050db00d6c2"^^xsd:hexBinary ;
+            bacnet:network-number "28271"^^xsd:nonNegativeInteger ] ;
+    bacnet:device-instance 0 ;
+    prov:wasGeneratedBy <urn:bacnet-site-scan:scan/20261110T150953Z> ;
+    scan:address "28271:0x0050db00d6c2" ;
+    scan:discoveryStatus "reachable" ;
+    scan:linkLayer "bacnet-ip" ;
+    scan:onNetwork <urn:bacnet-site-scan:network/28271> ;
+    scan:propertyNotRead "active-cov-subscriptions: unknown-property",
+        "backup-and-restore-state: unknown-property",
+        "configuration-files: unknown-property",
+        "daylight-savings-status: unknown-property",
+        "last-restart-reason: unknown-property",
+        "local-date: unknown-property",
+        "local-time: unknown-property",
+        "max-segments-accepted: unknown-property",
+        "serial-number: unknown-property",
+        "structured-object-list: unknown-property",
+        "time-of-device-restart: unknown-property",
+        "time-synchronization-recipients: unknown-property",
+        "utc-offset: unknown-property",
+        "utc-time-synchronization-recipients: unknown-property" ;
+    scan:reachable true ;
+    scan:reachedVia <urn:bacnet-site-scan:router/192.168.204.200> ;
+    scan:readAt "2026-11-10T15:09:58+00:00"^^xsd:dateTime ;
+    scan:vendorId 245 .
+
+<bacnet://5007> a bacnet:Device ;
+    bacnet:contains <bacnet://5007/analog-input,10014>,
+        <bacnet://5007/analog-input,10044>,
+        <bacnet://5007/analog-input,1168>,
+        <bacnet://5007/analog-input,1173>,
+        <bacnet://5007/analog-input,1179>,
+        <bacnet://5007/analog-input,1192>,
+        <bacnet://5007/analog-input,9334>,
+        <bacnet://5007/analog-output,10032>,
+        <bacnet://5007/analog-output,10035>,
+        <bacnet://5007/analog-output,10038>,
+        <bacnet://5007/analog-output,2466>,
+        <bacnet://5007/analog-value,10007>,
+        <bacnet://5007/analog-value,10010>,
+        <bacnet://5007/analog-value,10011>,
+        <bacnet://5007/analog-value,10012>,
+        <bacnet://5007/analog-value,10013>,
+        <bacnet://5007/analog-value,10015>,
+        <bacnet://5007/analog-value,10016>,
+        <bacnet://5007/analog-value,10021>,
+        <bacnet://5007/analog-value,10025>,
+        <bacnet://5007/analog-value,10028>,
+        <bacnet://5007/analog-value,10031>,
+        <bacnet://5007/analog-value,10033>,
+        <bacnet://5007/analog-value,10034>,
+        <bacnet://5007/analog-value,10036>,
+        <bacnet://5007/analog-value,10037>,
+        <bacnet://5007/analog-value,10039>,
+        <bacnet://5007/analog-value,10040>,
+        <bacnet://5007/analog-value,169012>,
+        <bacnet://5007/analog-value,169013>,
+        <bacnet://5007/analog-value,169020>,
+        <bacnet://5007/analog-value,169021>,
+        <bacnet://5007/analog-value,169030>,
+        <bacnet://5007/analog-value,169031>,
+        <bacnet://5007/analog-value,169040>,
+        <bacnet://5007/analog-value,169041>,
+        <bacnet://5007/analog-value,237957>,
+        <bacnet://5007/analog-value,237958>,
+        <bacnet://5007/analog-value,238001>,
+        <bacnet://5007/analog-value,238002>,
+        <bacnet://5007/analog-value,238198>,
+        <bacnet://5007/binary-input,10020>,
+        <bacnet://5007/binary-input,9429>,
+        <bacnet://5007/binary-output,10005>,
+        <bacnet://5007/binary-output,10008>,
+        <bacnet://5007/binary-output,10023>,
+        <bacnet://5007/binary-output,10026>,
+        <bacnet://5007/binary-output,10029>,
+        <bacnet://5007/binary-value,10001>,
+        <bacnet://5007/binary-value,10002>,
+        <bacnet://5007/device,5007>,
+        <bacnet://5007/file,1>,
+        <bacnet://5007/file,11>,
+        <bacnet://5007/file,12>,
+        <bacnet://5007/file,2>,
+        <bacnet://5007/file,25>,
+        <bacnet://5007/file,3>,
+        <bacnet://5007/multi-state-value,10003>,
+        <bacnet://5007/multi-state-value,10004>,
+        <bacnet://5007/multi-state-value,10006>,
+        <bacnet://5007/multi-state-value,10009>,
+        <bacnet://5007/multi-state-value,10022>,
+        <bacnet://5007/multi-state-value,10024>,
+        <bacnet://5007/multi-state-value,10027>,
+        <bacnet://5007/multi-state-value,10030>,
+        <bacnet://5007/multi-state-value,238197> ;
+    bacnet:device-address [ rdfs:label "2000:7" ;
+            bacnet:mac-address "07"^^xsd:hexBinary ;
+            bacnet:network-number "2000"^^xsd:nonNegativeInteger ] ;
+    bacnet:device-instance 5007 ;
+    prov:wasGeneratedBy <urn:bacnet-site-scan:scan/20261110T150953Z> ;
+    scan:address "2000:7" ;
+    scan:discoveryStatus "reachable" ;
+    scan:linkLayer "bacnet-mstp" ;
+    scan:onNetwork <urn:bacnet-site-scan:network/2000> ;
+    scan:propertyNotRead "backup-and-restore-state: unknown-property",
+        "serial-number: unknown-property",
+        "structured-object-list: unknown-property",
+        "time-synchronization-recipients: unknown-property",
+        "utc-time-synchronization-recipients: unknown-property" ;
+    scan:reachable true ;
+    scan:reachedVia <urn:bacnet-site-scan:router/192.168.204.200> ;
+    scan:readAt "2026-11-10T15:09:59+00:00"^^xsd:dateTime ;
+    scan:vendorId 5 .
+
+<bacnet://54545> a bacnet:Device ;
+    bacnet:contains <bacnet://54545/analog-value,1>,
+        <bacnet://54545/analog-value,2>,
+        <bacnet://54545/analog-value,3>,
+        <bacnet://54545/device,54545>,
+        <bacnet://54545/network-port,1> ;
+    bacnet:device-address [ rdfs:label "192.168.204.12" ;
+            bacnet:mac-address "c0a8cc0cbac0"^^xsd:hexBinary ;
+            bacnet:network-number "0"^^xsd:nonNegativeInteger ] ;
+    bacnet:device-instance 54545 ;
+    prov:wasGeneratedBy <urn:bacnet-site-scan:scan/20261110T150953Z> ;
+    scan:address "192.168.204.12" ;
+    scan:discoveryStatus "reachable" ;
+    scan:linkLayer "bacnet-ip" ;
+    scan:onNetwork <urn:bacnet-site-scan:network/local> ;
+    scan:propertyNotRead "active-cov-subscriptions: unknown-property",
+        "backup-and-restore-state: unknown-property",
+        "configuration-files: unknown-property",
+        "daylight-savings-status: unknown-property",
+        "description: unknown-property",
+        "last-restart-reason: unknown-property",
+        "local-date: unknown-property",
+        "local-time: unknown-property",
+        "location: unknown-property",
+        "max-info-frames: unknown-property",
+        "max-master: unknown-property",
+        "max-segments-accepted: unknown-property",
+        "serial-number: unknown-property",
+        "structured-object-list: unknown-property",
+        "time-of-device-restart: unknown-property",
+        "time-synchronization-recipients: unknown-property",
+        "utc-offset: unknown-property",
+        "utc-time-synchronization-recipients: unknown-property" ;
+    scan:reachable true ;
+    scan:readAt "2026-11-10T15:09:58+00:00"^^xsd:dateTime ;
+    scan:vendorId 1417 .
+
+<bacnet://0/device,0> a bacnet:DeviceObject,
+        bacnet:Object ;
+    bacnet:apdu-timeout "3000"^^xsd:nonNegativeInteger ;
+    bacnet:application-software-version "2.7.2" ;
+    bacnet:database-revision "0"^^xsd:nonNegativeInteger ;
+    bacnet:description "BACnet/IP to MS/TP Router" ;
+    bacnet:device-address-binding () ;
+    bacnet:firmware-revision "2.7.2" ;
+    bacnet:location "ationion" ;
+    bacnet:max-apdu-length-accepted "1476"^^xsd:nonNegativeInteger ;
+    bacnet:max-info-frames "100"^^xsd:nonNegativeInteger ;
+    bacnet:max-master "127"^^xsd:nonNegativeInteger ;
+    bacnet:model-name "BASRT-B" ;
+    bacnet:number-of-apdu-retries "0"^^xsd:nonNegativeInteger ;
+    bacnet:object-identifier "device,0" ;
+    bacnet:object-name "BASRT-B00d6c2" ;
+    bacnet:object-type bacnet:ObjectType.device ;
+    bacnet:protocol-object-types-supported ( bacnet:ObjectTypesSupported.device ) ;
+    bacnet:protocol-revision "4"^^xsd:nonNegativeInteger ;
+    bacnet:protocol-services-supported ( bacnet:ServicesSupported.read-property bacnet:ServicesSupported.read-property-multiple bacnet:ServicesSupported.write-property bacnet:ServicesSupported.write-property-multiple bacnet:ServicesSupported.who-is ) ;
+    bacnet:protocol-version "1"^^xsd:nonNegativeInteger ;
+    bacnet:segmentation-supported bacnet:Segmentation.no-segmentation ;
+    bacnet:system-status bacnet:DeviceStatus.operational ;
+    bacnet:vendor-identifier "245"^^xsd:nonNegativeInteger ;
+    bacnet:vendor-name "Contemporary Control Systems, Inc." .
+
+<bacnet://5007/analog-input,10014> a bacnet:AnalogInputObject,
+        bacnet:Object ;
+    bacnet:description "Zone Temperature" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-input,10014" ;
+    bacnet:object-name "STAT ZN-T" ;
+    bacnet:object-type bacnet:ObjectType.analog-input ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "77.99874114990234"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags () ;
+    bacnet:units bacnet:EngineeringUnits.degrees-fahrenheit .
+
+<bacnet://5007/analog-input,10044> a bacnet:AnalogInputObject,
+        bacnet:Object ;
+    bacnet:description "ACTUATOR POSTION" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-input,10044" ;
+    bacnet:object-name "ACTUATOR-POS" ;
+    bacnet:object-type bacnet:ObjectType.analog-input ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "88.7149887084961"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags () ;
+    bacnet:units bacnet:EngineeringUnits.percent .
+
+<bacnet://5007/analog-input,1168> a bacnet:AnalogInputObject,
+        bacnet:Object ;
+    bacnet:description "4-20MA HUMIDITY INPUT" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-input,1168" ;
+    bacnet:object-name "OA-H" ;
+    bacnet:object-type bacnet:ObjectType.analog-input ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "28.8151798248291"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags () ;
+    bacnet:units bacnet:EngineeringUnits.percent-relative-humidity .
+
+<bacnet://5007/analog-input,1173> a bacnet:AnalogInputObject,
+        bacnet:Object ;
+    bacnet:description "4-20MA TEMP INPUT" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-input,1173" ;
+    bacnet:object-name "OA-T" ;
+    bacnet:object-type bacnet:ObjectType.analog-input ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "79.03846740722656"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags () ;
+    bacnet:units bacnet:EngineeringUnits.degrees-fahrenheit .
+
+<bacnet://5007/analog-input,1179> a bacnet:AnalogInputObject,
+        bacnet:Object ;
+    bacnet:description "SS WA;LPLATE TEMP" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-input,1179" ;
+    bacnet:object-name "SSPLATE-T" ;
+    bacnet:object-type bacnet:ObjectType.analog-input ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "72.30945587158203"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags () ;
+    bacnet:units bacnet:EngineeringUnits.degrees-fahrenheit .
+
+<bacnet://5007/analog-input,1192> a bacnet:AnalogInputObject,
+        bacnet:Object ;
+    bacnet:description "DUCT PROBE SENSOR" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-input,1192" ;
+    bacnet:object-name "DUCT-T" ;
+    bacnet:object-type bacnet:ObjectType.analog-input ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "76.06632995605469"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags () ;
+    bacnet:units bacnet:EngineeringUnits.degrees-fahrenheit .
+
+<bacnet://5007/analog-input,9334> a bacnet:AnalogInputObject,
+        bacnet:Object ;
+    bacnet:description "DUCT INWC SENSOR" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-input,9334" ;
+    bacnet:object-name "DUCT-P" ;
+    bacnet:object-type bacnet:ObjectType.analog-input ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "-0.15307985246181488"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags () ;
+    bacnet:units bacnet:EngineeringUnits.inches-of-water .
+
+<bacnet://5007/analog-output,10032> a bacnet:AnalogOutputObject,
+        bacnet:Object ;
+    bacnet:description "C06 0-10V OUTPUT" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-output,10032" ;
+    bacnet:object-name "C06-0-10VDC-O" ;
+    bacnet:object-type bacnet:ObjectType.analog-output ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "12.0"^^xsd:float ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:real "12.0"^^xsd:float ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "0.0"^^xsd:float ;
+    bacnet:status-flags () ;
+    bacnet:units bacnet:EngineeringUnits.percent ;
+    scan:activePriority 8 ;
+    scan:activePriorityName "manual-operator" ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-output,10035> a bacnet:AnalogOutputObject,
+        bacnet:Object ;
+    bacnet:description "C07 0-10V OUTPUT" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-output,10035" ;
+    bacnet:object-name "C07-0-10VDC-O" ;
+    bacnet:object-type bacnet:ObjectType.analog-output ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "0.0"^^xsd:float ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "0.0"^^xsd:float ;
+    bacnet:status-flags () ;
+    bacnet:units bacnet:EngineeringUnits.percent ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-output,10038> a bacnet:AnalogOutputObject,
+        bacnet:Object ;
+    bacnet:description "AO9 4-20MA OUTPUT" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-output,10038" ;
+    bacnet:object-name "AO9-4-20MA-O" ;
+    bacnet:object-type bacnet:ObjectType.analog-output ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "0.0"^^xsd:float ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "0.0"^^xsd:float ;
+    bacnet:status-flags () ;
+    bacnet:units bacnet:EngineeringUnits.percent ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-output,2466> a bacnet:AnalogOutputObject,
+        bacnet:Object ;
+    bacnet:description "ACTUATOR OUTPUT" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-output,2466" ;
+    bacnet:object-name "ACTUATOR-0" ;
+    bacnet:object-type bacnet:ObjectType.analog-output ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "88.0"^^xsd:float ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:real "88.0"^^xsd:float ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "0.0"^^xsd:float ;
+    bacnet:status-flags () ;
+    bacnet:units bacnet:EngineeringUnits.percent ;
+    scan:activePriority 8 ;
+    scan:activePriorityName "manual-operator" ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,10007> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,10007" ;
+    bacnet:object-name "Priority" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "16.0"^^xsd:float ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "16.0"^^xsd:float ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,10010> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,10010" ;
+    bacnet:object-name "Priority" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "16.0"^^xsd:float ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "16.0"^^xsd:float ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,10011> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "Warmer/Cooler Request" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,10011" ;
+    bacnet:object-name "STAT ZN WC-ADJ" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "67.58999633789062"^^xsd:float ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:real "67.58999633789062"^^xsd:float ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "0.0"^^xsd:float ;
+    bacnet:status-flags () ;
+    bacnet:units bacnet:EngineeringUnits.degrees-fahrenheit ;
+    scan:activePriority 16 ;
+    scan:activePriorityName "available" ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,10012> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,10012" ;
+    bacnet:object-name "Priority" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "16.0"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,10013> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,10013" ;
+    bacnet:object-name "O1" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "67.58999633789062"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,10015> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,10015" ;
+    bacnet:object-name "Priority" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "0.0"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,10016> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,10016" ;
+    bacnet:object-name "O1" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "77.99874114990234"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,10021> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,10021" ;
+    bacnet:object-name "Priority" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "0.0"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,10025> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,10025" ;
+    bacnet:object-name "Priority" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "16.0"^^xsd:float ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "16.0"^^xsd:float ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,10028> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,10028" ;
+    bacnet:object-name "Priority" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "16.0"^^xsd:float ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "16.0"^^xsd:float ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,10031> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,10031" ;
+    bacnet:object-name "Priority" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "16.0"^^xsd:float ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "16.0"^^xsd:float ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,10033> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,10033" ;
+    bacnet:object-name "I1" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "0.0"^^xsd:float ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "0.0"^^xsd:float ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.percent ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,10034> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,10034" ;
+    bacnet:object-name "Priority" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "16.0"^^xsd:float ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "16.0"^^xsd:float ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,10036> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,10036" ;
+    bacnet:object-name "I1" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "0.0"^^xsd:float ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "0.0"^^xsd:float ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.percent ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,10037> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,10037" ;
+    bacnet:object-name "Priority" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "16.0"^^xsd:float ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "16.0"^^xsd:float ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,10039> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,10039" ;
+    bacnet:object-name "I1" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "0.0"^^xsd:float ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "0.0"^^xsd:float ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.percent ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,10040> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,10040" ;
+    bacnet:object-name "Priority" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "16.0"^^xsd:float ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "16.0"^^xsd:float ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,169012> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,169012" ;
+    bacnet:object-name "O1" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "28.8151798248291"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.percent-relative-humidity ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,169013> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,169013" ;
+    bacnet:object-name "Priority" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "0.0"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,169020> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,169020" ;
+    bacnet:object-name "O1" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "79.03846740722656"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.degrees-fahrenheit ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,169021> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,169021" ;
+    bacnet:object-name "Priority" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "0.0"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,169030> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,169030" ;
+    bacnet:object-name "O1" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "72.30945587158203"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.degrees-fahrenheit ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,169031> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,169031" ;
+    bacnet:object-name "Priority" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "0.0"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,169040> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,169040" ;
+    bacnet:object-name "O1" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "76.06632995605469"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.degrees-fahrenheit ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,169041> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,169041" ;
+    bacnet:object-name "Priority" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "0.0"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,237957> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,237957" ;
+    bacnet:object-name "Priority" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "16.0"^^xsd:float ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "16.0"^^xsd:float ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,237958> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,237958" ;
+    bacnet:object-name "I1" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "0.0"^^xsd:float ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "0.0"^^xsd:float ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.percent ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,238001> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,238001" ;
+    bacnet:object-name "O1" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "-0.15288597345352173"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.inches-of-water ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,238002> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,238002" ;
+    bacnet:object-name "Priority" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "0.0"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/analog-value,238198> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,238198" ;
+    bacnet:object-name "Priority" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "0.0"^^xsd:float ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    bacnet:units bacnet:EngineeringUnits.no-units ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/binary-input,10020> a bacnet:BinaryInputObject,
+        bacnet:Object ;
+    bacnet:description "INPUT 8 STATUS" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "binary-input,10020" ;
+    bacnet:object-name "BI8-S" ;
+    bacnet:object-type bacnet:ObjectType.binary-input ;
+    bacnet:out-of-service false ;
+    bacnet:present-value bacnet:BinaryPV.inactive ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags () .
+
+<bacnet://5007/binary-input,9429> a bacnet:BinaryInputObject,
+        bacnet:Object ;
+    bacnet:description "CURRENT SENSING DONUT" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "binary-input,9429" ;
+    bacnet:object-name "CURRENT-S" ;
+    bacnet:object-type bacnet:ObjectType.binary-input ;
+    bacnet:out-of-service false ;
+    bacnet:present-value bacnet:BinaryPV.inactive ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags () .
+
+<bacnet://5007/binary-output,10005> a bacnet:BinaryOutputObject,
+        bacnet:Object ;
+    bacnet:description "RIB RELAY #1 COMMAND" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "binary-output,10005" ;
+    bacnet:object-name "RIBRELAY1- C" ;
+    bacnet:object-type bacnet:ObjectType.binary-output ;
+    bacnet:out-of-service false ;
+    bacnet:present-value bacnet:BinaryPV.inactive ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default bacnet:BinaryPV.inactive ;
+    bacnet:status-flags () ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/binary-output,10008> a bacnet:BinaryOutputObject,
+        bacnet:Object ;
+    bacnet:description "RIB RELAY #2 COMMAND" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "binary-output,10008" ;
+    bacnet:object-name "RIBRELAY#2-C" ;
+    bacnet:object-type bacnet:ObjectType.binary-output ;
+    bacnet:out-of-service false ;
+    bacnet:present-value bacnet:BinaryPV.inactive ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default bacnet:BinaryPV.inactive ;
+    bacnet:status-flags () ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/binary-output,10023> a bacnet:BinaryOutputObject,
+        bacnet:Object ;
+    bacnet:description "B03 COMMAND" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "binary-output,10023" ;
+    bacnet:object-name "BO3-C" ;
+    bacnet:object-type bacnet:ObjectType.binary-output ;
+    bacnet:out-of-service false ;
+    bacnet:present-value bacnet:BinaryPV.inactive ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default bacnet:BinaryPV.inactive ;
+    bacnet:status-flags () ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/binary-output,10026> a bacnet:BinaryOutputObject,
+        bacnet:Object ;
+    bacnet:description "C04 DRY CONTACT COMMAND" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "binary-output,10026" ;
+    bacnet:object-name "C04-DRY-C" ;
+    bacnet:object-type bacnet:ObjectType.binary-output ;
+    bacnet:out-of-service false ;
+    bacnet:present-value bacnet:BinaryPV.inactive ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default bacnet:BinaryPV.inactive ;
+    bacnet:status-flags () ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/binary-output,10029> a bacnet:BinaryOutputObject,
+        bacnet:Object ;
+    bacnet:description "C05 DRY CONTACT COMMAND" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "binary-output,10029" ;
+    bacnet:object-name "C05-DRY-C" ;
+    bacnet:object-type bacnet:ObjectType.binary-output ;
+    bacnet:out-of-service false ;
+    bacnet:present-value bacnet:BinaryPV.inactive ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default bacnet:BinaryPV.inactive ;
+    bacnet:status-flags () ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/binary-value,10001> a bacnet:BinaryValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "binary-value,10001" ;
+    bacnet:object-name "I2" ;
+    bacnet:object-type bacnet:ObjectType.binary-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value bacnet:BinaryPV.inactive ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default bacnet:BinaryPV.inactive ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/binary-value,10002> a bacnet:BinaryValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "binary-value,10002" ;
+    bacnet:object-name "O2" ;
+    bacnet:object-type bacnet:ObjectType.binary-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value bacnet:BinaryPV.inactive ;
+    bacnet:reliability bacnet:Reliability.101 ;
+    bacnet:status-flags ( bacnet:StatusFlags.fault bacnet:StatusFlags.overridden ) ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/device,5007> a bacnet:DeviceObject,
+        bacnet:Object ;
+    bacnet:active-cov-subscriptions () ;
+    bacnet:apdu-timeout "6000"^^xsd:nonNegativeInteger ;
+    bacnet:application-software-version "10.2" ;
+    bacnet:configuration-files () ;
+    bacnet:database-revision "11"^^xsd:nonNegativeInteger ;
+    bacnet:daylight-savings-status false ;
+    bacnet:description "CTRL 6UI, 2BI, 3BO, 2AO, 4CO" ;
+    bacnet:device-address-binding () ;
+    bacnet:firmware-revision "6.2.2.6" ;
+    bacnet:last-restart-reason bacnet:RestartReason.unknown ;
+    bacnet:local-date "1970-02-23 1" ;
+    bacnet:local-time "18:37:29.85" ;
+    bacnet:location "" ;
+    bacnet:max-apdu-length-accepted "480"^^xsd:nonNegativeInteger ;
+    bacnet:max-info-frames "16"^^xsd:nonNegativeInteger ;
+    bacnet:max-master "127"^^xsd:nonNegativeInteger ;
+    bacnet:max-segments-accepted "68"^^xsd:nonNegativeInteger ;
+    bacnet:model-name "MS-FEC2611-0" ;
+    bacnet:number-of-apdu-retries "3"^^xsd:nonNegativeInteger ;
+    bacnet:object-identifier "device,5007" ;
+    bacnet:object-name "BENS BENCHTEST BOX" ;
+    bacnet:object-type bacnet:ObjectType.device ;
+    bacnet:protocol-object-types-supported ( bacnet:ObjectTypesSupported.analog-input bacnet:ObjectTypesSupported.analog-output bacnet:ObjectTypesSupported.analog-value bacnet:ObjectTypesSupported.binary-input bacnet:ObjectTypesSupported.binary-output bacnet:ObjectTypesSupported.binary-value bacnet:ObjectTypesSupported.device bacnet:ObjectTypesSupported.file bacnet:ObjectTypesSupported.multi-state-value bacnet:ObjectTypesSupported.accumulator ) ;
+    bacnet:protocol-revision "9"^^xsd:nonNegativeInteger ;
+    bacnet:protocol-services-supported ( bacnet:ServicesSupported.get-enrollment-summary bacnet:ServicesSupported.subscribe-cov bacnet:ServicesSupported.atomic-read-file bacnet:ServicesSupported.atomic-write-file bacnet:ServicesSupported.add-list-element bacnet:ServicesSupported.remove-list-element bacnet:ServicesSupported.read-property bacnet:ServicesSupported.read-property-multiple bacnet:ServicesSupported.write-property bacnet:ServicesSupported.write-property-multiple bacnet:ServicesSupported.device-communication-control bacnet:ServicesSupported.confirmed-private-transfer bacnet:ServicesSupported.reinitialize-device bacnet:ServicesSupported.i-am bacnet:ServicesSupported.i-have bacnet:ServicesSupported.time-synchronization bacnet:ServicesSupported.who-has bacnet:ServicesSupported.who-is bacnet:ServicesSupported.read-range bacnet:ServicesSupported.utc-time-synchronization bacnet:ServicesSupported.subscribe-cov-property ) ;
+    bacnet:protocol-version "1"^^xsd:nonNegativeInteger ;
+    bacnet:segmentation-supported bacnet:Segmentation.segmented-both ;
+    bacnet:system-status bacnet:DeviceStatus.operational ;
+    bacnet:time-of-device-restart [ bacnet:date-time "1970-01-01T00:00:10"^^xsd:dateTime ] ;
+    bacnet:utc-offset 360 ;
+    bacnet:vendor-identifier "5"^^xsd:nonNegativeInteger ;
+    bacnet:vendor-name "JCI" .
+
+<bacnet://5007/file,1> a bacnet:FileObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:object-identifier "file,1" ;
+    bacnet:object-name "8-1/Boot" ;
+    bacnet:object-type bacnet:ObjectType.file .
+
+<bacnet://5007/file,11> a bacnet:FileObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:object-identifier "file,11" ;
+    bacnet:object-name "8-1/Static" ;
+    bacnet:object-type bacnet:ObjectType.file .
+
+<bacnet://5007/file,12> a bacnet:FileObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:object-identifier "file,12" ;
+    bacnet:object-name "8-1/Dynamic" ;
+    bacnet:object-type bacnet:ObjectType.file .
+
+<bacnet://5007/file,2> a bacnet:FileObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:object-identifier "file,2" ;
+    bacnet:object-name "8-1/Main" ;
+    bacnet:object-type bacnet:ObjectType.file .
+
+<bacnet://5007/file,25> a bacnet:FileObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:object-identifier "file,25" ;
+    bacnet:object-name "8-1/FLASH_MEMORY" ;
+    bacnet:object-type bacnet:ObjectType.file .
+
+<bacnet://5007/file,3> a bacnet:FileObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:object-identifier "file,3" ;
+    bacnet:object-name "8-1/Archive" ;
+    bacnet:object-type bacnet:ObjectType.file .
+
+<bacnet://5007/multi-state-value,10003> a bacnet:MultistateValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "multi-state-value,10003" ;
+    bacnet:object-name "O1" ;
+    bacnet:object-type bacnet:ObjectType.multi-state-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "1"^^xsd:nonNegativeInteger ;
+    bacnet:reliability bacnet:Reliability.74 ;
+    bacnet:status-flags ( bacnet:StatusFlags.fault bacnet:StatusFlags.overridden ) ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/multi-state-value,10004> a bacnet:MultistateValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "multi-state-value,10004" ;
+    bacnet:object-name "I1" ;
+    bacnet:object-type bacnet:ObjectType.multi-state-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "1"^^xsd:nonNegativeInteger ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "1"^^xsd:nonNegativeInteger ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/multi-state-value,10006> a bacnet:MultistateValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "multi-state-value,10006" ;
+    bacnet:object-name "I1" ;
+    bacnet:object-type bacnet:ObjectType.multi-state-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "1"^^xsd:nonNegativeInteger ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "1"^^xsd:nonNegativeInteger ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/multi-state-value,10009> a bacnet:MultistateValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "multi-state-value,10009" ;
+    bacnet:object-name "I1" ;
+    bacnet:object-type bacnet:ObjectType.multi-state-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "1"^^xsd:nonNegativeInteger ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "1"^^xsd:nonNegativeInteger ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/multi-state-value,10022> a bacnet:MultistateValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "multi-state-value,10022" ;
+    bacnet:object-name "O1" ;
+    bacnet:object-type bacnet:ObjectType.multi-state-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "1"^^xsd:nonNegativeInteger ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/multi-state-value,10024> a bacnet:MultistateValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "multi-state-value,10024" ;
+    bacnet:object-name "I1" ;
+    bacnet:object-type bacnet:ObjectType.multi-state-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "1"^^xsd:nonNegativeInteger ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "1"^^xsd:nonNegativeInteger ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/multi-state-value,10027> a bacnet:MultistateValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "multi-state-value,10027" ;
+    bacnet:object-name "I1" ;
+    bacnet:object-type bacnet:ObjectType.multi-state-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "1"^^xsd:nonNegativeInteger ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "1"^^xsd:nonNegativeInteger ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/multi-state-value,10030> a bacnet:MultistateValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "multi-state-value,10030" ;
+    bacnet:object-name "I1" ;
+    bacnet:object-type bacnet:ObjectType.multi-state-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "1"^^xsd:nonNegativeInteger ;
+    bacnet:priority-array ( [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] [ bacnet:null bacnet:Null ] ) ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:relinquish-default "1"^^xsd:nonNegativeInteger ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://5007/multi-state-value,238197> a bacnet:MultistateValueObject,
+        bacnet:Object ;
+    bacnet:description "" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "multi-state-value,238197" ;
+    bacnet:object-name "O1" ;
+    bacnet:object-type bacnet:ObjectType.multi-state-value ;
+    bacnet:out-of-service false ;
+    bacnet:present-value "1"^^xsd:nonNegativeInteger ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags ( bacnet:StatusFlags.overridden ) ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "priority-array: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://54545/analog-value,1> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "Open-Meteo outdoor air dry bulb, Ben's Bench (obs 2026-11-10T15:00)" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,1" ;
+    bacnet:object-name "WEB OA-T" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:present-value "47.599998474121094"^^xsd:float ;
+    bacnet:status-flags () ;
+    bacnet:units bacnet:EngineeringUnits.degrees-fahrenheit ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "out-of-service: unknown-property",
+        "priority-array: unknown-property",
+        "reliability: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://54545/analog-value,2> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "Open-Meteo outdoor air RH, Ben's Bench (obs 2026-11-10T15:00)" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,2" ;
+    bacnet:object-name "WEB OA-H" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:present-value "85.0"^^xsd:float ;
+    bacnet:status-flags () ;
+    bacnet:units bacnet:EngineeringUnits.percent-relative-humidity ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "out-of-service: unknown-property",
+        "priority-array: unknown-property",
+        "reliability: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://54545/analog-value,3> a bacnet:AnalogValueObject,
+        bacnet:Object ;
+    bacnet:description "Open-Meteo outdoor air dewpoint, Ben's Bench (obs 2026-11-10T15:00)" ;
+    bacnet:event-state bacnet:EventState.normal ;
+    bacnet:object-identifier "analog-value,3" ;
+    bacnet:object-name "WEB OA-DP" ;
+    bacnet:object-type bacnet:ObjectType.analog-value ;
+    bacnet:present-value "43.400001525878906"^^xsd:float ;
+    bacnet:status-flags () ;
+    bacnet:units bacnet:EngineeringUnits.degrees-fahrenheit ;
+    scan:propertyNotRead "current-command-priority: unknown-property",
+        "last-command-time: unknown-property",
+        "out-of-service: unknown-property",
+        "priority-array: unknown-property",
+        "reliability: unknown-property",
+        "relinquish-default: unknown-property",
+        "value-source: unknown-property" .
+
+<bacnet://54545/device,54545> a bacnet:DeviceObject,
+        bacnet:Object ;
+    bacnet:apdu-timeout "3000"^^xsd:nonNegativeInteger ;
+    bacnet:application-software-version "3.10.9-1" ;
+    bacnet:database-revision "7"^^xsd:nonNegativeInteger ;
+    bacnet:device-address-binding () ;
+    bacnet:firmware-revision "3.10.9-1" ;
+    bacnet:max-apdu-length-accepted "1475"^^xsd:nonNegativeInteger ;
+    bacnet:model-name "Normal Framework" ;
+    bacnet:number-of-apdu-retries "3"^^xsd:nonNegativeInteger ;
+    bacnet:object-identifier "device,54545" ;
+    bacnet:object-name "BensBenchNF" ;
+    bacnet:object-type bacnet:ObjectType.device ;
+    bacnet:protocol-object-types-supported ( bacnet:ObjectTypesSupported.analog-input bacnet:ObjectTypesSupported.analog-output bacnet:ObjectTypesSupported.analog-value bacnet:ObjectTypesSupported.binary-input bacnet:ObjectTypesSupported.binary-output bacnet:ObjectTypesSupported.binary-value bacnet:ObjectTypesSupported.device bacnet:ObjectTypesSupported.multi-state-input bacnet:ObjectTypesSupported.multi-state-output bacnet:ObjectTypesSupported.multi-state-value bacnet:ObjectTypesSupported.network-port ) ;
+    bacnet:protocol-revision "24"^^xsd:nonNegativeInteger ;
+    bacnet:protocol-services-supported ( bacnet:ServicesSupported.confirmed-event-notification bacnet:ServicesSupported.subscribe-cov bacnet:ServicesSupported.read-property bacnet:ServicesSupported.read-property-multiple bacnet:ServicesSupported.write-property bacnet:ServicesSupported.device-communication-control bacnet:ServicesSupported.reinitialize-device bacnet:ServicesSupported.who-has bacnet:ServicesSupported.who-is ) ;
+    bacnet:protocol-version "1"^^xsd:nonNegativeInteger ;
+    bacnet:segmentation-supported bacnet:Segmentation.no-segmentation ;
+    bacnet:system-status bacnet:DeviceStatus.operational ;
+    bacnet:vendor-identifier "1417"^^xsd:nonNegativeInteger ;
+    bacnet:vendor-name "Normal Software, Inc." .
+
+<bacnet://54545/network-port,1> a bacnet:NetworkPortObject,
+        bacnet:Object ;
+    bacnet:object-identifier "network-port,1" ;
+    bacnet:object-name "BACnet/IP Port 1" ;
+    bacnet:object-type bacnet:ObjectType.network-port ;
+    bacnet:out-of-service false ;
+    bacnet:reliability bacnet:Reliability.no-fault-detected ;
+    bacnet:status-flags () ;
+    scan:propertyNotRead "description: unknown-property",
+        "event-state: unknown-property" .
+
+<urn:bacnet-site-scan:network/2000> a scan:Network ;
+    scan:linkLayer "bacnet-mstp" ;
+    scan:networkNumber 2000 .
+
+<urn:bacnet-site-scan:network/28271> a scan:Network ;
+    scan:linkLayer "bacnet-ip" ;
+    scan:networkNumber 28271 .
+
+<urn:bacnet-site-scan:network/local> a scan:Network ;
+    scan:linkLayer "bacnet-ip" ;
+    scan:networkNumber 0 .
+
+<urn:bacnet-site-scan:router/192.168.204.200> a scan:Router ;
+    scan:address "192.168.204.200" ;
+    scan:linkLayer "bacnet-ip" ;
+    scan:onNetwork <urn:bacnet-site-scan:network/local> ;
+    scan:reachable true ;
+    scan:routesToNetwork <urn:bacnet-site-scan:network/2000>,
+        <urn:bacnet-site-scan:network/28271> .
+
+<urn:bacnet-site-scan:scan/20261110T150953Z> a prov:Activity ;
+    prov:endedAtTime "2026-11-10T15:10:20+00:00"^^xsd:dateTime ;
+    prov:startedAtTime "2026-11-10T15:09:53+00:00"^^xsd:dateTime ;
+    scan:tool "bacnet_site_scan.py, bacpypes3 0.0.110" .
+
