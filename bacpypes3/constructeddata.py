@@ -136,9 +136,18 @@ class SequenceMetaclass(ElementMetaclass):
             SequenceMetaclass._debug("    - _elements: %r", _elements)
 
         # look for initializers
+        qualname = attributedict.get("__qualname__", clsname)
         for attr, value in attributedict.items():
             if attr.startswith("_"):
                 continue
+
+            # a class defined in the body is a nested type (like the
+            # RouterEntry.Status enumeration), not an element
+            if inspect.isclass(value) and value.__qualname__ == f"{qualname}.{attr}":
+                if _debug:
+                    SequenceMetaclass._debug(f"    - {attr} is a nested type")
+                continue
+
             if attr in _elements:
                 if isinstance(value, property):
                     if _debug:

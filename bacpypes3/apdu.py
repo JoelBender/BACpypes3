@@ -16,13 +16,11 @@ from .basetypes import (
     AtomicReadFileRequestAccessMethodChoice,
     AtomicWriteFileRequestAccessMethodChoice,
     ConfirmedTextMessageRequestMessageClass,
-    ConfirmedTextMessageRequestMessagePriority,
     COVMultipleSubscriptionList,
     COVNotificationMultipleListOfCOVNotifications,
     CreateObjectRequestObjectSpecifier,
     DateTime,
     DeviceAddress,
-    DeviceCommunicationControlRequestEnableDisable,
     DeviceDetails,
     DeviceQualifier,
     ErrorClass,
@@ -32,8 +30,6 @@ from .basetypes import (
     EventType,
     GetAlarmSummaryAlarmSummary,
     GetEnrollmentSummaryEnrollmentSummary,
-    GetEnrollmentSummaryRequestAcknowledgmentFilterType,
-    GetEnrollmentSummaryRequestEventStateFilterType,
     GetEnrollmentSummaryRequestPriorityFilterType,
     GetEventInformationEventSummary,
     GroupChannelValue,
@@ -49,14 +45,12 @@ from .basetypes import (
     ReadAccessResult,
     ReadAccessSpecification,
     RecipientProcess,
-    ReinitializeDeviceRequestReinitializedStateOfDevice,
     ResponseIncludes,
     ResultFlags,
     Segmentation,
     SubscribeCOVPropertyMultipleErrorFirstFailedSubscription,
     TimeStamp,
     UnconfirmedTextMessageRequestMessageClass,
-    UnconfirmedTextMessageRequestMessagePriority,
     VTClass,
     WhoHasLimits,
     WhoHasObject,
@@ -1445,10 +1439,18 @@ class ConfirmedPrivateTransferRequest(ConfirmedRequestSequence):
 class ConfirmedTextMessageRequest(ConfirmedRequestSequence):
     service_choice = ConfirmedServiceChoice.confirmedTextMessage
     _order = ("textMessageSourceDevice", "messageClass", "messagePriority", "message")
+
+    class MessagePriority(Enumerated):
+        normal = 0
+        urgent = 1
+
     textMessageSourceDevice = ObjectIdentifier(_context=0)
     messageClass = ConfirmedTextMessageRequestMessageClass(_context=1, _optional=True)
-    messagePriority = ConfirmedTextMessageRequestMessagePriority(_context=2)
+    messagePriority = MessagePriority(_context=2)
     message = CharacterString(_context=3)
+
+
+ConfirmedTextMessageRequestMessagePriority = ConfirmedTextMessageRequest.MessagePriority
 
 
 @register_confirmed_request_type
@@ -1470,9 +1472,20 @@ class DeleteObjectRequest(ConfirmedRequestSequence):
 class DeviceCommunicationControlRequest(ConfirmedRequestSequence):
     service_choice = ConfirmedServiceChoice.deviceCommunicationControl
     _order = ("timeDuration", "enableDisable", "password")
+
+    class EnableDisable(Enumerated):
+        enable = 0
+        disable = 1
+        disableInitiation = 2
+
     timeDuration = Unsigned(_context=0, _optional=True)
-    enableDisable = DeviceCommunicationControlRequestEnableDisable(_context=1)
+    enableDisable = EnableDisable(_context=1)
     password = CharacterString(_context=2, _optional=True)
+
+
+DeviceCommunicationControlRequestEnableDisable = (
+    DeviceCommunicationControlRequest.EnableDisable
+)
 
 
 @register_confirmed_request_type
@@ -1515,18 +1528,35 @@ class GetEnrollmentSummaryRequest(ConfirmedRequestSequence):
         "priorityFilter",
         "notificationClassFilter",
     )
-    acknowledgmentFilter = GetEnrollmentSummaryRequestAcknowledgmentFilterType(
-        _context=0
-    )
+
+    class AcknowledgmentFilter(Enumerated):
+        all = 0
+        acked = 1
+        notAcked = 2
+
+    class EventStateFilter(Enumerated):
+        offnormal = 0
+        fault = 1
+        normal = 2
+        all = 3
+        active = 4
+
+    acknowledgmentFilter = AcknowledgmentFilter(_context=0)
     enrollmentFilter = RecipientProcess(_context=1, _optional=True)
-    eventStateFilter = GetEnrollmentSummaryRequestEventStateFilterType(
-        _context=2, _optional=True
-    )
+    eventStateFilter = EventStateFilter(_context=2, _optional=True)
     eventTypeFilter = EventType(_context=3, _optional=True)
     priorityFilter = GetEnrollmentSummaryRequestPriorityFilterType(
         _context=4, _optional=True
     )
     notificationClassFilter = Unsigned(_context=5, _optional=True)
+
+
+GetEnrollmentSummaryRequestAcknowledgmentFilterType = (
+    GetEnrollmentSummaryRequest.AcknowledgmentFilter
+)
+GetEnrollmentSummaryRequestEventStateFilterType = (
+    GetEnrollmentSummaryRequest.EventStateFilter
+)
 
 
 @register_confirmed_request_type
@@ -1581,10 +1611,24 @@ class ReadRangeRequest(ConfirmedRequestSequence):
 class ReinitializeDeviceRequest(ConfirmedRequestSequence):
     service_choice = ConfirmedServiceChoice.reinitializeDevice
     _order = ("reinitializedStateOfDevice", "password")
-    reinitializedStateOfDevice = ReinitializeDeviceRequestReinitializedStateOfDevice(
-        _context=0
-    )
+
+    class ReinitializedStateOfDevice(Enumerated):
+        coldstart = 0
+        warmstart = 1
+        startBackup = 2
+        endBackup = 3
+        startRestore = 4
+        endRestore = 5
+        abortRestore = 6
+        activateChanges = 7
+
+    reinitializedStateOfDevice = ReinitializedStateOfDevice(_context=0)
     password = CharacterString(_context=1, _optional=True)
+
+
+ReinitializeDeviceRequestReinitializedStateOfDevice = (
+    ReinitializeDeviceRequest.ReinitializedStateOfDevice
+)
 
 
 @register_confirmed_request_type
@@ -1850,10 +1894,20 @@ class UnconfirmedPrivateTransferRequest(UnconfirmedRequestSequence):
 class UnconfirmedTextMessageRequest(UnconfirmedRequestSequence):
     service_choice = UnconfirmedServiceChoice.unconfirmedTextMessage
     _order = ("textMessageSourceDevice", "messageClass", "messagePriority", "message")
+
+    class MessagePriority(Enumerated):
+        normal = 0
+        urgent = 1
+
     textMessageSourceDevice = ObjectIdentifier(_context=0)
     messageClass = UnconfirmedTextMessageRequestMessageClass(_context=1, _optional=True)
-    messagePriority = UnconfirmedTextMessageRequestMessagePriority(_context=2)
+    messagePriority = MessagePriority(_context=2)
     message = CharacterString(_context=3)
+
+
+UnconfirmedTextMessageRequestMessagePriority = (
+    UnconfirmedTextMessageRequest.MessagePriority
+)
 
 
 @register_unconfirmed_request_type
@@ -2067,6 +2121,12 @@ class VTOpenACK(ComplexAckSequence):
 
 
 class Error(ErrorSequence):
+    """
+    The Error-PDU for the confirmed services whose Result(-) is an error-class
+    and error-code pair, raised as an exception when a request fails.  The data
+    type of the pair is bacpypes3.basetypes.Error (also known as ErrorType).
+    """
+
     _order = ("errorClass", "errorCode")
     errorClass = ErrorClass()
     errorCode = ErrorCode()

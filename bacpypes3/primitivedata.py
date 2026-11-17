@@ -640,6 +640,10 @@ class ElementMetaclass(type):
                 # new_type = type(cls.__name__ + "!", cls.__mro__, kwargs)
                 new_type = type(cls.__name__, cls.__mro__, kwargs)
 
+                # keep the qualified name, a nested type like RouterEntry.Status
+                # is still RouterEntry.Status with a context tag
+                new_type.__qualname__ = cls.__qualname__
+
                 # save the signature
                 cast(Element, new_type)._signature = sig
 

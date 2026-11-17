@@ -165,16 +165,6 @@ class AccessPassbackMode(Enumerated):
     softPassback = 2
 
 
-class AccessRuleLocationSpecifier(Enumerated):
-    specified = 0
-    all = 1
-
-
-class AccessRuleTimeRangeSpecifier(Enumerated):
-    specified = 0
-    always = 1
-
-
 class AccessUserType(Enumerated):
     _vendor_range = (64, 65535)
     asset = 0
@@ -191,14 +181,6 @@ class AccessZoneOccupancyState(Enumerated):
     aboveUpperLimit = 4
     disabled = 5
     notSupported = 6
-
-
-class AccumulatorRecordAccumulatorStatus(Enumerated):
-    normal = 0
-    starting = 1
-    recovered = 2
-    abnormal = 3
-    failed = 4
 
 
 class Action(Enumerated):
@@ -285,18 +267,6 @@ class AuthenticationStatus(Enumerated):
     waitingForAccompaniment = 4
     waitingForVerification = 5
     inProgress = 6
-
-
-class AuthorizationConstraintAuthentication(Enumerated):
-    certified = 0
-    securePath = 1
-    anyMethod = 2
-
-
-class AuthorizationConstraintOrigin(Enumerated):
-    directConnect = 0
-    sameNetwork = 1
-    anyNetwork = 2
 
 
 class AuthorizationDecision(Enumerated):
@@ -394,17 +364,6 @@ class ColorTransition(Enumerated):
     none = 0
     fade = 1
     ramp = 2
-
-
-class ConfirmedTextMessageRequestMessagePriority(Enumerated):
-    normal = 0
-    urgent = 1
-
-
-class DeviceCommunicationControlRequestEnableDisable(Enumerated):
-    enable = 0
-    disable = 1
-    disableInitiation = 2
 
 
 class DeviceStatus(Enumerated):
@@ -885,254 +844,6 @@ class EngineeringUnits(Enumerated):
     years = 67
 
 
-class ErrorClass(Enumerated):
-    _vendor_range = (64, 65535)
-    device = 0
-    object = 1
-    property = 2
-    resources = 3
-    security = 4
-    services = 5
-    vt = 6
-    communication = 7
-
-
-class ErrorCode(Enumerated):
-    _vendor_range = (256, 65535)
-    _asn1_overrides = {
-        22: "property-is-not-a-list",
-        148: "not-a-bacnet-sc-hub",
-        164: "http-not-a-server",
-    }
-    abortApduTooLong = 123
-    abortApplicationExceededReplyTime = 124
-    abortBufferOverflow = 51
-    abortInsufficientSecurity = 135
-    abortInvalidApduInThisState = 52
-    abortOther = 56
-    abortOutOfResources = 125
-    abortPreemptedByHigherPriorityTask = 53
-    abortProprietary = 55
-    abortSecurityError = 136
-    abortSegmentationNotSupported = 54
-    abortTsmTimeout = 126
-    abortWindowSizeOutOfRange = 127
-    accessDenied = 85
-    addressingError = 115
-    adjustScopeRequired = 207
-    authScopeRequired = 208
-    badDestinationAddress = 86
-    badDestinationDeviceId = 87
-    badSignature = 88
-    badSourceAddress = 89
-    badTimestamp = 90  # removed revision 22
-    bindScopeRequired = 209
-    busy = 82
-    bvlcFunctionUnknown = 143
-    bvlcProprietaryFunctionUnknown = 144
-    cannotUseKey = 91  # removed revision 22
-    cannotVerifyMessageId = 92  # removed revision 22
-    certificateExpired = 200
-    certificateInvalid = 201
-    certificateMalformed = 202
-    certificateRevoked = 203
-    characterSetNotSupported = 41
-    communicationDisabled = 83
-    configScopeRequired = 210
-    configurationInProgress = 2
-    controlScopeRequired = 211
-    correctKeyRevision = 93  # removed revision 22
-    covSubscriptionFailed = 43
-    datatypeNotSupported = 47
-    deleteFdtEntryFailed = 120
-    destinationDeviceIdRequired = 94  # removed revision 22
-    deviceBusy = 3
-    directoryDisabled = 230
-    directoryQueryFailed = 231
-    distributeBroadcastFailed = 121
-    dnsError = 192
-    dnsNameResolutionFailed = 190
-    dnsResolverFailure = 191
-    dnsUnavailable = 189
-    duplicateEntry = 137
-    duplicateMessage = 95
-    duplicateName = 48
-    duplicateObjectId = 49
-    dynamicCreationNotSupported = 4
-    encryptionNotConfigured = 96
-    encryptionRequired = 97
-    extendedScopeRequired = 212
-    fileAccessDenied = 5
-    fileFull = 128
-    headerEncodingError = 145
-    headerNotUnderstood = 146
-    httpError = 165
-    httpNotAServer = 164
-    httpNoUpgrade = 153
-    httpProxyAuthenticationFailed = 155
-    httpResourceNotLocal = 154
-    httpResponseMissingHeader = 159
-    httpResponseSyntaxError = 157
-    httpResponseTimeout = 156
-    httpResponseValueError = 158
-    httpTemporaryUnavailable = 163
-    httpUnexpectedResponseCode = 152
-    httpUpgradeError = 162
-    httpUpgradeRequired = 161
-    httpWebsocketHeaderError = 160
-    inactiveToken = 220
-    inconsistentConfiguration = 129
-    inconsistentObjectType = 130
-    inconsistentParameters = 7
-    inconsistentSelectionCriterion = 8
-    incorrectAudience = 225
-    incorrectClient = 213
-    incorrectClientOrigin = 226
-    incorrectIssuer = 228
-    incorrectKey = 98  # removed revision 22
-    installScopeRequired = 214
-    insufficientScope = 215
-    internalError = 131
-    invalidArrayIndex = 42
-    invalidArraySize = 227
-    invalidConfigurationData = 46
-    invalidCursor = 232
-    invalidDataEncoding = 142
-    invalidDataType = 9
-    invalidEventState = 73
-    invalidFileAccessMethod = 10
-    invalidFileStartPosition = 11
-    invalidKeyData = 99  # removed revision 22
-    invalidOperationInThisState = 139
-    invalidParameterDataType = 13
-    invalidTag = 57
-    invalidTimestamp = 14
-    invalidToken = 229
-    invalidValueInThisState = 138
-    ipAddressNotReachable = 198
-    ipError = 199
-    keyUpdateInProgress = 100  # removed revision 22
-    listElementNotFound = 81
-    listItemNotNumbered = 140
-    listItemNotTimestamped = 141
-    logBufferFull = 75
-    loggedValuePurged = 76
-    malformedMessage = 101
-    messageIncomplete = 147
-    messageTooLong = 113
-    missingRequiredParameter = 16
-    networkDown = 58
-    noAlarmConfigured = 74
-    nodeDuplicateVmac = 151
-    noDefaultScope = 216
-    noObjectsOfSpecifiedType = 17
-    noPolicy = 217
-    noPropertySpecified = 77
-    noSpaceForObject = 18
-    noSpaceToAddListElement = 19
-    noSpaceToWriteProperty = 20
-    notABacnetScHub = 148
-    notConfigured = 132
-    notConfiguredForTriggeredLogging = 78
-    notCovProperty = 44
-    notEnabled = 206
-    notKeyServer = 102  # removed revision 22
-    notRouterToDnet = 110
-    noVtSessionsAvailable = 21
-    objectDeletionNotPermitted = 23
-    objectIdentifierAlreadyExists = 24
-    operationalProblem = 25
-    optionalFunctionalityNotSupported = 45
-    other = 0
-    outOfMemory = 133
-    overrideScopeRequired = 219
-    parameterOutOfRange = 80
-    passwordFailure = 26
-    payloadExpected = 149
-    propertyIsNotAList = 22
-    propertyIsNotAnArray = 50
-    readAccessDenied = 27
-    readBdtFailed = 117
-    readFdtFailed = 119
-    referencedPortInError = 205
-    registerForeignDeviceFailed = 118
-    rejectBufferOverflow = 59
-    rejectInconsistentParameters = 60
-    rejectInvalidParameterDataType = 61
-    rejectInvalidTag = 62
-    rejectMissingRequiredParameter = 63
-    rejectOther = 69
-    rejectParameterOutOfRange = 64
-    rejectProprietary = 68
-    rejectTooManyArguments = 65
-    rejectUndefinedEnumeration = 66
-    rejectUnrecognizedService = 67
-    revokedToken = 218
-    routerBusy = 111
-    securityError = 114
-    securityNotConfigured = 103
-    serviceRequestDenied = 29
-    sourceSecurityRequired = 104
-    success = 84
-    tcpClosedByLocal = 195
-    tcpClosedOther = 196
-    tcpConnectionRefused = 194
-    tcpConnectTimeout = 193
-    tcpError = 197
-    timeout = 30
-    tlsError = 188
-    tlsClientAuthenticationFailed = 182
-    tlsClientCertificateError = 180
-    tlsClientCertificateExpired = 184
-    tlsClientCertificateRevoked = 186
-    tlsServerAuthenticationFailed = 183
-    tlsServerCertificateError = 181
-    tlsServerCertificateExpired = 185
-    tlsServerCertificateRevoked = 187
-    tooManyKeys = 105  # removed revision 22
-    unexpectedData = 150
-    unknownAudience = 221
-    unknownAuthenticationType = 106
-    unknownCertificateKey = 204
-    unknownClient = 222
-    unknownDevice = 70
-    unknownFileSize = 122
-    unknownKey = 107  # removed revision 22
-    unknownKeyRevision = 108  # removed revision 22
-    unknownNetworkMessage = 112
-    unknownObject = 31
-    unknownProperty = 32
-    unknownRoute = 71
-    unknownScope = 223
-    unknownSourceMessage = 109  # removed revision 22
-    unknownSubscription = 79
-    unknownVtClass = 34
-    unknownVtSession = 35
-    unsupportedObjectType = 36
-    valueNotInitialized = 72
-    valueOutOfRange = 37
-    valueTooLong = 134
-    viewScopeRequired = 224
-    vtSessionAlreadyClosed = 38
-    vtSessionTerminationFailure = 39
-    websocketClosedAbnormally = 173
-    websocketClosedByPeer = 169
-    websocketCloseError = 168
-    websocketDataAgainstPolicy = 175
-    websocketDataInconsistent = 174
-    websocketDataNotAccepted = 172
-    websocketEndpointLeaves = 170
-    websocketError = 179
-    websocketExtensionMissing = 177
-    websocketFrameTooLong = 176
-    websocketProtocolError = 171
-    websocketRequestUnavailable = 178
-    websocketSchemeNotSupported = 166
-    websocketUnknownControlMessage = 167
-    writeAccessDenied = 40
-    writeBdtFailed = 116
-
-
 class EscalatorFault(Enumerated):
     _vendor_range = (1024, 65535)
     controllerFault = 0
@@ -1214,20 +925,6 @@ class FaultType(Enumerated):
 class FileAccessMethod(Enumerated):
     recordAccess = 0
     streamAccess = 1
-
-
-class GetEnrollmentSummaryRequestAcknowledgmentFilterType(Enumerated):
-    all = 0
-    acked = 1
-    notAcked = 2
-
-
-class GetEnrollmentSummaryRequestEventStateFilterType(Enumerated):
-    offnormal = 0
-    fault = 1
-    normal = 2
-    all = 3
-    active = 4
 
 
 class IPMode(Enumerated):
@@ -1557,17 +1254,6 @@ class ProtocolLevel(Enumerated):
     nonBacnetApplication = 3
 
 
-class ReinitializeDeviceRequestReinitializedStateOfDevice(Enumerated):
-    coldstart = 0
-    warmstart = 1
-    startBackup = 2
-    endBackup = 3
-    startRestore = 4
-    endRestore = 5
-    abortRestore = 6
-    activateChanges = 7
-
-
 class Relationship(Enumerated):
     _vendor_range = (1024, 65535)
     unknown = 0
@@ -1652,12 +1338,6 @@ class RestartReason(Enumerated):
     activateChanges = 8
 
 
-class RouterEntryStatus(Enumerated):
-    available = 0
-    busy = 1
-    disconnected = 2
-
-
 class SCConnectionState(Enumerated):
     notConnected = 0
     connected = 1
@@ -1732,11 +1412,6 @@ class TimerTransition(Enumerated):
     expiredToRunning = 7
 
 
-class UnconfirmedTextMessageRequestMessagePriority(Enumerated):
-    normal = 0
-    urgent = 1
-
-
 class VTClass(Enumerated):
     """
     The virtual terminal services were removed in protocol revision 29, this
@@ -1784,50 +1459,6 @@ class AuditOperationFlags(BitString):
     auditingFailure = 13
     networkChanges = 14
     general = 15
-
-
-class AuthorizationScopeStandard(BitString):
-    _asn1_overrides = {
-        9: "reserved-9",
-        10: "reserved-10",
-        11: "reserved-11",
-        12: "reserved-12",
-        13: "reserved-13",
-        14: "reserved-14",
-        15: "reserved-15",
-        16: "reserved-16",
-        17: "reserved-17",
-        18: "reserved-18",
-        19: "reserved-19",
-        20: "reserved-20",
-        21: "reserved-21",
-        22: "reserved-22",
-        23: "reserved-23",
-    }
-    view = 0
-    adjust = 1
-    control = 2
-    override = 3
-    config = 4
-    bind = 5
-    install = 6
-    auth = 7
-    infrastructure = 8
-    reserved9 = 9
-    reserved10 = 10
-    reserved11 = 11
-    reserved12 = 12
-    reserved13 = 13
-    reserved14 = 14
-    reserved15 = 15
-    reserved16 = 16
-    reserved17 = 17
-    reserved18 = 18
-    reserved19 = 19
-    reserved20 = 20
-    reserved21 = 21
-    reserved22 = 22
-    reserved23 = 23
 
 
 class DaysOfWeek(BitString):
@@ -2517,10 +2148,270 @@ class ListOfRecipient(ListOf(Recipient)):
     pass
 
 
-class ErrorType(Sequence):
+class Error(Sequence):
+    """
+    BACnet Error, the error-class and error-code pair (CSML 0-Error), used as
+    a property access error, a log record failure, the error-type of the
+    service specific errors, etc.  This is the data type, not the Error-PDU
+    which is bacpypes3.apdu.Error.  ErrorType, ErrorClass, and ErrorCode are
+    the older names.
+    """
+
     _order = ("errorClass", "errorCode")
+
+    class ErrorClass(Enumerated):
+        _vendor_range = (64, 65535)
+        device = 0
+        object = 1
+        property = 2
+        resources = 3
+        security = 4
+        services = 5
+        vt = 6
+        communication = 7
+
+    class ErrorCode(Enumerated):
+        _vendor_range = (256, 65535)
+        _asn1_overrides = {
+            22: "property-is-not-a-list",
+            148: "not-a-bacnet-sc-hub",
+            164: "http-not-a-server",
+        }
+        abortApduTooLong = 123
+        abortApplicationExceededReplyTime = 124
+        abortBufferOverflow = 51
+        abortInsufficientSecurity = 135
+        abortInvalidApduInThisState = 52
+        abortOther = 56
+        abortOutOfResources = 125
+        abortPreemptedByHigherPriorityTask = 53
+        abortProprietary = 55
+        abortSecurityError = 136
+        abortSegmentationNotSupported = 54
+        abortTsmTimeout = 126
+        abortWindowSizeOutOfRange = 127
+        accessDenied = 85
+        addressingError = 115
+        adjustScopeRequired = 207
+        authScopeRequired = 208
+        badDestinationAddress = 86
+        badDestinationDeviceId = 87
+        badSignature = 88
+        badSourceAddress = 89
+        badTimestamp = 90  # removed revision 22
+        bindScopeRequired = 209
+        busy = 82
+        bvlcFunctionUnknown = 143
+        bvlcProprietaryFunctionUnknown = 144
+        cannotUseKey = 91  # removed revision 22
+        cannotVerifyMessageId = 92  # removed revision 22
+        certificateExpired = 200
+        certificateInvalid = 201
+        certificateMalformed = 202
+        certificateRevoked = 203
+        characterSetNotSupported = 41
+        communicationDisabled = 83
+        configScopeRequired = 210
+        configurationInProgress = 2
+        controlScopeRequired = 211
+        correctKeyRevision = 93  # removed revision 22
+        covSubscriptionFailed = 43
+        datatypeNotSupported = 47
+        deleteFdtEntryFailed = 120
+        destinationDeviceIdRequired = 94  # removed revision 22
+        deviceBusy = 3
+        directoryDisabled = 230
+        directoryQueryFailed = 231
+        distributeBroadcastFailed = 121
+        dnsError = 192
+        dnsNameResolutionFailed = 190
+        dnsResolverFailure = 191
+        dnsUnavailable = 189
+        duplicateEntry = 137
+        duplicateMessage = 95
+        duplicateName = 48
+        duplicateObjectId = 49
+        dynamicCreationNotSupported = 4
+        encryptionNotConfigured = 96
+        encryptionRequired = 97
+        extendedScopeRequired = 212
+        fileAccessDenied = 5
+        fileFull = 128
+        headerEncodingError = 145
+        headerNotUnderstood = 146
+        httpError = 165
+        httpNotAServer = 164
+        httpNoUpgrade = 153
+        httpProxyAuthenticationFailed = 155
+        httpResourceNotLocal = 154
+        httpResponseMissingHeader = 159
+        httpResponseSyntaxError = 157
+        httpResponseTimeout = 156
+        httpResponseValueError = 158
+        httpTemporaryUnavailable = 163
+        httpUnexpectedResponseCode = 152
+        httpUpgradeError = 162
+        httpUpgradeRequired = 161
+        httpWebsocketHeaderError = 160
+        inactiveToken = 220
+        inconsistentConfiguration = 129
+        inconsistentObjectType = 130
+        inconsistentParameters = 7
+        inconsistentSelectionCriterion = 8
+        incorrectAudience = 225
+        incorrectClient = 213
+        incorrectClientOrigin = 226
+        incorrectIssuer = 228
+        incorrectKey = 98  # removed revision 22
+        installScopeRequired = 214
+        insufficientScope = 215
+        internalError = 131
+        invalidArrayIndex = 42
+        invalidArraySize = 227
+        invalidConfigurationData = 46
+        invalidCursor = 232
+        invalidDataEncoding = 142
+        invalidDataType = 9
+        invalidEventState = 73
+        invalidFileAccessMethod = 10
+        invalidFileStartPosition = 11
+        invalidKeyData = 99  # removed revision 22
+        invalidOperationInThisState = 139
+        invalidParameterDataType = 13
+        invalidTag = 57
+        invalidTimestamp = 14
+        invalidToken = 229
+        invalidValueInThisState = 138
+        ipAddressNotReachable = 198
+        ipError = 199
+        keyUpdateInProgress = 100  # removed revision 22
+        listElementNotFound = 81
+        listItemNotNumbered = 140
+        listItemNotTimestamped = 141
+        logBufferFull = 75
+        loggedValuePurged = 76
+        malformedMessage = 101
+        messageIncomplete = 147
+        messageTooLong = 113
+        missingRequiredParameter = 16
+        networkDown = 58
+        noAlarmConfigured = 74
+        nodeDuplicateVmac = 151
+        noDefaultScope = 216
+        noObjectsOfSpecifiedType = 17
+        noPolicy = 217
+        noPropertySpecified = 77
+        noSpaceForObject = 18
+        noSpaceToAddListElement = 19
+        noSpaceToWriteProperty = 20
+        notABacnetScHub = 148
+        notConfigured = 132
+        notConfiguredForTriggeredLogging = 78
+        notCovProperty = 44
+        notEnabled = 206
+        notKeyServer = 102  # removed revision 22
+        notRouterToDnet = 110
+        noVtSessionsAvailable = 21
+        objectDeletionNotPermitted = 23
+        objectIdentifierAlreadyExists = 24
+        operationalProblem = 25
+        optionalFunctionalityNotSupported = 45
+        other = 0
+        outOfMemory = 133
+        overrideScopeRequired = 219
+        parameterOutOfRange = 80
+        passwordFailure = 26
+        payloadExpected = 149
+        propertyIsNotAList = 22
+        propertyIsNotAnArray = 50
+        readAccessDenied = 27
+        readBdtFailed = 117
+        readFdtFailed = 119
+        referencedPortInError = 205
+        registerForeignDeviceFailed = 118
+        rejectBufferOverflow = 59
+        rejectInconsistentParameters = 60
+        rejectInvalidParameterDataType = 61
+        rejectInvalidTag = 62
+        rejectMissingRequiredParameter = 63
+        rejectOther = 69
+        rejectParameterOutOfRange = 64
+        rejectProprietary = 68
+        rejectTooManyArguments = 65
+        rejectUndefinedEnumeration = 66
+        rejectUnrecognizedService = 67
+        revokedToken = 218
+        routerBusy = 111
+        securityError = 114
+        securityNotConfigured = 103
+        serviceRequestDenied = 29
+        sourceSecurityRequired = 104
+        success = 84
+        tcpClosedByLocal = 195
+        tcpClosedOther = 196
+        tcpConnectionRefused = 194
+        tcpConnectTimeout = 193
+        tcpError = 197
+        timeout = 30
+        tlsError = 188
+        tlsClientAuthenticationFailed = 182
+        tlsClientCertificateError = 180
+        tlsClientCertificateExpired = 184
+        tlsClientCertificateRevoked = 186
+        tlsServerAuthenticationFailed = 183
+        tlsServerCertificateError = 181
+        tlsServerCertificateExpired = 185
+        tlsServerCertificateRevoked = 187
+        tooManyKeys = 105  # removed revision 22
+        unexpectedData = 150
+        unknownAudience = 221
+        unknownAuthenticationType = 106
+        unknownCertificateKey = 204
+        unknownClient = 222
+        unknownDevice = 70
+        unknownFileSize = 122
+        unknownKey = 107  # removed revision 22
+        unknownKeyRevision = 108  # removed revision 22
+        unknownNetworkMessage = 112
+        unknownObject = 31
+        unknownProperty = 32
+        unknownRoute = 71
+        unknownScope = 223
+        unknownSourceMessage = 109  # removed revision 22
+        unknownSubscription = 79
+        unknownVtClass = 34
+        unknownVtSession = 35
+        unsupportedObjectType = 36
+        valueNotInitialized = 72
+        valueOutOfRange = 37
+        valueTooLong = 134
+        viewScopeRequired = 224
+        vtSessionAlreadyClosed = 38
+        vtSessionTerminationFailure = 39
+        websocketClosedAbnormally = 173
+        websocketClosedByPeer = 169
+        websocketCloseError = 168
+        websocketDataAgainstPolicy = 175
+        websocketDataInconsistent = 174
+        websocketDataNotAccepted = 172
+        websocketEndpointLeaves = 170
+        websocketError = 179
+        websocketExtensionMissing = 177
+        websocketFrameTooLong = 176
+        websocketProtocolError = 171
+        websocketRequestUnavailable = 178
+        websocketSchemeNotSupported = 166
+        websocketUnknownControlMessage = 167
+        writeAccessDenied = 40
+        writeBdtFailed = 116
+
     errorClass = ErrorClass()
     errorCode = ErrorCode()
+
+
+ErrorType = Error
+ErrorClass = Error.ErrorClass
+ErrorCode = Error.ErrorCode
 
 
 @bacpypes_debugging
@@ -2685,11 +2576,24 @@ class AccessRule(Sequence):
         "location",
         "enable",
     )
-    timeRangeSpecifier = AccessRuleTimeRangeSpecifier(_context=0)
+
+    class TimeRangeSpecifier(Enumerated):
+        specified = 0
+        always = 1
+
+    class LocationSpecifier(Enumerated):
+        specified = 0
+        all = 1
+
+    timeRangeSpecifier = TimeRangeSpecifier(_context=0)
     timeRange = DeviceObjectPropertyReference(_context=1, _optional=True)
-    locationSpecifier = AccessRuleLocationSpecifier(_context=2)
+    locationSpecifier = LocationSpecifier(_context=2)
     location = DeviceObjectReference(_context=3, _optional=True)
     enable = Boolean(_context=4)
+
+
+AccessRuleTimeRangeSpecifier = AccessRule.TimeRangeSpecifier
+AccessRuleLocationSpecifier = AccessRule.LocationSpecifier
 
 
 class ArrayOfAccessRule(ArrayOf(AccessRule)):
@@ -2698,10 +2602,21 @@ class ArrayOfAccessRule(ArrayOf(AccessRule)):
 
 class AccumulatorRecord(Sequence):
     _order = ("timestamp", "presentValue", "accumulatedValue", "accumulatorStatus")
+
+    class AccumulatorStatus(Enumerated):
+        normal = 0
+        starting = 1
+        recovered = 2
+        abnormal = 3
+        failed = 4
+
     timestamp = DateTime(_context=0)
     presentValue = Unsigned(_context=1)
     accumulatedValue = Unsigned(_context=2)
-    accumulatorStatus = AccumulatorRecordAccumulatorStatus(_context=3)
+    accumulatorStatus = AccumulatorStatus(_context=3)
+
+
+AccumulatorRecordAccumulatorStatus = AccumulatorRecord.AccumulatorStatus
 
 
 class AcknowledgeAlarmInfo(Sequence):
@@ -2930,14 +2845,76 @@ class AuditLogRecordResult(Sequence):
 
 class AuthorizationConstraint(Sequence):
     _order = ("origin", "authentication")
-    origin = AuthorizationConstraintOrigin()
-    authentication = AuthorizationConstraintAuthentication()
+
+    class Origin(Enumerated):
+        directConnect = 0
+        sameNetwork = 1
+        anyNetwork = 2
+
+    class Authentication(Enumerated):
+        certified = 0
+        securePath = 1
+        anyMethod = 2
+
+    origin = Origin()
+    authentication = Authentication()
+
+
+AuthorizationConstraintOrigin = AuthorizationConstraint.Origin
+AuthorizationConstraintAuthentication = AuthorizationConstraint.Authentication
 
 
 class AuthorizationScope(Sequence):
     _order = ("standard", "extended")
-    standard = AuthorizationScopeStandard()
+
+    class Standard(BitString):
+        _asn1_overrides = {
+            9: "reserved-9",
+            10: "reserved-10",
+            11: "reserved-11",
+            12: "reserved-12",
+            13: "reserved-13",
+            14: "reserved-14",
+            15: "reserved-15",
+            16: "reserved-16",
+            17: "reserved-17",
+            18: "reserved-18",
+            19: "reserved-19",
+            20: "reserved-20",
+            21: "reserved-21",
+            22: "reserved-22",
+            23: "reserved-23",
+        }
+        view = 0
+        adjust = 1
+        control = 2
+        override = 3
+        config = 4
+        bind = 5
+        install = 6
+        auth = 7
+        infrastructure = 8
+        reserved9 = 9
+        reserved10 = 10
+        reserved11 = 11
+        reserved12 = 12
+        reserved13 = 13
+        reserved14 = 14
+        reserved15 = 15
+        reserved16 = 16
+        reserved17 = 17
+        reserved18 = 18
+        reserved19 = 19
+        reserved20 = 20
+        reserved21 = 21
+        reserved22 = 22
+        reserved23 = 23
+
+    standard = Standard()
     extended = SequenceOf(CharacterString, _context=0, _optional=True)
+
+
+AuthorizationScopeStandard = AuthorizationScope.Standard
 
 
 class AccessToken(Sequence):
@@ -4381,10 +4358,19 @@ class ReadAccessSpecification(Sequence):
 
 class RouterEntry(Sequence):
     _order = ("networkNumber", "macAddress", "status", "performanceIndex")
+
+    class Status(Enumerated):
+        available = 0
+        busy = 1
+        disconnected = 2
+
     networkNumber = Unsigned16(_context=0)
     macAddress = OctetString(_context=1)
-    status = RouterEntryStatus(_context=2)
+    status = Status(_context=2)
     performanceIndex = Unsigned8(_context=3, _optional=True)
+
+
+RouterEntryStatus = RouterEntry.Status
 
 
 class SCDirectConnection(Sequence):
@@ -4885,3 +4871,24 @@ class ValueSource(Choice):
 class WhoHasObject(Choice):
     objectIdentifier = ObjectIdentifier(_context=2)
     objectName = CharacterString(_context=3)
+
+
+# enumerations of the service requests that moved into the request classes in
+# apdu.py (like ConfirmedTextMessageRequest.MessagePriority), the old names are
+# still available here; apdu imports basetypes so they are looked up lazily
+_MOVED_TO_APDU = (
+    "GetEnrollmentSummaryRequestAcknowledgmentFilterType",
+    "GetEnrollmentSummaryRequestEventStateFilterType",
+    "ConfirmedTextMessageRequestMessagePriority",
+    "UnconfirmedTextMessageRequestMessagePriority",
+    "DeviceCommunicationControlRequestEnableDisable",
+    "ReinitializeDeviceRequestReinitializedStateOfDevice",
+)
+
+
+def __getattr__(name: str) -> _Any:
+    if name in _MOVED_TO_APDU:
+        from . import apdu
+
+        return getattr(apdu, name)
+    raise AttributeError(f"module {__name__!r} has no attribute {name!r}")

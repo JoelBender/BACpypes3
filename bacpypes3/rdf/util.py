@@ -277,6 +277,28 @@ def characterstring_decode(graph: Graph, value):
     return CharacterString(value.value)
 
 
+def _rdf_class_name(class_: type) -> str:
+    """
+    Return the name of an enumeration or bit string class as it is used in
+    RDF.  Nested classes use their qualified name like the inline types in
+    the CSML (RouterEntry.Status), classes defined in a function fall back
+    to the plain class name.
+    """
+    qualname = class_.__qualname__
+    return class_.__name__ if "<" in qualname else qualname
+
+
+def _member_name(value: URIRef, class_: type) -> str:
+    """
+    Return the value or bit name from an IRI like bacnet:RouterEntry.Status.busy
+    for the class, the class name may contain dots so match it as a prefix.
+    """
+    prefix = str(BACNET) + _rdf_class_name(class_) + "."
+    if not str(value).startswith(prefix):
+        raise ValueError(f"{value} is not a value of {_rdf_class_name(class_)}")
+    return str(value)[len(prefix) :]
+
+
 def bitstring_encode(graph: Graph, value):
     if _bitstring_as_bits:
         bit_string = "".join(str(bit) for bit in value)
@@ -295,7 +317,9 @@ def bitstring_encode(graph: Graph, value):
 
             if bit_number in bit_names:
                 literal = URIRef(
-                    BACNET[value.__class__.__name__ + "." + bit_names[bit_number]]
+                    BACNET[
+                        _rdf_class_name(value.__class__) + "." + bit_names[bit_number]
+                    ]
                 )
             else:
                 literal = Literal(bit_number)
@@ -339,10 +363,7 @@ def bitstring_decode(graph: Graph, value, class_):
             if isinstance(node_value, int):
                 bits_set.add(node_value)
             elif isinstance(node_value, URIRef):
-                uri_value = str(node_value).replace(str(BACNET), "").split(".", 1)
-                assert uri_value[0] == class_.__name__
-
-                bits_set.add(class_._bitstring_names[uri_value[1]])
+                bits_set.add(class_._bitstring_names[_member_name(node_value, class_)])
             elif isinstance(node_value, str):
                 bits_set.add(class_._bitstring_names[str(node_value)])
             else:
@@ -364,9 +385,9 @@ def enumerated_encode(graph: Graph, value):
     if _enumerated_as_str:
         return Literal(value.asn1)
     if _enumerated_as_datatype:
-        return Literal(value.asn1, datatype=BACNET[value.__class__.__name__])
+        return Literal(value.asn1, datatype=BACNET[_rdf_class_name(value.__class__)])
     if _enumerated_as_uri:
-        return URIRef(BACNET[value.__class__.__name__ + "." + value.asn1])
+        return URIRef(BACNET[_rdf_class_name(value.__class__) + "." + value.asn1])
 
     raise NotImplementedError("enumerated_encode")
 
@@ -378,16 +399,13 @@ def enumerated_decode(graph: Graph, value, class_):
 
     if _enumerated_as_datatype:
         assert isinstance(value, Literal)
-        assert value.datatype == BACNET[class_.__name__]
+        assert value.datatype == BACNET[_rdf_class_name(class_)]
         return class_(str(value))
 
     if _enumerated_as_uri:
         assert isinstance(value, URIRef)
 
-        uri_value = str(value).replace(str(BACNET), "").split(".", 1)
-        assert uri_value[0] == class_.__name__
-
-        return class_(uri_value[1])
+        return class_(_member_name(value, class_))
 
     raise NotImplementedError("enumeraeted_decode")
 
