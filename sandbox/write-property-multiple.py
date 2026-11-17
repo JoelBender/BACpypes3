@@ -69,7 +69,7 @@ class SampleCmd(Cmd):
             # construct PropertyValue (with priority)
             property_value = PropertyValue(
                 propertyIdentifier=property_reference.propertyIdentifier,
-                value=value,
+                propertyValue=value,
                 priority=priority,
             )
 
@@ -88,7 +88,7 @@ class SampleCmd(Cmd):
         try:
             # create WritePropertyMultipleRequest
             write_property_multiple_request = WritePropertyMultipleRequest(
-                listOfWriteAccessSpecs=parameter_list,
+                listOfWriteAccessSpecifications=parameter_list,
                 destination=address,
             )
 

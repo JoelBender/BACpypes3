@@ -10,7 +10,7 @@ import unittest
 import pytest
 
 from bacpypes3.debugging import bacpypes_debugging, ModuleLogger, xtob
-from bacpypes3.primitivedata import Tag, TagClass, TagNumber, TagList, Date
+from bacpypes3.primitivedata import Tag, TagClass, TagNumber, TagList, Date, DatePattern
 from bacpypes3.rdf.util import (
     date_encode as rdf_date_encode,
     date_decode as rdf_date_decode,
@@ -131,6 +131,22 @@ class TestDate(unittest.TestCase):
         obj = Date("1901-*-* mon")
         assert obj == (1, 255, 255, 1)
         assert str(obj) == "1901-*-* mon"
+
+        # every December 25, the year-month-day form wins over the
+        # month-day-year and day-month-year forms
+        obj = Date("*-12-25")
+        assert obj == (255, 12, 25, 255)
+        assert str(obj) == "*-12-25 *"
+        assert Date(str(obj)) == obj
+
+        obj = DatePattern("*-06-01 *")
+        assert obj == (255, 6, 1, 255)
+
+        # without a four digit year or a wildcard first field the order is
+        # still ambiguous
+        for value in ("06-01-2026", "01-06-*"):
+            with self.assertRaises(ValueError):
+                Date(value)
 
     def test_date_copy(self):
         if _debug:

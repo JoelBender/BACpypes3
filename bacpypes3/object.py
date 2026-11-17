@@ -26,6 +26,7 @@ from .primitivedata import (
     Boolean,
     CharacterString,
     Date,
+    DatePattern,
     Double,
     Integer,
     ObjectIdentifier,
@@ -33,6 +34,7 @@ from .primitivedata import (
     OctetString,
     Real,
     Time,
+    TimePattern,
     Unsigned,
     Unsigned16,
     Unsigned8,
@@ -46,6 +48,7 @@ from .constructeddata import (
     SequenceMetaclass,
 )
 from .basetypes import (
+    AccessToken,
     AccessCredentialDisable,
     AccessCredentialDisableReason,
     AccessEvent,
@@ -67,8 +70,12 @@ from .basetypes import (
     AuthenticationFactorFormat,
     AuthenticationPolicy,
     AuthenticationStatus,
-    AuthorizationException,
+    AuthorizationExemption,
     AuthorizationMode,
+    AuthorizationPolicy,
+    AuthorizationScopeDescription,
+    AuthorizationServer,
+    AuthorizationStatus,
     BackupState,
     BDTEntry,
     BinaryLightingPV,
@@ -76,16 +83,22 @@ from .basetypes import (
     CalendarEntry,
     ChannelValue,
     ClientCOV,
+    ColorCommand,
+    ColorOperationInProgress,
+    ColorTransition,
     COVMultipleSubscription,
     COVSubscription,
     CredentialAuthenticationFactor,
     DailySchedule,
     DateRange,
     DateTime,
+    DateTimePattern,
     Destination,
+    DeviceAddressProxyTableEntry,
     DeviceObjectPropertyReference,
     DeviceObjectReference,
     DeviceStatus,
+    DiscoveryState,
     DoorAlarmState,
     DoorSecuredStatus,
     DoorStatus,
@@ -104,6 +117,7 @@ from .basetypes import (
     FaultType,
     FDTEntry,
     FileAccessMethod,
+    Health,
     HostNPort,
     IPMode,
     IPv4OctetString,
@@ -141,16 +155,27 @@ from .basetypes import (
     ObjectPropertyReference,
     ObjectSelector,
     ObjectTypesSupported,
+    OptionalBinaryLightingPV,
     OptionalBinaryPV,
+    OptionalBitString,
     OptionalCharacterString,
+    OptionalDate,
+    OptionalDatePattern,
+    OptionalDateTime,
+    OptionalDateTimePattern,
+    OptionalDoorValue,
+    OptionalDouble,
+    OptionalInteger,
+    OptionalOctetString,
     OptionalPriorityFilter,
     OptionalReal,
+    OptionalTime,
+    OptionalTimePattern,
     OptionalUnsigned,
     Polarity,
     PortPermission,
     Prescale,
     PriorityFilter,
-    PriorityValue,
     ProcessIdSelection,
     ProgramError,
     ProgramRequest,
@@ -166,6 +191,11 @@ from .basetypes import (
     RestartReason,
     RouterEntry,
     Scale,
+    SCDirectConnection,
+    SCFailedConnectionRequest,
+    SCHubConnection,
+    SCHubConnectorState,
+    SCHubFunctionConnection,
     SecurityKeySet,
     SecurityLevel,
     Segmentation,
@@ -187,6 +217,7 @@ from .basetypes import (
     VTClass,
     VTSession,
     WriteStatus,
+    XYColor,
 )
 from .vendor import get_vendor_info
 
@@ -523,7 +554,7 @@ class AccessCredentialObject(Object):
     traceFlag: Boolean
     threatAuthority: AccessThreatLevel
     extendedTimeEnable: Boolean
-    authorizationExemptions: ListOf(AuthorizationException)
+    authorizationExemptions: ListOf(AuthorizationExemption)
     reliabilityEvaluationInhibit: Boolean
 
 
@@ -547,7 +578,7 @@ class AccessDoorObject(Object):
     eventState: EventState
     reliability: Reliability
     outOfService: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalDoorValue, _length=16)
     relinquishDefault: DoorValue
     doorStatus: DoorStatus
     lockStatus: LockStatus
@@ -592,6 +623,7 @@ class AccessPointObject(Object):
         "authenticationStatus",
         "activeAuthenticationPolicy",
         "numberOfAuthenticationPolicies",
+        "authorizationMode",
         "accessEvent",
         "accessEventTag",
         "accessEventTime",
@@ -871,7 +903,7 @@ class AnalogOutputObject(Object):
     minPresValue: Real
     maxPresValue: Real
     resolution: Real
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalReal, _length=16)
     relinquishDefault: Real
     covIncrement: Real
     timeDelay: Unsigned
@@ -912,7 +944,7 @@ class AnalogValueObject(Object):
     minPresValue: Real
     maxPresValue: Real
     resolution: Real
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalReal, _length=16)
     relinquishDefault: Real
     covIncrement: Real
     timeDelay: Unsigned
@@ -944,7 +976,8 @@ class AnalogValueObject(Object):
 
 class AuditLogObject(Object):
     _required = (
-        "statusFlags" "eventState",
+        "statusFlags",
+        "eventState",
         "enable",
         "bufferSize",
         "logBuffer",
@@ -979,6 +1012,7 @@ class AuditReporterObject(Object):
         "statusFlags",
         "reliability",
         "eventState",
+        "auditLevel",
         "auditSourceReporter",
         "auditableOperations",
         "auditPriorityFilter",
@@ -1082,7 +1116,6 @@ class BinaryLightingOutputObject(Object):
         "egressActive",
         "priorityArray",
         "relinquishDefault",
-        "lightingCommandDefaultPriority",
         "currentCommandPriority",
     )
     objectType = ObjectType("binaryLightingOutput")
@@ -1095,7 +1128,7 @@ class BinaryLightingOutputObject(Object):
     egressTime: Unsigned
     egressActive: Boolean
     feedbackValue: BinaryLightingPV
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalBinaryLightingPV, _length=16)
     relinquishDefault: BinaryLightingPV
     power: Real
     polarity: Polarity
@@ -1118,6 +1151,9 @@ class BinaryLightingOutputObject(Object):
     lastCommandTime: TimeStamp
     commandTimeArray: ArrayOf(TimeStamp, _length=16)
     auditPriorityFilter: OptionalPriorityFilter
+    colorReference: ObjectIdentifier
+    colorOverride: Boolean
+    overrideColorReference: ObjectIdentifier
 
 
 class BinaryOutputObject(Object):
@@ -1148,7 +1184,7 @@ class BinaryOutputObject(Object):
     timeOfActiveTimeReset: DateTime
     minimumOffTime: Unsigned
     minimumOnTime: Unsigned
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalBinaryPV, _length=16)
     relinquishDefault: BinaryPV
     timeDelay: Unsigned
     notificationClass: Unsigned
@@ -1190,7 +1226,7 @@ class BinaryValueObject(Object):
     timeOfActiveTimeReset: DateTime
     minimumOffTime: Unsigned
     minimumOnTime: Unsigned
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalBinaryPV, _length=16)
     relinquishDefault: BinaryPV
     timeDelay: Unsigned
     notificationClass: Unsigned
@@ -1223,7 +1259,7 @@ class BitStringValueObject(Object):
     eventState: EventState
     reliability: Reliability
     outOfService: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalBitString, _length=16)
     relinquishDefault: BitString
     timeDelay: Unsigned
     notificationClass: Unsigned
@@ -1300,7 +1336,7 @@ class CharacterStringValueObject(Object):
     eventState: EventState
     reliability: Reliability
     outOfService: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalCharacterString, _length=16)
     relinquishDefault: CharacterString
     timeDelay: Unsigned
     notificationClass: Unsigned
@@ -1323,6 +1359,52 @@ class CharacterStringValueObject(Object):
     lastCommandTime: TimeStamp
     commandTimeArray: ArrayOf(TimeStamp, _length=16)
     auditPriorityFilter: OptionalPriorityFilter
+
+
+class ColorObject(Object):
+    _required = (
+        "presentValue",
+        "trackingValue",
+        "colorCommand",
+        "inProgress",
+        "defaultColor",
+        "defaultFadeTime",
+    )
+    objectType = ObjectType("color")
+    presentValue: XYColor
+    trackingValue: XYColor
+    colorCommand: ColorCommand
+    inProgress: ColorOperationInProgress
+    defaultColor: XYColor
+    defaultFadeTime: Unsigned
+    transition: ColorTransition
+    valueSource: ValueSource
+
+
+class ColorTemperatureObject(Object):
+    _required = (
+        "presentValue",
+        "trackingValue",
+        "colorCommand",
+        "inProgress",
+        "defaultColorTemperature",
+        "defaultFadeTime",
+        "defaultRampRate",
+        "defaultStepIncrement",
+    )
+    objectType = ObjectType("colorTemperature")
+    presentValue: Unsigned
+    trackingValue: Unsigned
+    colorCommand: ColorCommand
+    inProgress: ColorOperationInProgress
+    defaultColorTemperature: Unsigned
+    defaultFadeTime: Unsigned
+    defaultRampRate: Unsigned
+    defaultStepIncrement: Unsigned
+    minPresValue: Unsigned
+    maxPresValue: Unsigned
+    transition: ColorTransition
+    valueSource: ValueSource
 
 
 class CommandObject(Object):
@@ -1379,13 +1461,13 @@ class CredentialDataInputObject(Object):
 
 class DatePatternValueObject(Object):
     _required = ("presentValue", "statusFlags")
-    objectType = ObjectType("datePatternValue")
-    presentValue: Date
+    objectType = ObjectType("datepatternValue")
+    presentValue: DatePattern
     statusFlags: StatusFlags
     eventState: EventState
     reliability: Reliability
     outOfService: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalDatePattern, _length=16)
     relinquishDefault: Date
     reliabilityEvaluationInhibit: Boolean
     eventDetectionEnable: Boolean
@@ -1406,14 +1488,14 @@ class DatePatternValueObject(Object):
 
 class DateTimePatternValueObject(Object):
     _required = ("presentValue", "statusFlags")
-    objectType = ObjectType("datetimePatternValue")
-    presentValue: DateTime
+    objectType = ObjectType("datetimepatternValue")
+    presentValue: DateTimePattern
     statusFlags: StatusFlags
     eventState: EventState
     reliability: Reliability
     outOfService: Boolean
     isUTC: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalDateTimePattern, _length=16)
     relinquishDefault: DateTime
     reliabilityEvaluationInhibit: Boolean
     eventDetectionEnable: Boolean
@@ -1440,7 +1522,7 @@ class DateTimeValueObject(Object):
     eventState: EventState
     reliability: Reliability
     outOfService: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalDateTime, _length=16)
     relinquishDefault: DateTime
     isUTC: Boolean
     reliabilityEvaluationInhibit: Boolean
@@ -1468,7 +1550,7 @@ class DateValueObject(Object):
     eventState: EventState
     reliability: Reliability
     outOfService: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalDate, _length=16)
     relinquishDefault: Date
     reliabilityEvaluationInhibit: Boolean
     eventDetectionEnable: Boolean
@@ -1536,9 +1618,10 @@ class DeviceObject(Object):
     apduSegmentTimeout: Unsigned
     apduTimeout: Unsigned
     numberOfApduRetries: Unsigned
+    # removed from the standard with network security, kept for older devices
     listOfSessionKeys: ListOf(SessionKey)
     timeSynchronizationRecipients: ListOf(Recipient)
-    maxMaster: Unsigned
+    maxManager: Unsigned
     maxInfoFrames: Unsigned
     deviceAddressBinding: ListOf(AddressBinding)
     databaseRevision: Unsigned
@@ -1576,10 +1659,44 @@ class DeviceObject(Object):
     auditLevel: AuditLevel
     auditableOperations: AuditOperationFlags
     deviceUUID: OctetString
+    maxProxiedIAmsPerSecond: Unsigned
+    deviceAddressProxyTable: ListOf(DeviceAddressProxyTableEntry)
+    authorizationServer: AuthorizationServer
+    authorizationStatus: AuthorizationStatus
+    authorizationPolicy: ArrayOf(AuthorizationPolicy)
+    authorizationScopes: ArrayOf(AuthorizationScopeDescription)
+    authorizationCache: ListOf(AccessToken)
+    authorizationGroups: ArrayOf(Unsigned)
     # tags: ArrayOf(NameValue)
     # profileLocation: CharacterString
-    # deployedProfileLocation: CharacterString
+    deployedProfileLocation: CharacterString
     # profileName: CharacterString
+
+
+class DirectoryObject(Object):
+    _required = (
+        "discoveryStatus",
+        "directoryRevision",
+        "enable",
+        "statusFlags",
+        "eventState",
+    )
+    objectType = ObjectType("directory")
+    discoveryStatus: DiscoveryState
+    directoryRevision: Unsigned
+    enable: Boolean
+    statusFlags: StatusFlags
+    reliability: Reliability
+    eventDetectionEnable: Boolean
+    notificationClass: Unsigned
+    eventEnable: EventTransitionBits
+    ackedTransitions: EventTransitionBits
+    notifyType: NotifyType
+    eventTimeStamps: ArrayOf(TimeStamp, _length=3)
+    eventMessageTexts: ArrayOf(CharacterString, _length=3)
+    eventMessageTextsConfig: ArrayOf(CharacterString, _length=3)
+    eventState: EventState
+    reliabilityEvaluationInhibit: Boolean
 
 
 class ElevatorGroupObject(Object):
@@ -1737,8 +1854,6 @@ class GlobalGroupObject(Object):
         "eventState",
         "memberStatusFlags",
         "outOfService",
-        "",
-        "",
     )
     objectType = ObjectType("globalGroup")
     groupMembers: ArrayOf(DeviceObjectPropertyReference)
@@ -1778,7 +1893,7 @@ class GroupObject(Object):
 
 
 class IntegerValueObject(Object):
-    _required = ("presentValue", "statusFlags")
+    _required = ("presentValue", "statusFlags", "units")
     objectType = ObjectType("integerValue")
     presentValue: Integer
     statusFlags: StatusFlags
@@ -1786,7 +1901,7 @@ class IntegerValueObject(Object):
     reliability: Reliability
     outOfService: Boolean
     units: EngineeringUnits
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalInteger, _length=16)
     relinquishDefault: Integer
     covIncrement: Unsigned
     timeDelay: Unsigned
@@ -1828,7 +1943,7 @@ class LargeAnalogValueObject(Object):
     reliability: Reliability
     outOfService: Boolean
     units: EngineeringUnits
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalDouble, _length=16)
     relinquishDefault: Double
     covIncrement: Double
     timeDelay: Unsigned
@@ -1923,7 +2038,7 @@ class LifeSafetyZoneObject(Object):
         "acceptedModes",
         "silenced",
         "operationExpected",
-        "zomeMembers",
+        "zoneMembers",
     )
     objectType = ObjectType("lifeSafetyZone")
     presentValue: LifeSafetyState
@@ -1974,7 +2089,6 @@ class LiftObject(Object):
         "faultSignals",
     )
     objectType = ObjectType("lift")
-    trackingValue: Real
     statusFlags: StatusFlags
     elevatorGroup: ObjectIdentifier
     groupID: Unsigned8
@@ -2038,6 +2152,8 @@ class LightingOutputObject(Object):
         "relinquishDefault",
         "lightingCommandDefaultPriority",
         "currentCommandPriority",
+        "lastOnValue",
+        "defaultOnValue",
     )
     objectType = ObjectType("lightingOutput")
     presentValue: Real
@@ -2045,6 +2161,7 @@ class LightingOutputObject(Object):
     lightingCommand: LightingCommand
     inProgress: LightingInProgress
     statusFlags: StatusFlags
+    eventState: EventState
     reliability: Reliability
     outOfService: Boolean
     blinkWarnEnable: Boolean
@@ -2055,7 +2172,7 @@ class LightingOutputObject(Object):
     defaultStepIncrement: Real
     transition: LightingTransition
     feedbackValue: Real
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalReal, _length=16)
     relinquishDefault: Real
     power: Real
     instantaneousPower: Real
@@ -2063,12 +2180,28 @@ class LightingOutputObject(Object):
     maxActualValue: Real
     lightingCommandDefaultPriority: Unsigned
     covIncrement: Real
+    eventDetectionEnable: Boolean
+    notificationClass: Unsigned
+    eventEnable: EventTransitionBits
+    ackedTransitions: EventTransitionBits
+    notifyType: NotifyType
+    eventTimeStamps: ArrayOf(TimeStamp, _length=3)
+    eventMessageTexts: ArrayOf(CharacterString, _length=3)
+    eventMessageTextsConfig: ArrayOf(CharacterString, _length=3)
     reliabilityEvaluationInhibit: Boolean
     currentCommandPriority: OptionalUnsigned
     valueSource: ValueSource
     valueSourceArray: ArrayOf(ValueSource, _length=16)
     lastCommandTime: TimeStamp
     commandTimeArray: ArrayOf(TimeStamp, _length=16)
+    lastOnValue: Real
+    defaultOnValue: Real
+    colorReference: ObjectIdentifier
+    colorOverride: Boolean
+    overrideColorReference: ObjectIdentifier
+    highEndTrim: Real
+    lowEndTrim: Real
+    trimFadeTime: Unsigned
     auditPriorityFilter: OptionalPriorityFilter
 
 
@@ -2234,7 +2367,7 @@ class MultiStateOutputObject(Object):
     outOfService: Boolean
     numberOfStates: Unsigned
     stateText: ArrayOf(CharacterString)
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalUnsigned, _length=16)
     relinquishDefault: Unsigned
     timeDelay: Unsigned
     notificationClass: Unsigned
@@ -2275,7 +2408,7 @@ class MultiStateValueObject(Object):
     outOfService: Boolean
     numberOfStates: Unsigned
     stateText: ArrayOf(CharacterString)
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalUnsigned, _length=16)
     relinquishDefault: Unsigned
     timeDelay: Unsigned
     notificationClass: Unsigned
@@ -2308,7 +2441,6 @@ class NetworkPortObject(Object):
         "networkType",
         "protocolLevel",
         "changesPending",
-        "linkSpeed",
     )
     objectType = ObjectType("networkPort")
     statusFlags: StatusFlags
@@ -2317,10 +2449,13 @@ class NetworkPortObject(Object):
     networkType: NetworkType
     protocolLevel: ProtocolLevel
     referencePort: Unsigned
+    additionalReferencePorts: ListOf(Unsigned)
     networkNumber: Unsigned16
     networkNumberQuality: NetworkNumberQuality
     changesPending: Boolean
     command: NetworkPortCommand
+    currentHealth: Health
+    commandValidationResult: Health
     macAddress: MACAddress
     apduLength: Unsigned
     linkSpeed: Real
@@ -2357,14 +2492,16 @@ class NetworkPortObject(Object):
     ipv6DHCPLeaseTimeRemaining: Unsigned
     ipv6DHCPServer: IPv6OctetString
     ipv6ZoneIndex: CharacterString
-    maxMaster: Unsigned8
+    maxManager: Unsigned8
     maxInfoFrames: Unsigned8
-    slaveProxyEnable: Boolean
-    manualSlaveAddressBinding: ListOf(AddressBinding)
-    autoSlaveDiscovery: Boolean
-    slaveAddressBinding: ListOf(AddressBinding)
+    subordinateProxyEnable: Boolean
+    manualSubordinateAddressBinding: ListOf(AddressBinding)
+    autoSubordinateDiscovery: Boolean
+    subordinateAddressBinding: ListOf(AddressBinding)
     virtualMACAddressTable: ListOf(VMACEntry)
     routingTable: ListOf(RouterEntry)
+    deviceAddressProxyEnable: Boolean
+    deviceAddressProxyTimeout: Unsigned
     eventDetectionEnable: Boolean
     notificationClass: Unsigned
     eventEnable: EventTransitionBits
@@ -2375,9 +2512,39 @@ class NetworkPortObject(Object):
     eventMessageTextsConfig: ArrayOf(CharacterString, _length=3)
     eventState: EventState
     reliabilityEvaluationInhibit: Boolean
+    maxBvlcLengthAccepted: Unsigned
+    maxNpduLengthAccepted: Unsigned
+    scPrimaryHubUri: CharacterString
+    scFailoverHubUri: CharacterString
+    scMinimumReconnectTime: Unsigned
+    scMaximumReconnectTime: Unsigned
+    scConnectWaitTimeout: Unsigned
+    scDisconnectWaitTimeout: Unsigned
+    scHeartbeatTimeout: Unsigned
+    scHubConnectorState: SCHubConnectorState
+    scPrimaryHubConnectionStatus: SCHubConnection
+    scFailoverHubConnectionStatus: SCHubConnection
+    scHubFunctionEnable: Boolean
+    scHubFunctionAcceptUris: ArrayOf(CharacterString)
+    scHubFunctionBinding: CharacterString
+    scHubFunctionConnectionStatus: ListOf(SCHubFunctionConnection)
+    scDirectConnectInitiateEnable: Boolean
+    scDirectConnectAcceptEnable: Boolean
+    scDirectConnectAcceptUris: ArrayOf(CharacterString)
+    scDirectConnectBinding: CharacterString
+    scDirectConnectConnectionStatus: ListOf(SCDirectConnection)
+    scFailedConnectionRequests: ListOf(SCFailedConnectionRequest)
+    operationalCertificateFile: ObjectIdentifier
+    issuerCertificateFiles: ArrayOf(ObjectIdentifier, _length=2)
+    certificateSigningRequestFile: ObjectIdentifier
 
 
 class NetworkSecurityObject(Object):
+    """
+    Network security (Clause 24) was removed from the standard, this object
+    type is kept to interoperate with older devices.
+    """
+
     objectType = ObjectType("networkSecurity")
     baseDeviceSecurityPolicy: SecurityLevel
     networkAccessSecurityPolicies: ArrayOf(NetworkSecurityPolicy)
@@ -2393,10 +2560,10 @@ class NetworkSecurityObject(Object):
 
 
 class NotificationClassObject(Object):
-    _required = ("notificationClass", "priority", "ackRequired", "recipientList")
+    _required = ("priority", "ackRequired", "recipientList")
     objectType = ObjectType("notificationClass")
     notificationClass: Unsigned
-    priority: ArrayOf(Unsigned)
+    priority: ArrayOf(Unsigned, _length=3)
     ackRequired: EventTransitionBits
     recipientList: ListOf(Destination)
     statusFlags: StatusFlags
@@ -2442,7 +2609,7 @@ class OctetStringValueObject(Object):
     eventState: EventState
     reliability: Reliability
     outOfService: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalOctetString, _length=16)
     relinquishDefault: OctetString
     reliabilityEvaluationInhibit: Boolean
     currentCommandPriority: OptionalUnsigned
@@ -2462,7 +2629,7 @@ class PositiveIntegerValueObject(Object):
     reliability: Reliability
     outOfService: Boolean
     units: EngineeringUnits
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalUnsigned, _length=16)
     relinquishDefault: Unsigned
     covIncrement: Unsigned
     timeDelay: Unsigned
@@ -2600,6 +2767,7 @@ class ScheduleObject(Object):
     eventMessageTexts: ArrayOf(CharacterString, _length=3)
     eventMessageTextsConfig: ArrayOf(CharacterString, _length=3)
     reliabilityEvaluationInhibit: Boolean
+    writeEveryScheduledAction: Boolean
 
 
 class StagingObject(Object):
@@ -2646,7 +2814,7 @@ class StagingObject(Object):
 
 
 class StructuredViewObject(Object):
-    _required = ("nodeSubtype", "subordinateList")
+    _required = ("nodeType", "subordinateList")
     objectType = ObjectType("structuredView")
     nodeType: NodeType
     nodeSubtype: CharacterString
@@ -2661,13 +2829,13 @@ class StructuredViewObject(Object):
 
 class TimePatternValueObject(Object):
     _required = ("presentValue", "statusFlags")
-    objectType = ObjectType("timePatternValue")
-    presentValue: Time
+    objectType = ObjectType("timepatternValue")
+    presentValue: TimePattern
     statusFlags: StatusFlags
     eventState: EventState
     reliability: Reliability
     outOfService: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalTimePattern, _length=16)
     relinquishDefault: Time
     reliabilityEvaluationInhibit: Boolean
     eventDetectionEnable: Boolean
@@ -2694,7 +2862,7 @@ class TimeValueObject(Object):
     eventState: EventState
     reliability: Reliability
     outOfService: Boolean
-    priorityArray: ArrayOf(PriorityValue, _length=16)
+    priorityArray: ArrayOf(OptionalTime, _length=16)
     relinquishDefault: Time
     reliabilityEvaluationInhibit: Boolean
     eventDetectionEnable: Boolean
@@ -2806,9 +2974,9 @@ class TrendLogObject(Object):
         "logBuffer",
         "recordCount",
         "totalRecordCount",
+        "eventState",
         "loggingType",
         "statusFlags",
-        "reliability",
     )
     objectType = ObjectType("trendLog")
     statusFlags: StatusFlags

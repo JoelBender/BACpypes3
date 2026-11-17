@@ -33,8 +33,8 @@ from ..primitivedata import (
     CharacterString,
     BitString,
     Enumerated,
-    Date,
-    Time,
+    DatePattern,
+    TimePattern,
     ObjectIdentifier,
 )
 from ..constructeddata import (
@@ -322,9 +322,9 @@ def atomic_encode(value) -> _Any:
         literal = bitstring_encode(value)
     elif isinstance(value, Enumerated):
         literal = enumerated_encode(value)
-    elif isinstance(value, Date):
+    elif isinstance(value, DatePattern):
         literal = date_encode(value)
-    elif isinstance(value, Time):
+    elif isinstance(value, TimePattern):
         literal = time_encode(value)
     elif isinstance(value, ObjectIdentifier):
         literal = objectidentifier_encode(value)
@@ -355,9 +355,9 @@ def atomic_decode(literal, class_) -> Atomic:
         value = bitstring_decode(literal, class_)
     elif issubclass(class_, Enumerated):
         value = enumerated_decode(literal, class_)
-    elif issubclass(class_, Date):
+    elif issubclass(class_, DatePattern):
         value = date_decode(literal, class_)
-    elif issubclass(class_, Time):
+    elif issubclass(class_, TimePattern):
         value = time_decode(literal, class_)
     elif issubclass(class_, ObjectIdentifier):
         value = objectidentifier_decode(literal, class_)
@@ -399,7 +399,7 @@ def sequence_to_json(seq: Sequence) -> JSONDict:
         else:
             raise TypeError(value)
 
-        json[attr_to_asn1(attr)] = json_value
+        json[seq._element_names.get(attr) or attr_to_asn1(attr)] = json_value
 
     return json
 
@@ -418,7 +418,7 @@ def json_to_sequence(json: JSONDict, seq_class: type) -> Sequence:
         if _debug:
             json_to_sequence._debug("    - attr, element: %r, %r", attr, element)
 
-        value = json.pop(attr_to_asn1(attr), None)
+        value = json.pop(seq._element_names.get(attr) or attr_to_asn1(attr), None)
         if _debug:
             json_to_sequence._debug("    - value: %r", value)
         if value is None:

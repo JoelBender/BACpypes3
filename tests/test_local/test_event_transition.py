@@ -92,7 +92,7 @@ async def test_transition_index():
     assert notifications[0]["priority"] == 10
     assert notifications[0]["ackRequired"]
     assert list(ai.ackedTransitions) == [0, 1, 1]
-    assert ai.eventTimeStamps[0].dateTime is not None
+    assert ai.eventTimeStamps[0].datetime is not None
 
     # back to normal, index 2
     ai.presentValue = 50.0
@@ -103,6 +103,6 @@ async def test_transition_index():
     assert notifications[1]["priority"] == 30
     assert notifications[1]["ackRequired"]
     assert list(ai.ackedTransitions) == [0, 1, 0]
-    assert ai.eventTimeStamps[2].dateTime is not None
+    assert ai.eventTimeStamps[2].datetime is not None
 
     app.close()

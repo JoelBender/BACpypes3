@@ -18,7 +18,7 @@ from ..primitivedata import (
     Element,
     ObjectIdentifier,
 )
-from ..basetypes import DateTime, PropertyIdentifier
+from ..basetypes import DateTimePattern, PropertyIdentifier
 from ..object import Object
 from ..vendor import get_vendor_info
 from ..constructeddata import Sequence, ExtendedList
@@ -274,8 +274,13 @@ class BACnetGraph:
             device_address_proxy.macAddress = device_address_mac
 
         if device_identifier is not None:
+            # device instances are unsigned, like other unsigned values
             self.graph.add(
-                (device_iri, BACNET["device-instance"], Literal(device_identifier[1]))
+                (
+                    device_iri,
+                    BACNET["device-instance"],
+                    unsigned_encode(self.graph, device_identifier[1]),
+                )
             )
 
         return DeviceGraph(self, device_iri)
@@ -401,18 +406,13 @@ class ObjectProxy:
         p = attr_to_predicate(attr)
 
         # uses the convenience function for functional properties
-        o = self._graph.value(s, p, default=None)
+        o = self._graph.graph.value(s, p, default=None)
         if o is None:
             raise AttributeError(attr)
 
-        # attempt to interpret the thing as a primitive or constructed value
-        value: Any
-        if (self._object_cls is None) or (self._object_cls not in self._elements):
-            value = o
-        else:
-            raise NotImplementedError(attr)
-
-        return value
+        ###TODO decode the node into a BACnet value using self._object_cls,
+        # until then return the RDF node (Literal, URIRef or BNode) as-is
+        return o
 
     def __setattr__(self, attr: str, value: Any) -> None:
         if attr.startswith("_"):  # (attr not in self._elements) or (value is None):
@@ -433,7 +433,7 @@ class ObjectProxy:
             g.remove((s, p, None))
             extendedlist_to_graph(value, s, p, g)
             return
-        elif isinstance(value, Sequence) and not isinstance(value, DateTime):
+        elif isinstance(value, Sequence) and not isinstance(value, DateTimePattern):
             o = _blank_node()
             sequence_to_graph(value, o, g)
         elif isinstance(value, Element):

@@ -101,7 +101,7 @@ def test_generic_enumerated_reconstructs_unique_symbolic_value():
             "time": "16:58:24.39",
         },
         "log-datum": {
-            "enum-value": "inactive",
+            "enumerated-value": "inactive",
         },
         "status-flags": [],
     }
@@ -109,8 +109,8 @@ def test_generic_enumerated_reconstructs_unique_symbolic_value():
     decoded = json_to_sequence(deepcopy(record), LogRecord)
 
     assert isinstance(decoded.logDatum, LogRecordLogDatum)
-    assert isinstance(decoded.logDatum.enumValue, Enumerated)
-    assert decoded.logDatum.enumValue == BinaryPV.inactive
+    assert isinstance(decoded.logDatum.enumeratedValue, Enumerated)
+    assert decoded.logDatum.enumeratedValue == BinaryPV.inactive
 
 
 def test_empty_enumerated_subclass_does_not_use_generic_symbol_lookup():
@@ -124,7 +124,7 @@ def test_log_record_json_roundtrip():
             date=Date("2026-09-25"),
             time=Time("16:58:24.39"),
         ),
-        logDatum=LogRecordLogDatum(enumValue=BinaryPV("inactive")),
+        logDatum=LogRecordLogDatum(enumeratedValue=BinaryPV("inactive")),
         statusFlags=[],
     )
 

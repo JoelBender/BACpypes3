@@ -133,7 +133,7 @@ class TestReadPropertyMultipleAPI:
         app = MatchApplication(
             ReadPropertyMultipleRequest(
                 destination=Address("1.2.3.4"),
-                listOfReadAccessSpecs=[
+                listOfReadAccessSpecifications=[
                     ReadAccessSpecification(
                         objectIdentifier=ObjectIdentifier("device,1"),
                         listOfPropertyReferences=[
@@ -162,7 +162,7 @@ class TestReadPropertyMultipleAPI:
         app = MatchApplication(
             ReadPropertyMultipleRequest(
                 destination=Address("1.2.3.4"),
-                listOfReadAccessSpecs=[
+                listOfReadAccessSpecifications=[
                     ReadAccessSpecification(
                         objectIdentifier=ObjectIdentifier("analog-input,5"),
                         listOfPropertyReferences=[
@@ -231,7 +231,7 @@ class TestReadPropertyMultipleAPI:
         app = MatchApplication(
             ReadPropertyMultipleRequest(
                 destination=Address("1.2.3.4"),
-                listOfReadAccessSpecs=[
+                listOfReadAccessSpecifications=[
                     ReadAccessSpecification(
                         objectIdentifier=ObjectIdentifier("analog-input,5"),
                         listOfPropertyReferences=[

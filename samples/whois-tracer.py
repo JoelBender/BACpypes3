@@ -1,5 +1,27 @@
-""" """
+"""
+Who-Is Tracer
 
+Match each Who-Is request with the I-Am responses that follow it within the
+response timeout, then print the request and the devices that responded, or
+"no match" if none did.  Decode capture files:
+
+    python samples/whois-tracer.py capture.pcap [more.pcap ...]
+
+or trace live from an interface, which needs permission to capture (see the
+bacpypes3.analysis documentation), until Ctrl-C:
+
+    sudo .venv/bin/python samples/whois-tracer.py -i eth0
+
+The capture options are the same as `python -m bacpypes3.analysis`, plus
+`--response-timeout` (seconds, default 10).  Live results are printed when
+the response timeout of each request has passed.
+
+This is an example of using the (experimental) Tracer state machine in
+bacpypes3.analysis.
+"""
+
+import sys
+import warnings
 from argparse import Namespace
 from typing import List, Optional
 
@@ -9,8 +31,19 @@ from bacpypes3.pdu import Address
 from bacpypes3.apdu import WhoIsRequest, IAmRequest
 
 from bacpypes3.argparse import ArgumentParser
-from bacpypes3.analysis import Frame, Tracer, trace, decode_file
+from bacpypes3.analysis import (
+    ExperimentalWarning,
+    Frame,
+    Tracer,
+    add_capture_arguments,
+    capture_permission_help,
+    capture_sources,
+    strftimestamp,
+    trace,
+)
 
+# this sample knows the Tracer API is experimental
+warnings.simplefilter("ignore", ExperimentalWarning)
 
 # some debugging
 _debug = 0
@@ -26,6 +59,7 @@ class TraceWhoIs(Tracer):
     Trace the Who-Is requests and their responses.
     """
 
+    timestamp: float
     expires: float
     address: Optional[Address]
     low_limit: Optional[int]
@@ -33,7 +67,6 @@ class TraceWhoIs(Tracer):
     i_ams: List[IAmRequest]
 
     def __init__(self) -> None:
-        """ """
         if _debug:
             TraceWhoIs._debug("__init__")
         super().__init__()
@@ -51,13 +84,21 @@ class TraceWhoIs(Tracer):
             TraceWhoIs._debug("%s: start %r %r", self, frame._number, type(frame.apdu))
 
         if isinstance(frame.apdu, WhoIsRequest):
-            self.expires = frame._timestamp + args.timeout
+            self.timestamp = frame._timestamp
+            self.expires = frame._timestamp + args.response_timeout
             self.address = frame.apdu.pduSource
             if _debug:
                 TraceWhoIs._debug("    - address: %r", self.address)
             self.low_limit = frame.apdu.deviceInstanceRangeLowLimit
             self.high_limit = frame.apdu.deviceInstanceRangeHighLimit
             self.next(self.wait_iam)
+
+    def tick(self, now: float) -> None:
+        """
+        The response timeout has passed.
+        """
+        if self.address and (now > self.expires):
+            self.stop()
 
     def stop(self) -> None:
         """
@@ -66,8 +107,21 @@ class TraceWhoIs(Tracer):
         if _debug:
             TraceWhoIs._debug("stop")
 
-        if self.address and (not self.i_ams):
-            print(f"no match: {self.address}, {self.low_limit}..{self.high_limit}")
+        # an idle tracer never saw a Who-Is
+        if self.address:
+            if self.low_limit is None:
+                limits = "all"
+            else:
+                limits = f"{self.low_limit}..{self.high_limit}"
+            header = f"{strftimestamp(self.timestamp)} {self.address} {limits}"
+
+            if not self.i_ams:
+                print(f"{header}: no match", flush=True)
+            else:
+                print(f"{header}: {len(self.i_ams)} response(s)")
+                for i_am in self.i_ams:
+                    print(f"    {i_am.iAmDeviceIdentifier} from {i_am.pduSource}")
+                sys.stdout.flush()
 
         super().stop()
 
@@ -80,17 +134,11 @@ class TraceWhoIs(Tracer):
                 "%s: wait_iam %r %r", self, frame._number, type(frame.apdu)
             )
 
-        # check for timeout
-        if frame._timestamp > self.expires:
-            self.stop()
-            return
-
-        # match the I-Am
+        # match the I-Am, the limits are device instance numbers
         if isinstance(frame.apdu, IAmRequest):
             if (self.low_limit is not None) and (self.high_limit is not None):
-                if (frame.apdu.iAmDeviceIdentifier < self.low_limit) or (
-                    frame.apdu.iAmDeviceIdentifier > self.high_limit
-                ):
+                device_instance = frame.apdu.iAmDeviceIdentifier[1]
+                if not (self.low_limit <= device_instance <= self.high_limit):
                     return
             if _debug:
                 TraceWhoIs._debug("%s: match", self)
@@ -104,26 +152,29 @@ def main():
     global args
     parser = ArgumentParser()
 
-    # pcap file decoding
+    # capture files and/or an interface, like python -m bacpypes3.analysis
+    add_capture_arguments(parser)
     parser.add_argument(
-        "filenames",
-        nargs="+",
-        help="the names of the pcaps file to decode",
-    )
-    parser.add_argument(
-        "--timeout",
-        type=int,
-        default=10,
-        help="response timeout",
+        "--response-timeout",
+        type=float,
+        default=10.0,
+        help="how long to wait for I-Am responses in seconds (default: 10)",
     )
     args = parser.parse_args()
     _log.debug("args: %r", args)
     _log.debug("settings: %r", settings)
 
-    gen_fns = [decode_file(fname) for fname in args.filenames]
-    tracer_classes = [TraceWhoIs]
+    # idle ticks let a live trace time out when the network is quiet
+    gen_fns = capture_sources(parser, args, idle_ticks=True)
 
-    trace(gen_fns, tracer_classes)
+    try:
+        trace(gen_fns, [TraceWhoIs])
+    except KeyboardInterrupt:
+        # the pending requests have been reported
+        pass
+    except PermissionError as err:
+        sys.stderr.write(capture_permission_help(err, args))
+        sys.exit(1)
 
 
 if __name__ == "__main__":

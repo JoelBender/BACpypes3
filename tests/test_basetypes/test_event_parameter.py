@@ -77,13 +77,13 @@ TRAILER = bytes.fromhex("2f 9f")
         ({"boolean": Boolean(True)}, "11"),
         ({"integer": Integer(-1)}, "31 ff"),
         ({"double": Double(1.0)}, "55 08 3ff0000000000000"),
-        ({"octet": OctetString(b"\x01\x02")}, "62 0102"),
-        ({"characterString": CharacterString("ab")}, "73 00 6162"),
+        ({"octetstring": OctetString(b"\x01\x02")}, "62 0102"),
+        ({"characterstring": CharacterString("ab")}, "73 00 6162"),
         ({"bitstring": BitString([1, 0])}, "82 06 80"),
-        ({"enum": Enumerated(2)}, "91 02"),
+        ({"enumerated": Enumerated(2)}, "91 02"),
         ({"date": Date((121, 1, 2, 6))}, "a4 79010206"),
         ({"time": Time((1, 2, 3, 4))}, "b4 01020304"),
-        ({"objectIdentifier": ObjectIdentifier("analog-value,1")}, "c4 00800001"),
+        ({"objectidentifier": ObjectIdentifier("analog-value,1")}, "c4 00800001"),
         (
             {
                 "reference": DeviceObjectPropertyReference(

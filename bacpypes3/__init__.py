@@ -18,7 +18,7 @@ if _sys.platform not in _supported_platforms:
 #   Project Metadata
 #
 
-__version__ = "0.0.110"
+__version__ = "0.1.0"
 __author__ = "Joel Bender"
 __email__ = "joel@carrickbender.com"
 
@@ -101,5 +101,7 @@ except ImportError:
 #
 #   Analysis
 #
-
-from . import analysis
+#   Not imported here: it is also run as a program (python -m
+#   bacpypes3.analysis), and importing it with the package would load it
+#   twice and make runpy warn.  Use "from bacpypes3 import analysis".
+#

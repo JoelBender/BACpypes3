@@ -136,9 +136,18 @@ class SequenceMetaclass(ElementMetaclass):
             SequenceMetaclass._debug("    - _elements: %r", _elements)
 
         # look for initializers
+        qualname = attributedict.get("__qualname__", clsname)
         for attr, value in attributedict.items():
             if attr.startswith("_"):
                 continue
+
+            # a class defined in the body is a nested type (like the
+            # RouterEntry.Status enumeration), not an element
+            if inspect.isclass(value) and value.__qualname__ == f"{qualname}.{attr}":
+                if _debug:
+                    SequenceMetaclass._debug(f"    - {attr} is a nested type")
+                continue
+
             if attr in _elements:
                 if isinstance(value, property):
                     if _debug:
@@ -247,6 +256,11 @@ class Sequence(Element, DebugContents, metaclass=SequenceMetaclass):
     _elements: Dict[str, _Any]
     _inits: Dict[str, _Any]
     _order: Tuple[str, ...]
+
+    # standard element names that cannot be derived from the attribute name,
+    # like 'signing-key-1', are provided as {attr: name} and used for the
+    # JSON keys and RDF predicates
+    _element_names: Dict[str, str] = {}
 
     def __init__(
         self, arg: Union["Sequence", Dict[str, _Any], None] = None, **kwargs: _Any
@@ -488,16 +502,33 @@ class Sequence(Element, DebugContents, metaclass=SequenceMetaclass):
                 else:
                     continue
 
-            # check for a choice of somethings
-            if issubclass(element, Choice):
-                value = element.decode(tag_list)
-                tag = tag_list.peek()
-                if _debug:
-                    Sequence._debug("    - next tag: %r", tag)
-
-            # check for a sequence of something else
-            elif issubclass(element, ExtendedList):
-                value = element.decode(tag_list)
+            # check for a choice of somethings or a sequence of something else
+            if issubclass(element, (Choice, ExtendedList)):
+                if element._context is not None:
+                    # context encoded, it is there when its opening tag is next
+                    if (tag.tag_class == TagClass.opening) and (
+                        tag.tag_number == element._context
+                    ):
+                        value = element.decode(tag_list)
+                    elif not element._optional:
+                        raise AttributeError(
+                            f"{attr} is a context tagged {element._context} required element of {cls.__name__}"
+                        )
+                    else:
+                        continue
+                elif element._optional:
+                    # not context encoded and optional, decode a copy so the
+                    # tag list is unchanged when it is not there
+                    try:
+                        tag_list_copy = TagList(tag_list)
+                        value = element.decode(tag_list_copy)
+                        del tag_list.tagList[
+                            : len(tag_list.tagList) - len(tag_list_copy.tagList)
+                        ]
+                    except (AttributeError, InvalidTag):
+                        continue
+                else:
+                    value = element.decode(tag_list)
                 tag = tag_list.peek()
                 if _debug:
                     Sequence._debug("    - next tag: %r", tag)
@@ -533,7 +564,7 @@ class Sequence(Element, DebugContents, metaclass=SequenceMetaclass):
 
             # application encoded atomic value
             elif issubclass(element, Atomic):
-                if issubclass(element, Tag._app_tag_class[tag.tag_number]):
+                if issubclass(element, Tag._app_tag_match[tag.tag_number]):
                     value = element.decode(tag_list)
                     tag = tag_list.peek()
                     if _debug:
@@ -851,7 +882,7 @@ class Choice(Sequence):
 
             # application encoded atomic value
             elif issubclass(element, Atomic):
-                if issubclass(element, Tag._app_tag_class[tag.tag_number]):
+                if issubclass(element, Tag._app_tag_match[tag.tag_number]):
                     value = element.decode(tag_list)
                     tag = tag_list.peek()
                     if _debug:

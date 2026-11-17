@@ -604,7 +604,7 @@ class ICouldBeRouterToNetwork(NPDU):
 
 @register_npdu_type
 class RejectMessageToNetwork(NPDU):
-    _debug_contents: Tuple[str, ...] = ("rmtnRejectReason", "rmtnDNET")
+    _debug_contents: Tuple[str, ...] = ("rmtnRejectionReason", "rmtnDNET")
 
     pduType = 0x03
     rmtnRejectionReason: int

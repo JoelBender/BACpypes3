@@ -12,6 +12,7 @@ Getting Started
     objectidentifiers.rst
     running.rst
     debugging.rst
+    analysis.rst
 
 This tutorial starts with just enough of the basics of BACnet to get a
 workstation communicating with another device.  If you are already familiar

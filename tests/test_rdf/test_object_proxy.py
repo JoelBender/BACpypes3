@@ -29,7 +29,6 @@ from bacpypes3.primitivedata import (
 )
 from bacpypes3.constructeddata import Any, AnyAtomic, ArrayOf, ListOf
 from bacpypes3.basetypes import (
-    AnyAtomicExtended,
     DailySchedule,
     DateTime,
     LogRecord,
@@ -89,6 +88,24 @@ class TestObjectProxy(unittest.TestCase):
         assert float(g.value(slots[7], BACNET["real"])) == 12.0
         assert g.value(slots[0], BACNET["real"]) is None
 
+    def test_get_returns_stored_node(self):
+        g, obj = object_proxy()
+        obj.objectName = CharacterString("AO-1")
+        assert obj.objectName == Literal("AO-1")
+        # hyphenated and camelCase names map to the same predicate
+        assert getattr(obj, "object-name") == Literal("AO-1")
+
+    def test_get_set_by_create_object(self):
+        g, obj = object_proxy()
+        assert obj.objectType == BACNET["ObjectType.analog-output"]
+
+    def test_get_missing_raises_attribute_error(self):
+        g, obj = object_proxy()
+        with self.assertRaises(AttributeError) as cm:
+            obj.presentValue
+        assert str(cm.exception) == "presentValue"
+        assert not hasattr(obj, "presentValue")
+
     def test_array_replaces_previous_value(self):
         g, obj = object_proxy()
         obj.stateText = ArrayOf(CharacterString)(["Off", "On"])
@@ -99,7 +116,7 @@ class TestObjectProxy(unittest.TestCase):
 
 
 #
-#   Any, AnyAtomic and AnyAtomicExtended values
+#   Any and AnyAtomic values
 #
 
 
@@ -132,12 +149,12 @@ class TestAnyValues(unittest.TestCase):
         value = g.value(obj._object_iri, BACNET["relinquish-default"])
         assert value == Literal(1, datatype=namespace.XSD.nonNegativeInteger)
 
-    def test_anyatomicextended_datetime(self):
+    def test_anyatomic_date(self):
         g, obj = object_proxy()
-        obj.presentValue = AnyAtomicExtended(date_time())
+        obj.presentValue = AnyAtomic(Date("2026-11-04"))
         no_python_repr(g)
         value = g.value(obj._object_iri, BACNET["present-value"])
-        assert value.datatype == namespace.XSD.dateTime
+        assert value == Literal("2026-11-04 3")
 
     def test_datetime_same_inside_and_outside_sequence(self):
         g, obj = object_proxy()
@@ -170,7 +187,7 @@ class TestAnyValues(unittest.TestCase):
             [
                 PropertyValue(
                     propertyIdentifier="present-value",
-                    value=Any(Real(5.0)),
+                    propertyValue=Any(Real(5.0)),
                     priority=8,
                 )
             ]
@@ -178,7 +195,7 @@ class TestAnyValues(unittest.TestCase):
         no_python_repr(g)
         node = g.value(obj._object_iri, BACNET["list-of-initialization-values"])
         (pv,) = list(Collection(g, node))
-        assert g.value(pv, BACNET["value"]) == Literal(
+        assert g.value(pv, BACNET["property-value"]) == Literal(
             5.0, datatype=namespace.XSD.float
         )
         assert g.value(pv, BACNET["priority"]) == Literal(

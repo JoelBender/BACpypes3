@@ -271,7 +271,7 @@ class COVDetection(DetectionAlgorithm):
             # bundle it into a sequence
             property_value = PropertyValue(
                 propertyIdentifier=property_name,
-                value=Any(property_value),
+                propertyValue=Any(property_value),
             )
 
             # add it to the list
@@ -579,8 +579,8 @@ criteria_type_map = {
     "timeValue": GenericCriteria,
     "dateTimeValue": GenericCriteria,
     "dateValue": GenericCriteria,
-    "timePatternValue": GenericCriteria,
-    "datePatternValue": GenericCriteria,
+    "timepatternValue": GenericCriteria,
+    "datepatternValue": GenericCriteria,
     "dateTimePatternValue": GenericCriteria,
     "credentialDataInput": CredentialDataInputCriteria,
     "loadControl": LoadControlCriteria,

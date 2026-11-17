@@ -13,13 +13,20 @@ see issue #123.
 from bacpypes3.debugging import ModuleLogger
 
 from bacpypes3.pdu import Address
-from bacpypes3.basetypes import ErrorCode, ErrorType, ObjectPropertyReference
+from bacpypes3.basetypes import (
+    ErrorCode,
+    ErrorType,
+    ObjectPropertyReference,
+    PropertyReference,
+    SubscribeCOVPropertyMultipleErrorFirstFailedSubscription,
+)
 from bacpypes3.apdu import (
     APDU,
     APCISequence,
     ChangeListError,
     CreateObjectError,
     RejectPDU,
+    SubscribeCOVPropertyMultipleError,
     WritePropertyMultipleError,
     error_types,
 )
@@ -93,6 +100,32 @@ def test_change_list_error_round_trip() -> None:
         assert decoded.firstFailedElementNumber == 1
         assert decoded.reason == ErrorCode("unknownObject")
         assert str(decoded) == "unknown-object"
+
+
+def test_subscribe_cov_property_multiple_error_reason() -> None:
+    """The error code is in whichever choice is present."""
+    error_type = ErrorType(errorClass="object", errorCode="unknownObject")
+
+    error = SubscribeCOVPropertyMultipleError(errorType=error_type)
+    assert error.reason == ErrorCode("unknownObject")
+    assert str(error) == "unknown-object"
+
+    error = SubscribeCOVPropertyMultipleError(
+        firstFailedSubscription=SubscribeCOVPropertyMultipleErrorFirstFailedSubscription(
+            monitoredObjectIdentifier="analog-value,1",
+            monitoredPropertyReference=PropertyReference(
+                propertyIdentifier="present-value"
+            ),
+            errorType=error_type,
+        )
+    )
+    assert error.reason == ErrorCode("unknownObject")
+    assert str(error) == "unknown-object"
+
+    decoded = round_trip(error)
+    assert isinstance(decoded, SubscribeCOVPropertyMultipleError)
+    assert decoded.errorType is None
+    assert decoded.reason == ErrorCode("unknownObject")
 
 
 def test_reject_reason() -> None:

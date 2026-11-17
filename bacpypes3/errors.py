@@ -178,7 +178,7 @@ class InvalidParameterDatatype(RejectException):
     Reason of INVALID_TAG.
     """
 
-    rejectReason = "invalidParameterDatatype"
+    rejectReason = "invalidParameterDataType"
 
 
 class InvalidTag(RejectException):

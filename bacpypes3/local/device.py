@@ -54,7 +54,7 @@ class DeviceObject(Object, _DeviceObject):
     firmwareRevision = "N/A"
     applicationSoftwareVersion = "1.0"
     protocolVersion = 1
-    protocolRevision = 22
+    protocolRevision = 31
     databaseRevision = 1
 
     maxApduLengthAccepted = 1024
@@ -129,11 +129,32 @@ class DeviceObject(Object, _DeviceObject):
 
     @property
     def protocolObjectTypesSupported(self) -> ObjectTypesSupported:  # type: ignore[override]
-        """Return the protocol object types supported."""
+        """
+        Return the protocol object types supported, a bit for each type of
+        object in the application.  If this object isn't bound to an
+        application, the only type is the device itself.
+        """
         if _debug:
             DeviceObject._debug("DeviceObject.protocolObjectTypesSupported(getter)")
 
-        return ObjectTypesSupported([])
+        object_types: list[int]
+        if not self._app:
+            object_types = [self.objectIdentifier[0]]
+        else:
+            object_types = [
+                object_identifier[0] for object_identifier in self._app.objectIdentifier
+            ]
+
+        object_types_supported = ObjectTypesSupported([])
+        for object_type in object_types:
+            # proprietary object types do not have a bit
+            if int(object_type) >= len(object_types_supported):
+                if _debug:
+                    DeviceObject._debug("    - no bit for %r", object_type)
+                continue
+            object_types_supported[int(object_type)] = 1
+
+        return object_types_supported
 
     @protocolObjectTypesSupported.setter
     def protocolObjectTypesSupported(self, value: Any) -> None:

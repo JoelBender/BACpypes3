@@ -287,7 +287,7 @@ class SubscriptionContextManager:
                 )
 
         # cast it out of the Any
-        property_value = property_value_element.value.cast_out(property_type)
+        property_value = property_value_element.propertyValue.cast_out(property_type)
         if _debug:
             SubscriptionContextManager._debug(
                 "    - property_value: %r %r", property_value, property_type.__class__

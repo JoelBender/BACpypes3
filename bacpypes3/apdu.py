@@ -7,15 +7,22 @@ from __future__ import annotations
 from typing import Dict, Callable, Optional, Tuple, Union, cast
 
 from .basetypes import (
+    AccessToken,
+    AuditLogQueryParameters,
+    AuditLogRecordResult,
+    AuditNotification,
+    AuthRequestRequestTokenRequest,
     AtomicReadFileACKAccessMethodChoice,
     AtomicReadFileRequestAccessMethodChoice,
     AtomicWriteFileRequestAccessMethodChoice,
     ConfirmedTextMessageRequestMessageClass,
-    ConfirmedTextMessageRequestMessagePriority,
+    COVMultipleSubscriptionList,
+    COVNotificationMultipleListOfCOVNotifications,
     CreateObjectRequestObjectSpecifier,
     DateTime,
     DeviceAddress,
-    DeviceCommunicationControlRequestEnableDisable,
+    DeviceDetails,
+    DeviceQualifier,
     ErrorClass,
     ErrorCode,
     ErrorType,
@@ -23,12 +30,11 @@ from .basetypes import (
     EventType,
     GetAlarmSummaryAlarmSummary,
     GetEnrollmentSummaryEnrollmentSummary,
-    GetEnrollmentSummaryRequestAcknowledgmentFilterType,
-    GetEnrollmentSummaryRequestEventStateFilterType,
     GetEnrollmentSummaryRequestPriorityFilterType,
     GetEventInformationEventSummary,
     GroupChannelValue,
     LifeSafetyOperation,
+    NetworkQualifier,
     NotificationParameters,
     NotifyType,
     ObjectPropertyReference,
@@ -39,12 +45,12 @@ from .basetypes import (
     ReadAccessResult,
     ReadAccessSpecification,
     RecipientProcess,
-    ReinitializeDeviceRequestReinitializedStateOfDevice,
+    ResponseIncludes,
     ResultFlags,
     Segmentation,
+    SubscribeCOVPropertyMultipleErrorFirstFailedSubscription,
     TimeStamp,
     UnconfirmedTextMessageRequestMessageClass,
-    UnconfirmedTextMessageRequestMessagePriority,
     VTClass,
     WhoHasLimits,
     WhoHasObject,
@@ -60,10 +66,14 @@ from .primitivedata import (
     Enumerated,
     Integer,
     ObjectIdentifier,
+    ObjectType,
     OctetString,
     Real,
     TagList,
     Unsigned,
+    Unsigned16,
+    Unsigned32,
+    Unsigned64,
 )
 
 # some debugging
@@ -130,6 +140,7 @@ class AbortReason(Enumerated):
     outOfResources = 9
     tsmTimeout = 10
     apduTooLong = 11
+    inconsistentAttributes = 12
     serverTimeout = 64
     noResponse = 65
 
@@ -139,13 +150,14 @@ class RejectReason(Enumerated):
     other = 0
     bufferOverflow = 1
     inconsistentParameters = 2
-    invalidParameterDatatype = 3
+    invalidParameterDataType = 3
     invalidTag = 4
     missingRequiredParameter = 5
     parameterOutOfRange = 6
     tooManyArguments = 7
     undefinedEnumeration = 8
     unrecognizedService = 9
+    invalidDataEncoding = 10
 
 
 #
@@ -654,6 +666,7 @@ class ConfirmedServiceChoice(Enumerated):
     atomicWriteFile = 7
     auditLogQuery = 33
     authenticate = 24  ###TODO
+    authRequest = 34
     confirmedAuditNotification = 32
     confirmedCOVNotification = 1
     confirmedCOVNotificationMultiple = 31  ###TODO
@@ -663,6 +676,7 @@ class ConfirmedServiceChoice(Enumerated):
     createObject = 10
     deleteObject = 11
     deviceCommunicationControl = 17
+    directoryQuery = 35
     getAlarmSummary = 3
     getEnrollmentSummary = 4
     getEventInformation = 29  ###TODO
@@ -677,9 +691,9 @@ class ConfirmedServiceChoice(Enumerated):
     subscribeCOV = 5
     subscribeCOVProperty = 28
     subscribeCOVPropertyMultiple = 30  ###TODO
-    vtClose = 22
-    vtData = 23
-    vtOpen = 21
+    vtClose = 22  # removed in protocol revision 29, kept for older devices
+    vtData = 23  # removed in protocol revision 29, kept for older devices
+    vtOpen = 21  # removed in protocol revision 29, kept for older devices
     writeProperty = 15
     writePropertyMultiple = 16
 
@@ -709,6 +723,7 @@ class ConfirmedRequestPDU(APDU):
 
 
 class UnconfirmedServiceChoice(Enumerated):
+    _asn1_overrides = {13: "who-am-i"}
     iAm = 0
     iHave = 1
     unconfirmedCOVNotification = 2
@@ -722,7 +737,7 @@ class UnconfirmedServiceChoice(Enumerated):
     writeGroup = 10
     unconfirmedCOVNotificationMultiple = 11  ###TODO
     unconfirmedAuditNotification = 12  ###TODO
-    whoIAm = 13  ###TODO
+    whoAmI = 13  ###TODO
     youAre = 14  ###TODO
 
 
@@ -1249,14 +1264,14 @@ class AcknowledgeAlarmRequest(ConfirmedRequestSequence):
         "acknowledgingProcessIdentifier",
         "eventObjectIdentifier",
         "eventStateAcknowledged",
-        "timeStamp",
+        "timestamp",
         "acknowledgmentSource",
         "timeOfAcknowledgment",
     )
     acknowledgingProcessIdentifier = Unsigned(_context=0)
     eventObjectIdentifier = ObjectIdentifier(_context=1)
     eventStateAcknowledged = EventState(_context=2)
-    timeStamp = TimeStamp(_context=3)
+    timestamp = TimeStamp(_context=3)
     acknowledgmentSource = CharacterString(_context=4)
     timeOfAcknowledgment = TimeStamp(_context=5)
 
@@ -1293,6 +1308,32 @@ class AtomicWriteFileRequest(ConfirmedRequestSequence):
 
 
 @register_confirmed_request_type
+class AuditLogQueryRequest(ConfirmedRequestSequence):
+    service_choice = ConfirmedServiceChoice.auditLogQuery
+    _order = (
+        "auditLog",
+        "queryParameters",
+        "startAtSequenceNumber",
+        "requestedCount",
+    )
+    auditLog = ObjectIdentifier(_context=0)
+    queryParameters = AuditLogQueryParameters(_context=1)
+    startAtSequenceNumber = Unsigned64(_context=2, _optional=True)
+    requestedCount = Unsigned16(_context=3)
+
+
+@register_confirmed_request_type
+class AuthRequestRequest(ConfirmedRequestSequence):
+    """
+    AuthRequest-Request is a CHOICE, token-request [0] is the only choice.
+    """
+
+    service_choice = ConfirmedServiceChoice.authRequest
+    _order = ("tokenRequest",)
+    tokenRequest = AuthRequestRequestTokenRequest(_context=0, _optional=True)
+
+
+@register_confirmed_request_type
 class AuthenticateRequest(ConfirmedRequestSequence):
     service_choice = ConfirmedServiceChoice.authenticate
     _order = (
@@ -1307,6 +1348,13 @@ class AuthenticateRequest(ConfirmedRequestSequence):
     operatorName = CharacterString(_context=2)
     operatorPassword = CharacterString(_context=3)
     startEncipheredSession = Boolean(_context=4)
+
+
+@register_confirmed_request_type
+class ConfirmedAuditNotificationRequest(ConfirmedRequestSequence):
+    service_choice = ConfirmedServiceChoice.confirmedAuditNotification
+    _order = ("notifications",)
+    notifications = SequenceOf(AuditNotification, _context=0)
 
 
 @register_confirmed_request_type
@@ -1327,13 +1375,32 @@ class ConfirmedCOVNotificationRequest(ConfirmedRequestSequence):
 
 
 @register_confirmed_request_type
+class ConfirmedCOVNotificationMultipleRequest(ConfirmedRequestSequence):
+    service_choice = ConfirmedServiceChoice.confirmedCOVNotificationMultiple
+    _order = (
+        "subscriberProcessIdentifier",
+        "initiatingDeviceIdentifier",
+        "timeRemaining",
+        "timestamp",
+        "listOfCOVNotifications",
+    )
+    subscriberProcessIdentifier = Unsigned32(_context=0)
+    initiatingDeviceIdentifier = ObjectIdentifier(_context=1)
+    timeRemaining = Unsigned(_context=2)
+    timestamp = DateTime(_context=3, _optional=True)
+    listOfCOVNotifications = SequenceOf(
+        COVNotificationMultipleListOfCOVNotifications, _context=4
+    )
+
+
+@register_confirmed_request_type
 class ConfirmedEventNotificationRequest(ConfirmedRequestSequence):
     service_choice = ConfirmedServiceChoice.confirmedEventNotification
     _order = (
         "processIdentifier",
         "initiatingDeviceIdentifier",
         "eventObjectIdentifier",
-        "timeStamp",
+        "timestamp",
         "notificationClass",
         "priority",
         "eventType",
@@ -1347,7 +1414,7 @@ class ConfirmedEventNotificationRequest(ConfirmedRequestSequence):
     processIdentifier = Unsigned(_context=0)
     initiatingDeviceIdentifier = ObjectIdentifier(_context=1)
     eventObjectIdentifier = ObjectIdentifier(_context=2)
-    timeStamp = TimeStamp(_context=3)
+    timestamp = TimeStamp(_context=3)
     notificationClass = Unsigned(_context=4)
     priority = Unsigned(_context=5)
     eventType = EventType(_context=6)
@@ -1372,10 +1439,18 @@ class ConfirmedPrivateTransferRequest(ConfirmedRequestSequence):
 class ConfirmedTextMessageRequest(ConfirmedRequestSequence):
     service_choice = ConfirmedServiceChoice.confirmedTextMessage
     _order = ("textMessageSourceDevice", "messageClass", "messagePriority", "message")
+
+    class MessagePriority(Enumerated):
+        normal = 0
+        urgent = 1
+
     textMessageSourceDevice = ObjectIdentifier(_context=0)
     messageClass = ConfirmedTextMessageRequestMessageClass(_context=1, _optional=True)
-    messagePriority = ConfirmedTextMessageRequestMessagePriority(_context=2)
+    messagePriority = MessagePriority(_context=2)
     message = CharacterString(_context=3)
+
+
+ConfirmedTextMessageRequestMessagePriority = ConfirmedTextMessageRequest.MessagePriority
 
 
 @register_confirmed_request_type
@@ -1397,11 +1472,43 @@ class DeleteObjectRequest(ConfirmedRequestSequence):
 class DeviceCommunicationControlRequest(ConfirmedRequestSequence):
     service_choice = ConfirmedServiceChoice.deviceCommunicationControl
     _order = ("timeDuration", "enableDisable", "password")
+
+    class EnableDisable(Enumerated):
+        enable = 0
+        disable = 1
+        disableInitiation = 2
+
     timeDuration = Unsigned(_context=0, _optional=True)
-    enableDisable = DeviceCommunicationControlRequestEnableDisable(
-        _context=1, _optional=True
-    )
+    enableDisable = EnableDisable(_context=1)
     password = CharacterString(_context=2, _optional=True)
+
+
+DeviceCommunicationControlRequestEnableDisable = (
+    DeviceCommunicationControlRequest.EnableDisable
+)
+
+
+@register_confirmed_request_type
+class DirectoryQueryRequest(ConfirmedRequestSequence):
+    service_choice = ConfirmedServiceChoice.directoryQuery
+    _order = (
+        "deviceQualifier",
+        "networkQualifier",
+        "objectTypeQualifier",
+        "objectNameQualifier",
+        "responseIncludes",
+        "includeProprietaryDetails",
+        "startCursor",
+        "maxResults",
+    )
+    deviceQualifier = DeviceQualifier(_context=0)
+    networkQualifier = NetworkQualifier(_context=1, _optional=True)
+    objectTypeQualifier = SequenceOf(ObjectType, _context=2, _optional=True)
+    objectNameQualifier = CharacterString(_context=3, _optional=True)
+    responseIncludes = ResponseIncludes(_context=4)
+    includeProprietaryDetails = Boolean(_context=5, _optional=True)
+    startCursor = Unsigned32(_context=6, _optional=True)
+    maxResults = Unsigned(_context=7, _optional=True)
 
 
 @register_confirmed_request_type
@@ -1421,18 +1528,35 @@ class GetEnrollmentSummaryRequest(ConfirmedRequestSequence):
         "priorityFilter",
         "notificationClassFilter",
     )
-    acknowledgmentFilter = GetEnrollmentSummaryRequestAcknowledgmentFilterType(
-        _context=0
-    )
+
+    class AcknowledgmentFilter(Enumerated):
+        all = 0
+        acked = 1
+        notAcked = 2
+
+    class EventStateFilter(Enumerated):
+        offnormal = 0
+        fault = 1
+        normal = 2
+        all = 3
+        active = 4
+
+    acknowledgmentFilter = AcknowledgmentFilter(_context=0)
     enrollmentFilter = RecipientProcess(_context=1, _optional=True)
-    eventStateFilter = GetEnrollmentSummaryRequestEventStateFilterType(
-        _context=2, _optional=True
-    )
+    eventStateFilter = EventStateFilter(_context=2, _optional=True)
     eventTypeFilter = EventType(_context=3, _optional=True)
     priorityFilter = GetEnrollmentSummaryRequestPriorityFilterType(
         _context=4, _optional=True
     )
     notificationClassFilter = Unsigned(_context=5, _optional=True)
+
+
+GetEnrollmentSummaryRequestAcknowledgmentFilterType = (
+    GetEnrollmentSummaryRequest.AcknowledgmentFilter
+)
+GetEnrollmentSummaryRequestEventStateFilterType = (
+    GetEnrollmentSummaryRequest.EventStateFilter
+)
 
 
 @register_confirmed_request_type
@@ -1460,8 +1584,8 @@ class LifeSafetyOperationRequest(ConfirmedRequestSequence):
 @register_confirmed_request_type
 class ReadPropertyMultipleRequest(ConfirmedRequestSequence):
     service_choice = ConfirmedServiceChoice.readPropertyMultiple
-    _order = ("listOfReadAccessSpecs",)
-    listOfReadAccessSpecs = SequenceOf(ReadAccessSpecification)
+    _order = ("listOfReadAccessSpecifications",)
+    listOfReadAccessSpecifications = SequenceOf(ReadAccessSpecification)
 
 
 @register_confirmed_request_type
@@ -1487,10 +1611,24 @@ class ReadRangeRequest(ConfirmedRequestSequence):
 class ReinitializeDeviceRequest(ConfirmedRequestSequence):
     service_choice = ConfirmedServiceChoice.reinitializeDevice
     _order = ("reinitializedStateOfDevice", "password")
-    reinitializedStateOfDevice = ReinitializeDeviceRequestReinitializedStateOfDevice(
-        _context=0
-    )
+
+    class ReinitializedStateOfDevice(Enumerated):
+        coldstart = 0
+        warmstart = 1
+        startBackup = 2
+        endBackup = 3
+        startRestore = 4
+        endRestore = 5
+        abortRestore = 6
+        activateChanges = 7
+
+    reinitializedStateOfDevice = ReinitializedStateOfDevice(_context=0)
     password = CharacterString(_context=1, _optional=True)
+
+
+ReinitializeDeviceRequestReinitializedStateOfDevice = (
+    ReinitializeDeviceRequest.ReinitializedStateOfDevice
+)
 
 
 @register_confirmed_request_type
@@ -1521,6 +1659,25 @@ class RequestKeyRequest(ConfirmedRequestSequence):
     requestingDeviceAddress = DeviceAddress()
     remoteDeviceIdentifier = ObjectIdentifier()
     remoteDeviceAddress = DeviceAddress()
+
+
+@register_confirmed_request_type
+class SubscribeCOVPropertyMultipleRequest(ConfirmedRequestSequence):
+    service_choice = ConfirmedServiceChoice.subscribeCOVPropertyMultiple
+    _order = (
+        "subscriberProcessIdentifier",
+        "issueConfirmedNotifications",
+        "lifetime",
+        "maxNotificationDelay",
+        "listOfCOVSubscriptionSpecifications",
+    )
+    subscriberProcessIdentifier = Unsigned32(_context=0)
+    issueConfirmedNotifications = Boolean(_context=1)
+    lifetime = Unsigned(_context=2, _optional=True)
+    maxNotificationDelay = Unsigned(_context=3, _optional=True)
+    listOfCOVSubscriptionSpecifications = SequenceOf(
+        COVMultipleSubscriptionList, _context=4
+    )
 
 
 @register_confirmed_request_type
@@ -1557,6 +1714,11 @@ class SubscribeCOVRequest(ConfirmedRequestSequence):
     lifetime = Unsigned(_context=3, _optional=True)
 
 
+# The virtual terminal services (VT-Open, VT-Close, VT-Data) were removed in
+# protocol revision 29, the requests, acknowledgements, and VTClose-Error are
+# kept for older devices.
+
+
 @register_confirmed_request_type
 class VTCloseRequest(ConfirmedRequestSequence):
     service_choice = ConfirmedServiceChoice.vtClose
@@ -1584,8 +1746,8 @@ class VTOpenRequest(ConfirmedRequestSequence):
 @register_confirmed_request_type
 class WritePropertyMultipleRequest(ConfirmedRequestSequence):
     service_choice = ConfirmedServiceChoice.writePropertyMultiple
-    _order = ("listOfWriteAccessSpecs",)
-    listOfWriteAccessSpecs = SequenceOf(WriteAccessSpecification)
+    _order = ("listOfWriteAccessSpecifications",)
+    listOfWriteAccessSpecifications = SequenceOf(WriteAccessSpecification)
 
 
 @register_confirmed_request_type
@@ -1602,7 +1764,7 @@ class WritePropertyRequest(ConfirmedRequestSequence):
     propertyIdentifier = PropertyIdentifier(_context=1)
     propertyArrayIndex = Unsigned(_context=2, _optional=True)
     propertyValue = Any(_context=3)
-    priority = Integer(_context=4, _optional=True)
+    priority = Unsigned(_context=4, _optional=True)
 
 
 @register_unconfirmed_request_type
@@ -1644,6 +1806,13 @@ class UTCTimeSynchronizationRequest(UnconfirmedRequestSequence):
 
 
 @register_unconfirmed_request_type
+class UnconfirmedAuditNotificationRequest(UnconfirmedRequestSequence):
+    service_choice = UnconfirmedServiceChoice.unconfirmedAuditNotification
+    _order = ("notifications",)
+    notifications = SequenceOf(AuditNotification, _context=0)
+
+
+@register_unconfirmed_request_type
 class UnconfirmedCOVNotificationRequest(UnconfirmedRequestSequence):
     service_choice = UnconfirmedServiceChoice.unconfirmedCOVNotification
     _order = (
@@ -1661,13 +1830,32 @@ class UnconfirmedCOVNotificationRequest(UnconfirmedRequestSequence):
 
 
 @register_unconfirmed_request_type
+class UnconfirmedCOVNotificationMultipleRequest(UnconfirmedRequestSequence):
+    service_choice = UnconfirmedServiceChoice.unconfirmedCOVNotificationMultiple
+    _order = (
+        "subscriberProcessIdentifier",
+        "initiatingDeviceIdentifier",
+        "timeRemaining",
+        "timestamp",
+        "listOfCOVNotifications",
+    )
+    subscriberProcessIdentifier = Unsigned32(_context=0)
+    initiatingDeviceIdentifier = ObjectIdentifier(_context=1)
+    timeRemaining = Unsigned(_context=2)
+    timestamp = DateTime(_context=3, _optional=True)
+    listOfCOVNotifications = SequenceOf(
+        COVNotificationMultipleListOfCOVNotifications, _context=4
+    )
+
+
+@register_unconfirmed_request_type
 class UnconfirmedEventNotificationRequest(UnconfirmedRequestSequence):
     service_choice = UnconfirmedServiceChoice.unconfirmedEventNotification
     _order = (
         "processIdentifier",
         "initiatingDeviceIdentifier",
         "eventObjectIdentifier",
-        "timeStamp",
+        "timestamp",
         "notificationClass",
         "priority",
         "eventType",
@@ -1681,7 +1869,7 @@ class UnconfirmedEventNotificationRequest(UnconfirmedRequestSequence):
     processIdentifier = Unsigned(_context=0)
     initiatingDeviceIdentifier = ObjectIdentifier(_context=1)
     eventObjectIdentifier = ObjectIdentifier(_context=2)
-    timeStamp = TimeStamp(_context=3)
+    timestamp = TimeStamp(_context=3)
     notificationClass = Unsigned(_context=4)
     priority = Unsigned(_context=5)
     eventType = EventType(_context=6)
@@ -1706,10 +1894,29 @@ class UnconfirmedPrivateTransferRequest(UnconfirmedRequestSequence):
 class UnconfirmedTextMessageRequest(UnconfirmedRequestSequence):
     service_choice = UnconfirmedServiceChoice.unconfirmedTextMessage
     _order = ("textMessageSourceDevice", "messageClass", "messagePriority", "message")
+
+    class MessagePriority(Enumerated):
+        normal = 0
+        urgent = 1
+
     textMessageSourceDevice = ObjectIdentifier(_context=0)
     messageClass = UnconfirmedTextMessageRequestMessageClass(_context=1, _optional=True)
-    messagePriority = UnconfirmedTextMessageRequestMessagePriority(_context=2)
+    messagePriority = MessagePriority(_context=2)
     message = CharacterString(_context=3)
+
+
+UnconfirmedTextMessageRequestMessagePriority = (
+    UnconfirmedTextMessageRequest.MessagePriority
+)
+
+
+@register_unconfirmed_request_type
+class WhoAmIRequest(UnconfirmedRequestSequence):
+    service_choice = UnconfirmedServiceChoice.whoAmI
+    _order = ("vendorID", "modelName", "serialNumber")
+    vendorID = Unsigned16()
+    modelName = CharacterString()
+    serialNumber = CharacterString()
 
 
 @register_unconfirmed_request_type
@@ -1738,6 +1945,23 @@ class WriteGroupRequest(UnconfirmedRequestSequence):
     inhibitDelay = Boolean(_context=3, _optional=True)
 
 
+@register_unconfirmed_request_type
+class YouAreRequest(UnconfirmedRequestSequence):
+    service_choice = UnconfirmedServiceChoice.youAre
+    _order = (
+        "vendorID",
+        "modelName",
+        "serialNumber",
+        "deviceIdentifier",
+        "deviceMACAddress",
+    )
+    vendorID = Unsigned16()
+    modelName = CharacterString()
+    serialNumber = CharacterString()
+    deviceIdentifier = ObjectIdentifier(_optional=True)
+    deviceMACAddress = OctetString(_optional=True)
+
+
 @register_complex_ack_type
 class AtomicReadFileACK(ComplexAckSequence):
     service_choice = ConfirmedServiceChoice.atomicReadFile
@@ -1752,6 +1976,26 @@ class AtomicWriteFileACK(ComplexAckSequence):
     _order = ("fileStartPosition", "fileStartRecord")
     fileStartPosition = Integer(_context=0, _optional=True)
     fileStartRecord = Integer(_context=1, _optional=True)
+
+
+@register_complex_ack_type
+class AuditLogQueryACK(ComplexAckSequence):
+    service_choice = ConfirmedServiceChoice.auditLogQuery
+    _order = ("auditLog", "records", "noMoreItems")
+    auditLog = ObjectIdentifier(_context=0)
+    records = SequenceOf(AuditLogRecordResult, _context=1)
+    noMoreItems = Boolean(_context=2)
+
+
+@register_complex_ack_type
+class AuthRequestACK(ComplexAckSequence):
+    """
+    AuthRequest-ACK is a CHOICE, token-response [0] is the only choice.
+    """
+
+    service_choice = ConfirmedServiceChoice.authRequest
+    _order = ("tokenResponse",)
+    tokenResponse = AccessToken(_context=0, _optional=True)
 
 
 @register_complex_ack_type
@@ -1775,6 +2019,20 @@ class CreateObjectACK(ComplexAckSequence):
     service_choice = ConfirmedServiceChoice.createObject
     _order = ("objectIdentifier",)
     objectIdentifier = ObjectIdentifier()
+
+
+@register_complex_ack_type
+class DirectoryQueryACK(ComplexAckSequence):
+    """
+    The device-instances [1] and device-details [2] are mutually exclusive.
+    """
+
+    service_choice = ConfirmedServiceChoice.directoryQuery
+    _order = ("directoryRevision", "deviceInstances", "deviceDetails", "moreCursor")
+    directoryRevision = Unsigned(_context=0)
+    deviceInstances = SequenceOf(Unsigned, _context=1, _optional=True)
+    deviceDetails = SequenceOf(DeviceDetails, _context=2, _optional=True)
+    moreCursor = Unsigned32(_context=3, _optional=True)
 
 
 @register_complex_ack_type
@@ -1847,7 +2105,7 @@ class VTDataACK(ComplexAckSequence):
     service_choice = ConfirmedServiceChoice.vtData
     _order = ("allNewDataAccepted", "acceptedOctetCount")
     allNewDataAccepted = Boolean(_context=0)
-    acceptedOctetCount = Unsigned(_context=1)
+    acceptedOctetCount = Unsigned(_context=1, _optional=True)
 
 
 @register_complex_ack_type
@@ -1863,6 +2121,12 @@ class VTOpenACK(ComplexAckSequence):
 
 
 class Error(ErrorSequence):
+    """
+    The Error-PDU for the confirmed services whose Result(-) is an error-class
+    and error-code pair, raised as an exception when a request fails.  The data
+    type of the pair is bacpypes3.basetypes.Error (also known as ErrorType).
+    """
+
     _order = ("errorClass", "errorCode")
     errorClass = ErrorClass()
     errorCode = ErrorCode()
@@ -1892,12 +2156,26 @@ for service_choice in {
     20,
     21,
     23,
+    27,
+    28,
+    29,
+    31,
+    32,
+    35,
 }:
     error_types[service_choice] = type(
         f"Error({ConfirmedServiceChoice(service_choice)})",
         (Error,),
         {"service_choice": service_choice},
     )
+
+
+@register_error_type
+class AuthRequestError(ErrorSequence):
+    service_choice = ConfirmedServiceChoice.authRequest
+    _order = ("errorType", "errorDetails")
+    errorType = ErrorType(_context=0)
+    errorDetails = CharacterString(_context=1, _optional=True)
 
 
 class ChangeListError(ErrorSequence):
@@ -1941,6 +2219,33 @@ class CreateObjectError(ErrorSequence):
 
 
 error_types[10] = CreateObjectError
+
+
+@register_error_type
+class SubscribeCOVPropertyMultipleError(ErrorSequence):
+    """
+    SubscribeCOVPropertyMultiple-Error is a CHOICE of error-type [0] or
+    first-failed-subscription [1]; exactly one of them is present.
+    """
+
+    service_choice = ConfirmedServiceChoice.subscribeCOVPropertyMultiple
+    _order = ("errorType", "firstFailedSubscription")
+    errorType = ErrorType(_context=0, _optional=True)
+    firstFailedSubscription = SubscribeCOVPropertyMultipleErrorFirstFailedSubscription(
+        _context=1, _optional=True
+    )
+
+    @property
+    def reason(self) -> int:
+        # the error code is in whichever choice is present
+        if self.errorType is not None:
+            return self.errorType.errorCode  # type: ignore[no-any-return]
+        if self.firstFailedSubscription is not None:
+            return self.firstFailedSubscription.errorType.errorCode  # type: ignore[no-any-return]
+        raise ValueError("errorType or firstFailedSubscription required")
+
+
+error_types[30] = SubscribeCOVPropertyMultipleError
 
 
 @register_error_type
