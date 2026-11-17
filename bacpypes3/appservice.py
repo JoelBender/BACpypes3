@@ -325,8 +325,9 @@ class SSM(DebugContents):
         # add the content
         assert self.segmentSize
 
-        offset = indx * self.segmentSize
-        segAPDU.put_data(self.segmentAPDU.pduData[offset : offset + self.segmentSize])
+        segment_data_size = self.segmentSize - self._get_seg_apdu_header_size(segAPDU, segAPDU.apduSeg)
+        offset = indx * segment_data_size
+        segAPDU.put_data(self.segmentAPDU.pduData[offset : offset + segment_data_size])
 
         # success
         return segAPDU
@@ -376,6 +377,19 @@ class SSM(DebugContents):
             if not apdu.apduMor:
                 self.sentAllSegments = True
                 break
+                
+    def _get_seg_apdu_header_size(self, apdu: APDU, using_segmentation: bool = False) -> int:
+        # Segmentation adds the sequence number and window size (2B) to every segment header.
+        if isinstance(apdu, ConfirmedRequestPDU):
+            # Unsegmented: PDU type, max segments/APDU, invoke ID, service choice.
+            header_size = 6 if using_segmentation else 4
+        elif isinstance(apdu, ComplexAckPDU):
+            # Unsegmented: PDU type, invoke ID, service choice.
+            header_size = 5 if using_segmentation else 3
+        else:
+            raise TypeError(f"Unsupported APDU Type: {type(apdu).__name__}")
+        
+        return header_size                
 
 
 #
@@ -480,9 +494,13 @@ class ClientSSM(SSM):
             self.segmentCount = 1
         else:
             # split into chunks, maybe need one more
-            self.segmentCount, more = divmod(len(apdu.pduData), self.segmentSize)
-            if more:
-                self.segmentCount += 1
+            if len(apdu.pduData) <= (self.segmentSize - self._get_seg_apdu_header_size(apdu, False)):
+                self.segmentCount = 1
+            else:
+                segment_data_size = self.segmentSize - self._get_seg_apdu_header_size(apdu, True)                
+                self.segmentCount, more = divmod(len(apdu.pduData), segment_data_size)
+                if more:
+                    self.segmentCount += 1
         if _debug:
             ClientSSM._debug("    - segment count: %r", self.segmentCount)
 
@@ -1110,9 +1128,13 @@ class ServerSSM(SSM):
                 self.segmentCount = 1
             else:
                 # split into chunks, maybe need one more
-                self.segmentCount, more = divmod(len(apdu.pduData), self.segmentSize)
-                if more:
-                    self.segmentCount += 1
+                if len(apdu.pduData) <= (self.segmentSize - self._get_seg_apdu_header_size(apdu, False)):
+                    self.segmentCount = 1
+                else:
+                    segment_data_size = self.segmentSize - self._get_seg_apdu_header_size(apdu, True)                
+                    self.segmentCount, more = divmod(len(apdu.pduData), segment_data_size)
+                    if more:
+                        self.segmentCount += 1  
             if _debug:
                 ServerSSM._debug("    - segment count: %r", self.segmentCount)
 
