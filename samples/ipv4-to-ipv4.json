@@ -22,7 +22,7 @@
             "object-identifier": "device,998",
             "object-name": "Exeter",
             "object-type": "device",
-            "protocol-revision": 22,
+            "protocol-revision": 31,
             "protocol-version": 1,
             "segmentation-supported": "segmented-both",
             "system-status": "operational",

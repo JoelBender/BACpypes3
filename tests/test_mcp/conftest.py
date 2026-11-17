@@ -41,7 +41,7 @@ def _device_object(instance: int, name: str) -> dict[str, Any]:
         "object-identifier": f"device,{instance}",
         "object-name": name,
         "object-type": "device",
-        "protocol-revision": 22,
+        "protocol-revision": 31,
         "protocol-version": 1,
         "segmentation-supported": "segmented-both",
         "system-status": "operational",

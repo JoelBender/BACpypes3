@@ -54,7 +54,7 @@ class DeviceObject(Object, _DeviceObject):
     firmwareRevision = "N/A"
     applicationSoftwareVersion = "1.0"
     protocolVersion = 1
-    protocolRevision = 22
+    protocolRevision = 31
     databaseRevision = 1
 
     maxApduLengthAccepted = 1024
