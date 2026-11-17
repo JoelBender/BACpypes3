@@ -1,0 +1,77 @@
+# EXAMPLE only — not the default.
+# Stricter name and description lengths for sites that want a minimum
+# (object-name at least 12 characters, description at least 24).
+# Copy this file and edit the sh:minLength values to match a site standard.
+#
+#   python completeness_report.py --shapes object_basics_strict.ttl
+
+@prefix bacnet: <http://data.ashrae.org/bacnet/2024#> .
+@prefix rdf:    <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:   <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix sh:     <http://www.w3.org/ns/shacl#> .
+@prefix report: <urn:bacnet-site-scan:report:> .
+
+bacnet:TypeContainedObjects
+    a sh:NodeShape ;
+    rdfs:comment "Infer rdf:type bacnet:Object on anything a device contains." ;
+    sh:targetObjectsOf bacnet:contains ;
+    sh:rule [
+        a sh:TripleRule ;
+        sh:subject sh:this ;
+        sh:predicate rdf:type ;
+        sh:object bacnet:Object ;
+    ] .
+
+bacnet:ObjectShape
+    a sh:NodeShape ;
+    sh:targetClass bacnet:Object ;
+    sh:property [
+        sh:path bacnet:object-name ;
+        sh:name "object-name" ;
+        sh:order 1 ;
+        sh:minCount 1 ;
+        sh:pattern "\\S" ;
+        sh:minLength 12 ;
+        sh:message "object-name is missing, blank, or shorter than 12 characters" ;
+    ] ;
+    sh:property [
+        sh:path bacnet:description ;
+        sh:name "description" ;
+        sh:order 2 ;
+        sh:minCount 1 ;
+        sh:pattern "\\S" ;
+        sh:minLength 24 ;
+        sh:message "description is missing, blank, or shorter than 24 characters" ;
+    ] .
+
+bacnet:AnalogUnitsShape
+    a sh:NodeShape ;
+    sh:targetClass bacnet:Object ;
+    rdfs:comment "Units are required on analog input, output, and value objects." ;
+    # The property shape below carries report metadata for the fast
+    # rdflib path (appliesWhenObjectType). It has no sh:minCount, so a
+    # SHACL engine will not demand units on every bacnet:Object. The
+    # SPARQL constraint is what SHACL uses to require units on analog types.
+    sh:property [
+        sh:path bacnet:units ;
+        sh:name "units" ;
+        sh:order 3 ;
+        report:appliesWhenObjectType "analog-input", "analog-output", "analog-value" ;
+    ] ;
+    sh:sparql [
+        a sh:SPARQLConstraint ;
+        sh:message "analog object is missing units" ;
+        sh:select """
+            PREFIX bacnet: <http://data.ashrae.org/bacnet/2024#>
+            SELECT $this
+            WHERE {
+                $this bacnet:object-type ?t .
+                FILTER(
+                    STR(?t) = "http://data.ashrae.org/bacnet/2024#ObjectType.analog-input"
+                    || STR(?t) = "http://data.ashrae.org/bacnet/2024#ObjectType.analog-output"
+                    || STR(?t) = "http://data.ashrae.org/bacnet/2024#ObjectType.analog-value"
+                )
+                FILTER NOT EXISTS { $this bacnet:units ?u }
+            }
+        """ ;
+    ] .
