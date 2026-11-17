@@ -105,7 +105,10 @@ confirmed the file already matches that encoding (2935 triples in and out,
 0 renamed, 0 re-encoded, 0 types added) and was written again in place so
 the sample data was produced with the released code. The object / device /
 topology CSVs are the original 2026-11-10 live scan (no new BACnet traffic);
-the completeness CSV was regenerated from the Turtle.
+the completeness CSV was regenerated from the Turtle. On 2026-11-17 the three
+`bacnet:device-instance` literals were retagged from compact `xsd:integer`
+to `xsd:nonNegativeInteger`, matching bacpypes3 0.1.0; that is an offline
+encoding refresh, not a new live scan.
 
 ### csml2rdf SHACL result for this scan
 
@@ -163,12 +166,15 @@ encodes WeekNDay as a `bacnet:weekNDay` `"month,week,day"` literal, and
 writes `PropertyValue` with `bacnet:property-value` rather than
 `bacnet:value`.
 
-The checked-in `site_scan.ttl` is still the #193 encoding from 2026-11-11
-(plain integer `device-instance`; no WeekNDay / `property-value` refresh).
-Regenerating it to match 0.1.0 exactly would need a live BACnet rescan;
-`upgrade_ttl_2024.py` only applies the #193 namespace, class-chain, and
-date/time upgrades, so the sample Turtle was left unchanged. Vendor-aware
-proprietary class lookup remains a separate, not-yet-filed PR.
+The checked-in `site_scan.ttl` was refreshed offline on 2026-11-17 so the
+three `bacnet:device-instance` literals use `xsd:nonNegativeInteger`, as
+0.1.0 writes them. This bench graph has no WeekNDay values and no
+`PropertyValue` / `bacnet:property-value` terms, so those 0.1.0 encodings
+did not apply. A new live scan would also refresh present values and
+timestamps; the object / device / topology CSVs were left as the
+2026-11-10 capture. `upgrade_ttl_2024.py` now also retags
+`device-instance`. Vendor-aware proprietary class lookup remains a
+separate, not-yet-filed PR.
 
 ## Notes for a future BACpypes3 PR
 

@@ -10,7 +10,7 @@
     bacnet:device-address [ rdfs:label "28271:0x0050db00d6c2" ;
             bacnet:mac-address "0050db00d6c2"^^xsd:hexBinary ;
             bacnet:network-number "28271"^^xsd:nonNegativeInteger ] ;
-    bacnet:device-instance 0 ;
+    bacnet:device-instance "0"^^xsd:nonNegativeInteger ;
     prov:wasGeneratedBy <urn:bacnet-site-scan:scan/20261110T150953Z> ;
     scan:address "28271:0x0050db00d6c2" ;
     scan:discoveryStatus "reachable" ;
@@ -105,7 +105,7 @@
     bacnet:device-address [ rdfs:label "2000:7" ;
             bacnet:mac-address "07"^^xsd:hexBinary ;
             bacnet:network-number "2000"^^xsd:nonNegativeInteger ] ;
-    bacnet:device-instance 5007 ;
+    bacnet:device-instance "5007"^^xsd:nonNegativeInteger ;
     prov:wasGeneratedBy <urn:bacnet-site-scan:scan/20261110T150953Z> ;
     scan:address "2000:7" ;
     scan:discoveryStatus "reachable" ;
@@ -130,7 +130,7 @@
     bacnet:device-address [ rdfs:label "192.168.204.12" ;
             bacnet:mac-address "c0a8cc0cbac0"^^xsd:hexBinary ;
             bacnet:network-number "0"^^xsd:nonNegativeInteger ] ;
-    bacnet:device-instance 54545 ;
+    bacnet:device-instance "54545"^^xsd:nonNegativeInteger ;
     prov:wasGeneratedBy <urn:bacnet-site-scan:scan/20261110T150953Z> ;
     scan:address "192.168.204.12" ;
     scan:discoveryStatus "reachable" ;

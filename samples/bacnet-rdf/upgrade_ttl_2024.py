@@ -16,11 +16,15 @@ xsd:time values. BACpypes3 #193 (aligned with csml2rdf bacnet.ttl) writes:
 * object-identifier as a plain "type,instance" string ("analog-input,0")
 * dates and times as strings that match the csml2rdf patterns
   ("1970-02-23 1", "18:37:29.85", "*:*:*.*")
+* device-instance as an xsd:nonNegativeInteger, the encoding used in
+  bacpypes3 0.1.0 (unsigned_encode)
 
-This script uses the encoders from the installed bacpypes3 (#193 or later), so
+This script uses the encoders from the installed bacpypes3 (0.1.0 or later), so
 the output is what a fresh scan with that build would write for the same
-values. xsd:dateTime values (scan:readAt, prov times, DateTime properties) are
-left alone; #193 does not change them.
+#193 / 0.1.0 literal forms. xsd:dateTime values (scan:readAt, prov times,
+DateTime properties) are left alone; #193 does not change them. WeekNDay and
+PropertyValue (bacnet:property-value) encodings are not rewritten here; this
+bench graph does not contain those terms.
 
     python upgrade_ttl_2024.py                       # site_scan.ttl in place
     python upgrade_ttl_2024.py --ttl old.ttl --out new.ttl
@@ -36,7 +40,7 @@ from rdflib.namespace import RDF, XSD  # type: ignore
 
 from bacpypes3.primitivedata import Date, ObjectIdentifier, Time
 from bacpypes3.rdf.core import BACNET, object_class_nodes
-from bacpypes3.rdf.util import date_encode, objectidentifier_encode, time_encode
+from bacpypes3.rdf.util import date_encode, objectidentifier_encode, time_encode, unsigned_encode
 
 LEGACY = "http://data.ashrae.org/bacnet/"
 NEW = "http://data.ashrae.org/bacnet/2024#"
@@ -95,6 +99,10 @@ def upgrade(old: Graph) -> tuple[Graph, dict]:
         if (s2, p2, o2) != (s, p, o):
             stats["renamed"] += 1
         o3 = reencode(new, o2)
+        if p2 == BACNET["device-instance"] and isinstance(o3, Literal):
+            typed = unsigned_encode(new, int(o3))
+            if typed != o3:
+                o3 = typed
         if o3 != o2:
             stats["reencoded"] += 1
         new.add((s2, p2, o3))
