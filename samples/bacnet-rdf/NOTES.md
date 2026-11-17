@@ -11,22 +11,18 @@ The RDF fixes this scanner relies on,
 (merged 2026-11-06), and [JoelBender/BACpypes3#193](https://github.com/JoelBender/BACpypes3/pull/193)
 (merged 2026-11-11 8:55 AM CT as
 [`0af7992`](https://github.com/JoelBender/BACpypes3/commit/0af7992192d5ae46bb953c65262273fbcba08df5)),
-are on BACpypes3 `main` but not in a PyPI release yet. As of 2026-11-11
-the latest PyPI release is still **0.0.110** (uploaded 2026-09-24), which
-predates all three. There is no newer GitHub release or tag. Install from
-GitHub `main`:
+shipped in **bacpypes3 0.1.0** on PyPI (2026-11-17), along with Protocol
+Revision 31. That is the release to install:
 
 ```bash
-pip install --upgrade "git+https://github.com/JoelBender/bacpypes3@main"
-# already have 0.0.110 installed? main reports the same version number, so force it:
-pip install --force-reinstall --no-deps "git+https://github.com/JoelBender/bacpypes3@main"
+pip install "bacpypes3>=0.1.0" ifaddr rdflib
 ```
 
 Linux / macOS from a fresh virtual environment:
 
 ```bash
 python3 -m venv env
-env/bin/pip install ifaddr rdflib "bacpypes3 @ git+https://github.com/JoelBender/BACpypes3.git@main"
+env/bin/pip install "bacpypes3>=0.1.0" ifaddr rdflib
 env/bin/python bacnet_site_scan.py --check-fix
 ```
 
@@ -34,40 +30,26 @@ Windows (PowerShell):
 
 ```powershell
 py -3.14 -m venv env
-env\Scripts\pip install ifaddr rdflib "bacpypes3 @ git+https://github.com/JoelBender/BACpypes3.git@main"
+env\Scripts\pip install "bacpypes3>=0.1.0" ifaddr rdflib
 env\Scripts\python bacnet_site_scan.py --check-fix
 ```
 
-Verify which commit you actually got (the version string alone cannot tell
-PyPI 0.0.110 from `main`):
+`--check-fix` is a sanity check: it prints whether the #181 / #183 fixes are
+present and exits 0 only if they are. Every scan prints the same lines at the
+start (including whether the #193 class chain is present). `pip show bacpypes3`
+should report 0.1.0 or later. PyPI 0.0.110 (2026-09-24) predates the fixes;
+upgrade if that is what you have.
 
-```bash
-# commit pip installed from (look for "commit_id")
-python -c "import importlib.metadata as m; print(m.distribution('bacpypes3').read_text('direct_url.json'))"
-# tip of main right now, to compare
-git ls-remote https://github.com/JoelBender/BACpypes3 refs/heads/main
-# functional check: exits 0 only if both RDF fixes are present
-python bacnet_site_scan.py --check-fix
-```
-
-`commit_id` should match the `main` tip (`0af7992192d5ae46bb953c65262273fbcba08df5`
-as of 2026-11-11, which is the #193 merge). A PyPI install has no
-`direct_url.json`. Once a release after 0.0.110 is on PyPI,
-`pip install --upgrade bacpypes3` is enough.
-
-`--check-fix` prints whether both fixes are present and exits 0 only if they
-are. Every scan prints the same lines at the start. The scanner still unwraps
-AnyAtomic itself as a fallback, so object present-values stay clean on older
-builds, but Schedule / Trend Log objects need #183 (now on `main`).
-
-`pip show bacpypes3` cannot tell the two builds apart; use `--check-fix`.
+The scanner still unwraps AnyAtomic itself as a fallback, so object
+present-values stay clean on older builds, but Schedule / Trend Log objects
+need #183 (included in 0.1.0).
 
 ## What the RDF fixes change
 
 bacpypes3 0.0.110 and earlier from PyPI has two bugs in `bacpypes3.rdf`'s
 `ObjectProxy`, the code that writes the Turtle:
 
-| Property | bacpypes3 on PyPI | With the fix |
+| Property | bacpypes3 0.0.110 and earlier | With the fix (0.1.0) |
 |---|---|---|
 | `priority-array`, `state-text` (any ArrayOf / ListOf) | Python text: `"[<bacpypes3.basetypes.PriorityValue object at 0x…>, …]"`, `"['Off', 'On']"` | Real RDF lists: 16 slots, `[ bacnet:real "12.0"^^xsd:float ]`, empty slots `[ bacnet:null bacnet:Null ]` |
 | `status-flags` with any bit set (overridden, fault, …) | `AttributeError: 'BACnetGraph' object has no attribute 'add'` | `( bacnet:StatusFlags.fault bacnet:StatusFlags.overridden )` |
@@ -85,7 +67,7 @@ was squash-merged into upstream `main` on 2026-11-11 at 8:55 AM CT as
 ([JoelBender/csml2rdf `bacnet.ttl`](https://github.com/JoelBender/csml2rdf/blob/main/bacnet.ttl)).
 It changes only the RDF output:
 
-| | Before (`main`, 0.0.110) | With #193 (now on `main`) |
+| | Before (`main`, 0.0.110) | With #193 (now in 0.1.0) |
 |---|---|---|
 | Namespace | `http://data.ashrae.org/bacnet/` | `http://data.ashrae.org/bacnet/2024#` |
 | Object typing | none (this sample added `bacnet:Object`) | every class in the chain: `bacnet:AnalogInputObject` + `bacnet:Object`; `bacnet:ProprietaryObject` + `bacnet:Object` for object types with no standard class; a vendor class passed to `create_object(oid, object_class)` gives e.g. `ProprietaryAnalogInputObject` → `AnalogInputObject` → `Object` |
@@ -100,15 +82,15 @@ Queries work without an RDFS reasoner: `?o a bacnet:Object` and
 the older typed literals. Vendor-aware proprietary class lookup is planned
 as a separate PR.
 
-Install current upstream `main` (see above). `--check-fix` prints
+Install bacpypes3 0.1.0 or later (see above). `--check-fix` prints
 `#193 class chain present` when the merged encoding is installed.
 
 The scripts here still work with older builds. `bacnet_site_scan.py` takes the
 namespace from the installed bacpypes3 and only adds `bacnet:Object` when
 the library did not. `sparql_demos.py` and `completeness_report.py` use the
 2024# namespace and move an older scan's terms to 2024# in memory when they
-load it. To rewrite an older Turtle file the way `main` writes it, run (with
-bacpypes3 `main` installed):
+load it. To rewrite an older Turtle file the way 0.1.0 writes the #193
+encoding, run (with bacpypes3 0.1.0 or later installed):
 
 ```bash
 python upgrade_ttl_2024.py --ttl old_scan.ttl --out old_scan_2024.ttl
@@ -166,17 +148,27 @@ should go away. The encoder cannot work around a stale shape file.
 
 ### Protocol revision 31 status
 
-`protocol-revision-31` is **not** merged into `main`. After #193 landed,
-Joel updated that branch at 9:02 AM CT
-([`e5b42d75`](https://github.com/JoelBender/BACpypes3/commit/e5b42d7553e3d9216c91eb8e48d4c507194c35dd),
-"fix: adapt merged main changes to rev-31 names"). That is the push that
-updated the repository at 9:06 AM CT; `main` itself is still `0af7992`.
-The rev-31 follow-up does the test fix offered on #193 (`rsplit("#")` and
-`endswith("#signing-key-1")` instead of assuming a `/` namespace) and
-renames `TimeStamp.as_dateTime()` / `.dateTime` to `as_datetime()` /
-`.datetime`. #193 itself is already on `main` and needs no further
-namespace change. Vendor-aware proprietary class lookup remains a
-separate, not-yet-filed PR.
+Protocol Revision 31 shipped in **bacpypes3 0.1.0** (GitHub release
+[Protocol Revision 31 and RDF](https://github.com/JoelBender/BACpypes3/releases/tag/v0.1.0),
+2026-11-17; PyPI `bacpypes3==0.1.0`). The `protocol-revision-31` work was
+merged into `main` as part of that release, along with the RDF fixes in
+#181, #183, and #193.
+
+Among the rev-31 follow-ups: the test fix offered on #193 (`rsplit("#")` and
+`endswith("#signing-key-1")` instead of assuming a `/` namespace) and the
+rename of `TimeStamp.as_dateTime()` / `.dateTime` to `as_datetime()` /
+`.datetime`. This sample does not call those TimeStamp methods. A fresh
+scan with 0.1.0 also types `device-instance` as `xsd:nonNegativeInteger`,
+encodes WeekNDay as a `bacnet:weekNDay` `"month,week,day"` literal, and
+writes `PropertyValue` with `bacnet:property-value` rather than
+`bacnet:value`.
+
+The checked-in `site_scan.ttl` is still the #193 encoding from 2026-11-11
+(plain integer `device-instance`; no WeekNDay / `property-value` refresh).
+Regenerating it to match 0.1.0 exactly would need a live BACnet rescan;
+`upgrade_ttl_2024.py` only applies the #193 namespace, class-chain, and
+date/time upgrades, so the sample Turtle was left unchanged. Vendor-aware
+proprietary class lookup remains a separate, not-yet-filed PR.
 
 ## Notes for a future BACpypes3 PR
 

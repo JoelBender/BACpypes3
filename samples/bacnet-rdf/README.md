@@ -10,52 +10,46 @@ The sample `site_scan.*` files in this directory are a live scan of a small
 test bench (3 devices, 72 objects). `site_scan.ttl` is in the csml2rdf
 `http://data.ashrae.org/bacnet/2024#` namespace written by
 [BACpypes3 #193](https://github.com/JoelBender/BACpypes3/pull/193), now
-merged into upstream `main` as
-[`0af7992`](https://github.com/JoelBender/BACpypes3/commit/0af7992192d5ae46bb953c65262273fbcba08df5)
-(2026-11-11, 8:55 AM CT): every object carries its class chain
-(`bacnet:AnalogInputObject`, `bacnet:Object`), object identifiers are
-`"type,instance"` strings, and dates and times are strings that match the
-csml2rdf patterns. See
+in **bacpypes3 0.1.0** on PyPI (and on `main`) as of 2026-11-17: every object
+carries its class chain (`bacnet:AnalogInputObject`, `bacnet:Object`), object
+identifiers are `"type,instance"` strings, and dates and times are strings
+that match the csml2rdf patterns. See
 [NOTES.md](NOTES.md#bacpypes3-193-csml2rdf-alignment-merged).
 
-## Install: PyPI vs `main`
+## Install
 
 The RDF encoding used here needs the fixes in
 [#181](https://github.com/JoelBender/BACpypes3/pull/181),
 [#183](https://github.com/JoelBender/BACpypes3/pull/183), and
-[#193](https://github.com/JoelBender/BACpypes3/pull/193). Those are on
-BACpypes3 `main`, but **not** in the current PyPI release. As of 2026-11-17
-the latest package on PyPI is still **0.0.110** (uploaded 2026-09-24), which
-predates all three.
-
-Until a newer release that includes #181, #183, and #193 is on PyPI, install
-bacpypes3 from this repository or from GitHub `main`:
+[#193](https://github.com/JoelBender/BACpypes3/pull/193). Those shipped in
+**bacpypes3 0.1.0** on PyPI (2026-11-17), along with Protocol Revision 31.
+Install from PyPI:
 
 ```bash
-# from a clone of this repo, on main
-pip install ifaddr rdflib
-pip install -e .          # run this at the BACpypes3 repo root
-
-# or, without a local clone of the library
-pip install ifaddr rdflib "bacpypes3 @ git+https://github.com/JoelBender/BACpypes3.git@main"
+pip install "bacpypes3>=0.1.0" ifaddr rdflib
 ```
 
-Windows (PowerShell), if you are not already using this checkout:
+Windows (PowerShell):
 
 ```powershell
 py -3.14 -m venv env
-env\Scripts\pip install ifaddr rdflib "bacpypes3 @ git+https://github.com/JoelBender/BACpypes3.git@main"
+env\Scripts\pip install "bacpypes3>=0.1.0" ifaddr rdflib
 ```
 
-**Once a release after 0.0.110 that contains those fixes is on PyPI, a plain
-`pip install bacpypes3` (plus `ifaddr` and `rdflib`) is enough.** You do not
-need to clone BACpypes3 just to get the latest library code.
+You do not need to clone BACpypes3 just to get the library. `--check-fix` is
+a sanity check: it prints whether the RDF fixes are present and exits 0 only
+if they are. Optional extras: `pyshacl` (or `pyshifty`) for `--shacl`.
 
-`--check-fix` prints whether the RDF fixes are present and exits 0 only if
-they are. See [NOTES.md](NOTES.md) for how to confirm which build you have
-(`pip show` cannot tell PyPI 0.0.110 from a `main` install that still reports
-the same version number). Optional extras: `pyshacl` (or `pyshifty`) for
-`--shacl`.
+PyPI 0.0.110 (2026-09-24) predates the fixes; do not use it for this sample.
+
+## Related samples
+
+This directory is a fuller site-scan toolkit (CSV, Turtle, topology,
+completeness report, SPARQL demos). For smaller examples already in 0.1.0,
+see [`samples/discover-devices-rdf.py`](../discover-devices-rdf.py) (Who-Is
+to Device nodes in Turtle) and
+[`samples/discover-objects-rdf.py`](../discover-objects-rdf.py) (per-device
+object discovery to Turtle).
 
 ## Quick start
 
@@ -75,7 +69,7 @@ python completeness_report.py
 python sparql_demos.py
 python sparql_demos.py --shacl
 python sparql_demos.py --csml bacnet.ttl      # csml2rdf ontology shapes
-python upgrade_ttl_2024.py --ttl old.ttl --out old_2024.ttl   # needs bacpypes3 main (includes #193)
+python upgrade_ttl_2024.py --ttl old.ttl --out old_2024.ttl   # needs bacpypes3 >= 0.1.0 (includes #193)
 python test_completeness_report.py
 ```
 
@@ -86,7 +80,7 @@ python test_completeness_report.py
 | `bacnet_site_scan.py` | Read-only BACnet/IP scanner; writes the CSV, Turtle, and topology files |
 | `completeness_report.py` | Offline name/description/units completeness report from a Turtle file |
 | `sparql_demos.py` | Seven read-only SPARQL demos against a saved Turtle file |
-| `upgrade_ttl_2024.py` | Rewrite an older Turtle file to the `bacnet/2024#` encoding used on `main` |
+| `upgrade_ttl_2024.py` | Rewrite an older Turtle file to the `bacnet/2024#` encoding used in bacpypes3 0.1.0 |
 | `test_completeness_report.py` | Fixture tests for the completeness report |
 | `object_basics.ttl` | Default SHACL/SPARQL requirements (non-blank name and description; units on analog objects) |
 | `object_basics_strict.ttl` | Example shapes with minimum name and description lengths |
@@ -189,6 +183,6 @@ shapes (download `bacnet.ttl` from
 
 ## More detail
 
-Install notes for bacpypes3 `main` (which now includes #181, #183 and
-#193), the RDF fixes this scanner depends on, and ideas that could go
-upstream, are in [NOTES.md](NOTES.md).
+Install notes for bacpypes3 0.1.0 (which includes #181, #183 and #193),
+the RDF fixes this scanner depends on, and ideas that could go upstream,
+are in [NOTES.md](NOTES.md).
