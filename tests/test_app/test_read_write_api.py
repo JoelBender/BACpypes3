@@ -84,6 +84,28 @@ class TestReadPropertyAPI:
         await app.read_property("1.2.3.4", "8,1", "local-time")
         app.close()
 
+    @pytest.mark.asyncio
+    async def test_read_property_int(self):
+        """
+        Enumeration class attributes like PropertyIdentifier.localTime are
+        plain ints and are accepted like PropertyIdentifier instances.
+        """
+        if _debug:
+            TestReadPropertyAPI._debug("test_read_property_int")
+
+        # create an application to trap and test the APDU created
+        app = MatchApplication(
+            ReadPropertyRequest(
+                destination=Address("1.2.3.4"),
+                objectIdentifier=ObjectIdentifier("device,1"),
+                propertyIdentifier=PropertyIdentifier.localTime,
+            )
+        )
+        assert not isinstance(PropertyIdentifier.localTime, PropertyIdentifier)
+        await app.read_property("1.2.3.4", "device,1", PropertyIdentifier.localTime)
+        await app.read_property("1.2.3.4", "device,1", PropertyIdentifier("local-time"))
+        app.close()
+
 
 @bacpypes_debugging
 class TestWritePropertyAPI:
@@ -102,6 +124,9 @@ class TestWritePropertyAPI:
             )
         )
         await app.write_property("1.2.3.4", "device,1", "vendor-identifier", "888")
+        await app.write_property(
+            "1.2.3.4", "device,1", PropertyIdentifier.vendorIdentifier, "888"
+        )
         app.close()
 
     @pytest.mark.asyncio
@@ -243,5 +268,44 @@ class TestReadPropertyMultipleAPI:
         )
         await app.read_property_multiple(
             "1.2.3.4", [("analog-input,5", ["object-name"])]
+        )
+        app.close()
+
+    @pytest.mark.asyncio
+    async def test_read_property_multiple_int(self):
+        """
+        Enumeration class attributes like PropertyIdentifier.required are
+        plain ints and are accepted in the property list.
+        """
+        if _debug:
+            TestReadPropertyMultipleAPI._debug("test_read_property_multiple_int")
+
+        # create an application to trap and test the APDU created
+        app = MatchApplication(
+            ReadPropertyMultipleRequest(
+                destination=Address("1.2.3.4"),
+                listOfReadAccessSpecifications=[
+                    ReadAccessSpecification(
+                        objectIdentifier=ObjectIdentifier("analog-input,5"),
+                        listOfPropertyReferences=[
+                            PropertyIdentifier.required,
+                            PropertyIdentifier.description,
+                        ],
+                    ),
+                ],
+            )
+        )
+        await app.read_property_multiple(
+            "1.2.3.4",
+            [
+                (
+                    "analog-input,5",
+                    [PropertyIdentifier.required, PropertyIdentifier.description],
+                )
+            ],
+        )
+        await app.read_property_multiple(
+            "1.2.3.4",
+            [("analog-input,5", [PropertyIdentifier.required, "description"])],
         )
         app.close()

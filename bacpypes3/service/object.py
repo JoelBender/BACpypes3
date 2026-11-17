@@ -70,7 +70,7 @@ class ReadWritePropertyServices:
         self,
         address: Union[Address, str],
         objid: Union[ObjectIdentifier, str],
-        prop: Union[PropertyIdentifier, str],
+        prop: Union[PropertyIdentifier, int, str],
         array_index: Optional[int] = None,
     ) -> _Any:
         """
@@ -109,7 +109,13 @@ class ReadWritePropertyServices:
                 if array_index is not None:
                     raise ValueError("array index conflict")
                 array_index = property_reference.propertyArrayIndex
-        elif not isinstance(prop, PropertyIdentifier):
+        elif isinstance(prop, PropertyIdentifier):
+            pass
+        elif isinstance(prop, int):
+            # enumeration class attributes like PropertyIdentifier.presentValue
+            # are plain ints, translate them in the vendor context
+            prop = vendor_info.property_identifier(prop)
+        else:
             raise TypeError("prop")
 
         # create a request
@@ -281,7 +287,7 @@ class ReadWritePropertyServices:
         self,
         address: Union[Address, str],
         objid: Union[ObjectIdentifier, str],
-        prop: Union[PropertyIdentifier, str],
+        prop: Union[PropertyIdentifier, int, str],
         value: _Any,
         array_index: Optional[int] = None,
         priority: Optional[int] = None,
@@ -328,7 +334,13 @@ class ReadWritePropertyServices:
                 if array_index is not None:
                     raise ValueError("array index conflict")
                 array_index = property_reference.propertyArrayIndex
-        elif not isinstance(prop, PropertyIdentifier):
+        elif isinstance(prop, PropertyIdentifier):
+            pass
+        elif isinstance(prop, int):
+            # enumeration class attributes like PropertyIdentifier.presentValue
+            # are plain ints, translate them in the vendor context
+            prop = vendor_info.property_identifier(prop)
+        else:
             raise TypeError("prop")
 
         # using the vendor information, look up the class
@@ -607,7 +619,7 @@ class ReadWritePropertyMultipleServices:
         parameter_list: List[
             Tuple[
                 Union[ObjectIdentifier, str],
-                List[Union[PropertyReference, PropertyIdentifier, str]],
+                List[Union[PropertyReference, PropertyIdentifier, int, str]],
             ],
         ],
         vendor_info: Optional[VendorInfo] = None,
@@ -687,6 +699,14 @@ class ReadWritePropertyMultipleServices:
                 elif isinstance(property_reference, PropertyIdentifier):
                     property_reference = PropertyReference(
                         propertyIdentifier=property_reference
+                    )
+                elif isinstance(property_reference, int):
+                    # enumeration class attributes like PropertyIdentifier.required
+                    # are plain ints, translate them in the vendor context
+                    property_reference = PropertyReference(
+                        propertyIdentifier=vendor_info.property_identifier(
+                            property_reference
+                        )
                     )
                 elif isinstance(property_reference, str):
                     property_reference = await self.parse_property_reference(
