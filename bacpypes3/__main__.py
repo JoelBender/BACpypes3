@@ -20,7 +20,7 @@ from bacpypes3.comm import bind
 
 from bacpypes3.primitivedata import Null, CharacterString, ObjectIdentifier
 from bacpypes3.basetypes import ErrorType
-from bacpypes3.constructeddata import AnyAtomic
+from bacpypes3.constructeddata import AnyAtomic, ExtendedList, Sequence
 from bacpypes3.apdu import ErrorRejectAbortNack
 from bacpypes3.npdu import IAmRouterToNetwork, InitializeRoutingTableAck
 from bacpypes3.app import Application
@@ -32,6 +32,7 @@ from bacpypes3.ipv4.service import BVLLServiceAccessPoint, BVLLServiceElement
 
 # for serializing the configuration
 from .json import sequence_to_json
+from .json.util import extendedlist_to_json_list
 
 # some debugging
 _debug = 0
@@ -41,6 +42,27 @@ _log = ModuleLogger(globals())
 # globals
 app: Optional[Application] = None
 bvll_ase: Optional[BVLLServiceElement] = None
+
+
+def format_property_value(value) -> str:
+    """
+    Format a property value for printing.  Constructed values (sequences,
+    choices, arrays, lists) are rendered as JSON, everything else falls back
+    to its string form.
+    """
+    if isinstance(value, AnyAtomic):
+        value = value.get_value()
+
+    try:
+        if isinstance(value, Sequence):
+            return json.dumps(sequence_to_json(value))
+        if isinstance(value, ExtendedList):
+            return json.dumps(extendedlist_to_json_list(value))
+    except TypeError:
+        # contents that the JSON encoder does not support (e.g. Any)
+        pass
+
+    return str(value)
 
 
 @bacpypes_debugging
@@ -89,12 +111,7 @@ class CmdShell(Cmd):
                 CmdShell._debug("    - exception: %r", err)
             property_value = err
 
-        if isinstance(property_value, AnyAtomic):
-            if _debug:
-                CmdShell._debug("    - schedule objects")
-            property_value = property_value.get_value()
-
-        await self.response(str(property_value))
+        await self.response(format_property_value(property_value))
 
     async def do_write(
         self,
@@ -348,13 +365,17 @@ class CmdShell(Cmd):
             property_array_index,
             property_value,
         ) in response:
+            if isinstance(property_value, ErrorType):
+                value_str = str(property_value)
+            else:
+                value_str = format_property_value(property_value)
             if property_array_index is not None:
                 await self.response(
-                    f"{object_identifier} {property_identifier}[{property_array_index}] {property_value}"
+                    f"{object_identifier} {property_identifier}[{property_array_index}] {value_str}"
                 )
             else:
                 await self.response(
-                    f"{object_identifier} {property_identifier} {property_value}"
+                    f"{object_identifier} {property_identifier} {value_str}"
                 )
             if isinstance(property_value, ErrorType):
                 await self.response(
