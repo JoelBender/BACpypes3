@@ -716,6 +716,16 @@ class ClientSSM(SSM):
                 self.initialSequenceNumber = 0
                 self.set_state(SEGMENTED_CONFIRMATION, self.segmentTimeout)
 
+                # send back a segment ack to let the server know we got segment 0
+                segack = SegmentAckPDU(
+                    0,
+                    0,
+                    self.invokeID,
+                    self.initialSequenceNumber,
+                    self.actualWindowSize,
+                )
+                await self.request(segack)                
+
         # some kind of problem
         elif (
             (apdu.apduType == ErrorPDU.pduType)
@@ -865,6 +875,13 @@ class ClientSSM(SSM):
     async def segmented_confirmation(self, apdu):
         if _debug:
             ClientSSM._debug("segmented_confirmation %r", apdu)
+
+        # gracefully handle out of order SegmentAcks
+        if apdu.apduType == SegmentAckPDU.pduType:
+            if _debug:
+                ClientSSM._debug("    - segment ack(!?)")
+            # ignore
+            return            
 
         # the only messages we should be getting are complex acks
         if apdu.apduType != ComplexAckPDU.pduType:
