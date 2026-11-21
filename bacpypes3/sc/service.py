@@ -103,10 +103,14 @@ class WebSocketClient(Server[PDU]):
                             self.outgoing.get()
                         )
 
+                        stop_wait: asyncio.Future = asyncio.ensure_future(
+                            self.stop.wait()
+                        )
+
                         if _debug:
                             WebSocketClient._debug("    - waiting")
                         done, pending = await asyncio.wait(
-                            [incoming, outgoing, self.stop.wait()],
+                            [incoming, outgoing, stop_wait],
                             return_when=asyncio.FIRST_COMPLETED,
                         )
 
@@ -275,8 +279,9 @@ class WebSocketServer:
             try:
                 incoming: asyncio.Future = asyncio.ensure_future(self.websocket.recv())
                 outgoing: asyncio.Future = asyncio.ensure_future(self.outgoing.get())
+                stop_wait: asyncio.Future = asyncio.ensure_future(self.stop.wait())
                 done, pending = await asyncio.wait(
-                    [incoming, outgoing, self.stop.wait()],
+                    [incoming, outgoing, stop_wait],
                     return_when=asyncio.FIRST_COMPLETED,
                 )
 
