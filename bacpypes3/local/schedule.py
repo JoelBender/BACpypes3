@@ -17,6 +17,8 @@ from .object import Object as _Object
 _debug = 0
 _log = ModuleLogger(globals())
 
+_write_tasks: "set[asyncio.Future]" = set()
+
 #
 #   match_date
 #
@@ -484,17 +486,31 @@ class ScheduleObject(_Object, _ScheduleObject):
 
             # try to change the value
             try:
-                obj.write_property(
-                    obj_prop_ref.propertyIdentifier,
-                    atomic_value,
-                    arrayIndex=obj_prop_ref.propertyArrayIndex,
-                    priority=self.priorityForWriting,
+                write_task = asyncio.ensure_future(
+                    obj.write_property(
+                        obj_prop_ref.propertyIdentifier,
+                        atomic_value,
+                        index=obj_prop_ref.propertyArrayIndex,
+                        priority=self.priorityForWriting,
+                    )
                 )
-                if _debug:
-                    ScheduleObject._debug("    - success")
+                _write_tasks.add(write_task)
+                write_task.add_done_callback(self._write_done)
             except Exception as err:
                 if _debug:
                     ScheduleObject._debug("    - error: %r", err)
+
+    def _write_done(self, write_task: asyncio.Future) -> None:
+        _write_tasks.discard(write_task)
+        if write_task.cancelled():
+            return
+
+        err = write_task.exception()
+        if err:
+            if _debug:
+                ScheduleObject._debug("    - error: %r", err)
+        elif _debug:
+            ScheduleObject._debug("    - success")
 
     def schedule_changed(self, old_value, new_value):
         """
